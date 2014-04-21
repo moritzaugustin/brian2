@@ -21,7 +21,10 @@ namespace {
 
 __device__ int cpp_numspikes;
 
-__global__ void _run_poissongroup_thresholder_codeobject_kernel(double* par_rands, int par_numrates, double par_t, int par_numspikespace, double par_dt, double* par_array_poissongroup_rates, int32_t*  par_array_poissongroup__spikespace)
+__global__ void _run_poissongroup_thresholder_codeobject_kernel(double* par_rands,
+	int par_numrates, double par_t, int par_numspikespace, double par_dt,
+	double* par_array_poissongroup_rates,
+	int32_t* par_array_poissongroup__spikespace)
 {
 	int tid = threadIdx.x;
 
@@ -47,25 +50,11 @@ __global__ void _run_poissongroup_thresholder_codeobject_kernel(double* par_rand
 	else {
 		_ptr_array_poissongroup__spikespace[tid] = -1;
 	}
-	__syncthreads();
-	if(tid == 0) //TODO: Parallelisierung
+	int _num_spikes = __syncthreads_count(_cond);
+	if(tid == 0)
 	{
-		int i = 0;
-		for(int j = 0; j < N; j++)
-		{
-			if(_ptr_array_poissongroup__spikespace[j] != -1)
-			{
-				_ptr_array_poissongroup__spikespace[i] = _ptr_array_poissongroup__spikespace[j];
-				if(j > i)
-				{
-					_ptr_array_poissongroup__spikespace[j] = -1;
-				}
-				i++;
-			}
-		}
-		_ptr_array_poissongroup__spikespace[N] = i;
+		_ptr_array_poissongroup__spikespace[N] = _num_spikes;
 	}
-	__syncthreads();
 }
 
 void _run_poissongroup_thresholder_codeobject()
@@ -84,7 +73,9 @@ void _run_poissongroup_thresholder_codeobject()
 	cudaMemcpy(dev_array_rands, rands, sizeof(double)*N, cudaMemcpyHostToDevice);
 
 	//// MAIN CODE ////////////
-	_run_poissongroup_thresholder_codeobject_kernel<<<1, N>>>(dev_array_rands, _numrates, t, _num_spikespace, dt, dev_array_poissongroup_rates, dev_array_poissongroup__spikespace);
+	_run_poissongroup_thresholder_codeobject_kernel<<<1, N>>>(dev_array_rands,
+		_numrates, t, _num_spikespace, dt, dev_array_poissongroup_rates,
+		dev_array_poissongroup__spikespace);
 
 	cudaFree(dev_array_rands);
 }

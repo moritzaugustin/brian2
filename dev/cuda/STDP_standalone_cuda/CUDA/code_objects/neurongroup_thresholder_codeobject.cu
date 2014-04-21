@@ -16,7 +16,10 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_neurongroup_thresholder_codeobject_kernel(unsigned int par_num_spikespace, double par_t, int par_numv, int32_t* par_dev_array_neurongroup__spikespace, double* par_dev_array_neurongroup_v)
+__global__ void _run_neurongroup_thresholder_codeobject_kernel(
+	unsigned int par_num_spikespace, double par_t, int par_numv,
+	int32_t* par_dev_array_neurongroup__spikespace,	
+	double* par_dev_array_neurongroup_v)
 {
 	int tid = threadIdx.x;
 	//unsigned int _num_spikespace = par_num_spikespace;
@@ -33,22 +36,11 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(unsigned int par_
 	else {
 		_ptr_array_neurongroup__spikespace[tid] = -1;
 	}
-	__syncthreads();
+	int _num_spikes = __syncthreads_count(_cond);
 	if(tid == 0)
 	{
-		int i = 0;
-		for(int j = 0; j < N; j++)
-		{
-			if(_ptr_array_neurongroup__spikespace[j] != -1)
-			{
-				_ptr_array_neurongroup__spikespace[i] = _ptr_array_neurongroup__spikespace[j];
-				//_ptr_array_neurongroup__spikespace[j] = -1;
-				i++;
-			}
-		}
-	_ptr_array_neurongroup__spikespace[N] = i;
+		_ptr_array_neurongroup__spikespace[N] = _num_spikes;
 	}
-	__syncthreads();
 }
 
 
@@ -62,7 +54,8 @@ void _run_neurongroup_thresholder_codeobject()
 
 	///// POINTERS ////////////
 
-	_run_neurongroup_thresholder_codeobject_kernel<<<1,N>>>(_num_spikespace, defaultclock.t_(), _numv, dev_array_neurongroup__spikespace, dev_array_neurongroup_v);
+	_run_neurongroup_thresholder_codeobject_kernel<<<1,N>>>(_num_spikespace, t,
+		_numv, dev_array_neurongroup__spikespace, dev_array_neurongroup_v);
 }
 
 

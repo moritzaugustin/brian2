@@ -47,7 +47,6 @@ void _run_statemonitor_codeobject()
 
 		_dynamic_array_statemonitor__recorded_w(_new_size-1, _i) = _to_record_w;
 	}
-
 }
 
 

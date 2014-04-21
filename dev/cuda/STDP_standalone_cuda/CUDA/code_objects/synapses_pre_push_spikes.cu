@@ -10,7 +10,7 @@ void _run_synapses_pre_push_spikes()
 {
 	using namespace brian;
     ///// CONSTANTS ///////////
-	const int _num_spikespace = 1001;
+	//const int _num_spikespace = 1001;
 	///// POINTERS ////////////
 	int32_t * __restrict__ _ptr_array_poissongroup__spikespace = _array_poissongroup__spikespace;
 
@@ -23,6 +23,4 @@ void _run_synapses_pre_push_spikes()
 	synapses_pre.queue->advance();
 	synapses_pre.queue->push(_ptr_array_poissongroup__spikespace, _ptr_array_poissongroup__spikespace[1000]);
 	synapses_pre.queue->peek();
-
-	cudaMemcpy(dev_array_poissongroup__spikespace, _array_poissongroup__spikespace, sizeof(int32_t)*_num__array_poissongroup__spikespace, cudaMemcpyHostToDevice);
 }

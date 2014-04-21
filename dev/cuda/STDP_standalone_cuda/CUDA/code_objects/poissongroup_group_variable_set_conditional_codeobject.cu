@@ -16,7 +16,8 @@ namespace {
 
 #define N 1000
 
-__global__ void _run_poissongroup_group_variable_set_conditional_codeobject_kernel(int par_numrates, double* par_array_poissongroup_rates)
+__global__ void _run_poissongroup_group_variable_set_conditional_codeobject_kernel(
+	int par_numrates, double* par_array_poissongroup_rates)
 {
 	int tid = threadIdx.x;
 	//int _numrates = par_numrates;
@@ -37,7 +38,8 @@ void _run_poissongroup_group_variable_set_conditional_codeobject()
 
 	const int _numrates = 1000;
 
-	_run_poissongroup_group_variable_set_conditional_codeobject_kernel<<<1,N>>>(_numrates, dev_array_poissongroup_rates);
+	_run_poissongroup_group_variable_set_conditional_codeobject_kernel<<<1,N>>>(
+		_numrates, dev_array_poissongroup_rates);
 }
 
 

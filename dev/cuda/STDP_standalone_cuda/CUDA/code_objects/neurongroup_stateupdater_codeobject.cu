@@ -16,7 +16,9 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_neurongroup_stateupdater_codeobject_kernel(int par_numge, int par_numv, double par_dt, double* par_array_neurongroup_ge, double* par_array_neurongroup_v)
+__global__ void _run_neurongroup_stateupdater_codeobject_kernel(int par_numge,
+	int par_numv, double par_dt, double* par_array_neurongroup_ge,
+	double* par_array_neurongroup_v)
 {
 	int tid = threadIdx.x;
 	//const int _numge = par_numge;
@@ -40,10 +42,12 @@ void _run_neurongroup_stateupdater_codeobject()
 {
 	using namespace brian;
 
+	const double dt = defaultclock.dt_();
 	const int _numge = 1;
 	const int _numv = 1;
 
-	_run_neurongroup_stateupdater_codeobject_kernel<<<1,N>>>(_numge, _numv, defaultclock.dt_(), dev_array_neurongroup_ge, dev_array_neurongroup_v);
+	_run_neurongroup_stateupdater_codeobject_kernel<<<1,N>>>(_numge, _numv,
+		dt, dev_array_neurongroup_ge, dev_array_neurongroup_v);
 }
 
 

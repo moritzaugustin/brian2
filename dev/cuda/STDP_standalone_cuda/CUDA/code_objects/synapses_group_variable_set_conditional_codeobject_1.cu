@@ -14,7 +14,8 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_synapses_group_variable_set_conditional_codeobject_1_kernel(int64_t par_N, int par_numlastupdate, double* par_array_synapses_lastupdate)
+__global__ void _run_synapses_group_variable_set_conditional_codeobject_1_kernel(
+	int64_t par_N, int par_numlastupdate, double* par_array_synapses_lastupdate)
 {
 	int tid = threadIdx.x;
 	//int64_t N = par_N;
@@ -42,7 +43,8 @@ void _run_synapses_group_variable_set_conditional_codeobject_1()
 	cudaMemcpy(dev_array_synapses_lastupdate, &_dynamic_array_synapses_lastupdate[0], sizeof(double)*_numlastupdate, cudaMemcpyHostToDevice);
 
 	//// MAIN CODE ////////////
-	_run_synapses_group_variable_set_conditional_codeobject_1_kernel<<<1,N>>>(N, _numlastupdate, dev_array_synapses_lastupdate);
+	_run_synapses_group_variable_set_conditional_codeobject_1_kernel<<<1,N>>>(N,
+		_numlastupdate, dev_array_synapses_lastupdate);
 
 	cudaMemcpy(&_dynamic_array_synapses_lastupdate[0], dev_array_synapses_lastupdate, sizeof(double)*_numlastupdate, cudaMemcpyDeviceToHost);
 

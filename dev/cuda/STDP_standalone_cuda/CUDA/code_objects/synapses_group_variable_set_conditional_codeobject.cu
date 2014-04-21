@@ -17,7 +17,8 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_synapses_group_variable_set_conditional_codeobject_kernel(double* par_rands, int64_t par_N, int par_numw, double* par_array_synapses_w)
+__global__ void _run_synapses_group_variable_set_conditional_codeobject_kernel(
+	double* par_rands, int64_t par_N, int par_numw, double* par_array_synapses_w)
 {
 	int tid = threadIdx.x;
 	//int64_t N = par_N;
@@ -55,7 +56,8 @@ void _run_synapses_group_variable_set_conditional_codeobject()
 	cudaMemcpy(dev_array_rands, rands, sizeof(double)*N, cudaMemcpyHostToDevice);
 
 	//// MAIN CODE ////////////
-	_run_synapses_group_variable_set_conditional_codeobject_kernel<<<1,N>>>(dev_array_rands, N, _numw, dev_array_synapses_w);
+	_run_synapses_group_variable_set_conditional_codeobject_kernel<<<1,N>>>(dev_array_rands,
+		N, _numw, dev_array_synapses_w);
 
 	cudaMemcpy(&_dynamic_array_synapses_w[0], dev_array_synapses_w, sizeof(double)*_numw, cudaMemcpyDeviceToHost);
 

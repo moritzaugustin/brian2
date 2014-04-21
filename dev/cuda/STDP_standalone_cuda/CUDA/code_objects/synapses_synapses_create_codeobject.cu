@@ -19,7 +19,6 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-
 void _run_synapses_synapses_create_codeobject()
 {
 	using namespace brian;

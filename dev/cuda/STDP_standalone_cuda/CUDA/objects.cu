@@ -63,6 +63,7 @@ thrust::device_vector<double> brian::_dynamic_array_ratemonitor_rate;
 thrust::device_vector<double> brian::_dynamic_array_ratemonitor_t;
 thrust::device_vector<int32_t> brian::_dynamic_array_spikemonitor_i;
 thrust::device_vector<double> brian::_dynamic_array_spikemonitor_t;
+
 std::vector<double> brian::_dynamic_array_statemonitor_t;
 std::vector<int32_t> brian::_dynamic_array_synapses__synaptic_post;
 std::vector<int32_t> brian::_dynamic_array_synapses__synaptic_pre;

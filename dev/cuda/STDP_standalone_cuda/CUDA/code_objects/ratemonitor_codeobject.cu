@@ -14,7 +14,10 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_ratemonitor_codeobject_kernel(double par_t, double par_dt, int par_num_spikespace, int par_numt, int par_numrate, int32_t* par_array_poissongroup__spikespace, double*  par_array_ratemonitor_t, double* par_array_ratemonitor_rate)
+__global__ void _run_ratemonitor_codeobject_kernel(double par_t, double par_dt,
+	int par_num_spikespace, int par_numt, int par_numrate,
+	int32_t* par_array_poissongroup__spikespace, double*  par_array_ratemonitor_t,
+	double* par_array_ratemonitor_rate)
 {
 	double _clock_t = par_t;
 	double _clock_dt = par_dt;
@@ -46,7 +49,9 @@ void _run_ratemonitor_codeobject()
 	double* dev_array_ratemonitor_t = thrust::raw_pointer_cast(&_dynamic_array_ratemonitor_t[0]);
 	double* dev_array_ratemonitor_rate = thrust::raw_pointer_cast(&_dynamic_array_ratemonitor_rate[0]);
 
-	_run_ratemonitor_codeobject_kernel<<<1,1>>>(_clock_t, _clock_dt, _num_spikespace, _numt, _numrate, dev_array_poissongroup__spikespace, dev_array_ratemonitor_t, dev_array_ratemonitor_rate);
+	_run_ratemonitor_codeobject_kernel<<<1,1>>>(_clock_t, _clock_dt, _num_spikespace,
+		_numt, _numrate, dev_array_poissongroup__spikespace,
+		dev_array_ratemonitor_t, dev_array_ratemonitor_rate);
 }
 
 
