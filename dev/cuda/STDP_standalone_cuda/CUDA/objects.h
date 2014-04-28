@@ -4,11 +4,13 @@
 
 #include<vector>
 #include<stdint.h>
-#include<thrust/device_vector.h>
 #include "brianlib/synapses.h"
 #include "brianlib/clocks.h"
 #include "brianlib/dynamic_array.h"
 #include "brianlib/network.h"
+
+#include <curand.h>
+#include <thrust/device_vector.h>
 
 namespace brian {
 
@@ -24,15 +26,16 @@ extern thrust::device_vector<double> _dynamic_array_ratemonitor_rate;
 extern thrust::device_vector<double> _dynamic_array_ratemonitor_t;
 extern thrust::device_vector<int32_t> _dynamic_array_spikemonitor_i;
 extern thrust::device_vector<double> _dynamic_array_spikemonitor_t;
+extern thrust::device_vector<double> _dynamic_array_synapses_Apost;
+extern thrust::device_vector<double> _dynamic_array_synapses_Apre;
+extern thrust::device_vector<double> _dynamic_array_synapses_lastupdate;
+extern thrust::device_vector<double> _dynamic_array_synapses_w;
+
 extern std::vector<double> _dynamic_array_statemonitor_t;
 extern std::vector<int32_t> _dynamic_array_synapses__synaptic_post;
 extern std::vector<int32_t> _dynamic_array_synapses__synaptic_pre;
-extern std::vector<double> _dynamic_array_synapses_Apost;
-extern std::vector<double> _dynamic_array_synapses_Apre;
-extern std::vector<double> _dynamic_array_synapses_lastupdate;
 extern std::vector<double> _dynamic_array_synapses_post_delay;
-extern std::vector<double> _dynamic_array_synapses_pre_delay;
-extern std::vector<double> _dynamic_array_synapses_w;
+extern std::vector<double> _dynamic_array_synapses_pre_delay;	
 
 //////////////// arrays ///////////////////
 extern int32_t *_array_neurongroup__spikespace;
@@ -89,6 +92,9 @@ extern Synapses<double> synapses;
 extern SynapticPathway<double> synapses_post;
 extern SynapticPathway<double> synapses_pre;
 
+//for random numbers
+extern float* dev_array_rands;
+extern curandGenerator_t gen;
 }
 
 void _init_arrays();

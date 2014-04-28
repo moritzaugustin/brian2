@@ -14,8 +14,8 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_synapses_group_variable_set_conditional_codeobject_1_kernel(
-	int64_t par_N, int par_numlastupdate, double* par_array_synapses_lastupdate)
+__global__ void _run_synapses_group_variable_set_conditional_codeobject_1_kernel(int64_t par_N,
+	int par_numlastupdate, double* par_array_synapses_lastupdate)
 {
 	int tid = threadIdx.x;
 	//int64_t N = par_N;
@@ -38,17 +38,10 @@ void _run_synapses_group_variable_set_conditional_codeobject_1()
 	const int64_t N = synapses._N();
 	const int _numlastupdate = _dynamic_array_synapses_lastupdate.size();
 
-	double* dev_array_synapses_lastupdate;
-	cudaMalloc((void**)&dev_array_synapses_lastupdate, sizeof(double)*_numlastupdate);
-	cudaMemcpy(dev_array_synapses_lastupdate, &_dynamic_array_synapses_lastupdate[0], sizeof(double)*_numlastupdate, cudaMemcpyHostToDevice);
-
+	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
 	//// MAIN CODE ////////////
-	_run_synapses_group_variable_set_conditional_codeobject_1_kernel<<<1,N>>>(N,
-		_numlastupdate, dev_array_synapses_lastupdate);
-
-	cudaMemcpy(&_dynamic_array_synapses_lastupdate[0], dev_array_synapses_lastupdate, sizeof(double)*_numlastupdate, cudaMemcpyDeviceToHost);
-
-	cudaFree(dev_array_synapses_lastupdate);
+	_run_synapses_group_variable_set_conditional_codeobject_1_kernel<<<1,_numlastupdate>>>(N, _numlastupdate,
+		dev_array_synapses_lastupdate);
 }
 
 

@@ -19,15 +19,19 @@ void _run_statemonitor_codeobject()
 {
 	using namespace brian;
 	///// CONSTANTS ///////////
+
 	const int _num_indices = 2;
-	double* const _array_synapses_w = &_dynamic_array_synapses_w[0];
 	const int _numw = _dynamic_array_synapses_w.size();
 	const double _clock_t = defaultclock.t_();
 	double* const _array_statemonitor_t = &_dynamic_array_statemonitor_t[0];
 	const int _numt = _dynamic_array_statemonitor_t.size();
+
+	double* h_dynamic_array_synapses_w = (double*)malloc(sizeof(double) * _num_indices);
+	cudaMemcpy(h_dynamic_array_synapses_w, thrust::raw_pointer_cast(&_dynamic_array_synapses_w[0]), sizeof(double) * _num_indices, cudaMemcpyDeviceToHost);
+
 	///// POINTERS ////////////
 	int32_t * __restrict__ _ptr_array_statemonitor__indices = _array_statemonitor__indices;
-	double * __restrict__ _ptr_array_synapses_w = _array_synapses_w;
+	double * __restrict__ _ptr_array_synapses_w = h_dynamic_array_synapses_w;
 	double * __restrict__ _ptr_array_statemonitor_t = _array_statemonitor_t;
 
 
@@ -44,9 +48,10 @@ void _run_statemonitor_codeobject()
 		const double w = _ptr_array_synapses_w[_idx];
 		const double _to_record_w = w;
 
-
 		_dynamic_array_statemonitor__recorded_w(_new_size-1, _i) = _to_record_w;
 	}
+
+	free(h_dynamic_array_synapses_w);
 }
 
 

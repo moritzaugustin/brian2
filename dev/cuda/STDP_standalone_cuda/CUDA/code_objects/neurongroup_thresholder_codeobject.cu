@@ -16,9 +16,8 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_neurongroup_thresholder_codeobject_kernel(
-	unsigned int par_num_spikespace, double par_t, int par_numv,
-	int32_t* par_dev_array_neurongroup__spikespace,	
+__global__ void _run_neurongroup_thresholder_codeobject_kernel(unsigned int par_num_spikespace,
+	double par_t, int par_numv, int32_t* par_dev_array_neurongroup__spikespace,
 	double* par_dev_array_neurongroup_v)
 {
 	int tid = threadIdx.x;

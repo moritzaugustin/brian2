@@ -49,9 +49,8 @@ void _run_ratemonitor_codeobject()
 	double* dev_array_ratemonitor_t = thrust::raw_pointer_cast(&_dynamic_array_ratemonitor_t[0]);
 	double* dev_array_ratemonitor_rate = thrust::raw_pointer_cast(&_dynamic_array_ratemonitor_rate[0]);
 
-	_run_ratemonitor_codeobject_kernel<<<1,1>>>(_clock_t, _clock_dt, _num_spikespace,
-		_numt, _numrate, dev_array_poissongroup__spikespace,
-		dev_array_ratemonitor_t, dev_array_ratemonitor_rate);
+	_run_ratemonitor_codeobject_kernel<<<1,1>>>(_clock_t, _clock_dt, _num_spikespace, _numt,
+		_numrate, dev_array_poissongroup__spikespace, dev_array_ratemonitor_t, dev_array_ratemonitor_rate);
 }
 
 

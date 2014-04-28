@@ -23,21 +23,21 @@ void _run_synapses_synapses_create_codeobject()
 {
 	using namespace brian;
 	///// CONSTANTS ///////////
-	const int _numN_outgoing = 1000;
-	const int _numN_incoming = 1;
+	//const int _numN_outgoing = 1000;
+	//const int _numN_incoming = 1;
 	const int _num_all_post = 1;
-	int32_t* const _array_synapses__synaptic_post = &_dynamic_array_synapses__synaptic_post[0];
+	//int32_t* const _array_synapses__synaptic_post = &_dynamic_array_synapses__synaptic_post[0];
 	const int _num_synaptic_post = _dynamic_array_synapses__synaptic_post.size();
 	const int _num_all_pre = 1000;
-	int32_t* const _array_synapses__synaptic_pre = &_dynamic_array_synapses__synaptic_pre[0];
+	//int32_t* const _array_synapses__synaptic_pre = &_dynamic_array_synapses__synaptic_pre[0];
 	const int _num_synaptic_pre = _dynamic_array_synapses__synaptic_pre.size();
 	///// POINTERS ////////////
 	int32_t * __restrict__ _ptr_array_synapses_N_outgoing = _array_synapses_N_outgoing;
 	int32_t * __restrict__ _ptr_array_synapses_N_incoming = _array_synapses_N_incoming;
 	int32_t * __restrict__ _ptr_array_neurongroup_i = _array_neurongroup_i;
-	int32_t * __restrict__ _ptr_array_synapses__synaptic_post = _array_synapses__synaptic_post;
+	//int32_t * __restrict__ _ptr_array_synapses__synaptic_post = _array_synapses__synaptic_post;
 	int32_t * __restrict__ _ptr_array_poissongroup_i = _array_poissongroup_i;
-	int32_t * __restrict__ _ptr_array_synapses__synaptic_pre = _array_synapses__synaptic_pre;
+	//int32_t * __restrict__ _ptr_array_synapses__synaptic_pre = _array_synapses__synaptic_pre;
 
 	int _synapse_idx = _dynamic_array_synapses__synaptic_pre.size();
 	for(int i=0; i<_num_all_pre; i++)

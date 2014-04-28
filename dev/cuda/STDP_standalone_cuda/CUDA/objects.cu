@@ -27,6 +27,7 @@ double * brian::dev_array_neurongroup_ge;
 
 int32_t * brian::_array_neurongroup_i;
 const int brian::_num__array_neurongroup_i = 1;
+//wird nicht weiter verwendet
 
 double * brian::_array_neurongroup_v;
 const int brian::_num__array_neurongroup_v = 1;
@@ -38,6 +39,7 @@ int32_t * brian::dev_array_poissongroup__spikespace;
 
 int32_t * brian::_array_poissongroup_i;
 const int brian::_num__array_poissongroup_i = 1000;
+//wird nicht weiter verwendet
 
 double * brian::_array_poissongroup_rates;
 const int brian::_num__array_poissongroup_rates = 1000;
@@ -45,6 +47,7 @@ double * brian::dev_array_poissongroup_rates;
 
 int32_t * brian::_array_spikemonitor__count;
 const int brian::_num__array_spikemonitor__count = 1000;
+//wird nicht weiter verwendet
 
 int32_t * brian::_array_statemonitor__indices;
 const int brian::_num__array_statemonitor__indices = 2;
@@ -54,25 +57,27 @@ const int brian::_num__array_statemonitor__recorded_w = (0, 2);
 
 int32_t * brian::_array_synapses_N_incoming;
 const int brian::_num__array_synapses_N_incoming = 1;
+//wird nicht weiter verwendet
 
 int32_t * brian::_array_synapses_N_outgoing;
 const int brian::_num__array_synapses_N_outgoing = 1000;
+//wird nicht weiter verwendet
 
 //////////////// dynamic arrays 1d /////////
 thrust::device_vector<double> brian::_dynamic_array_ratemonitor_rate;
 thrust::device_vector<double> brian::_dynamic_array_ratemonitor_t;
 thrust::device_vector<int32_t> brian::_dynamic_array_spikemonitor_i;
 thrust::device_vector<double> brian::_dynamic_array_spikemonitor_t;
+thrust::device_vector<double> brian::_dynamic_array_synapses_Apost;
+thrust::device_vector<double> brian::_dynamic_array_synapses_Apre;
+thrust::device_vector<double> brian::_dynamic_array_synapses_lastupdate;
+thrust::device_vector<double> brian::_dynamic_array_synapses_w;
 
 std::vector<double> brian::_dynamic_array_statemonitor_t;
 std::vector<int32_t> brian::_dynamic_array_synapses__synaptic_post;
 std::vector<int32_t> brian::_dynamic_array_synapses__synaptic_pre;
-std::vector<double> brian::_dynamic_array_synapses_Apost;
-std::vector<double> brian::_dynamic_array_synapses_Apre;
-std::vector<double> brian::_dynamic_array_synapses_lastupdate;
 std::vector<double> brian::_dynamic_array_synapses_post_delay;
 std::vector<double> brian::_dynamic_array_synapses_pre_delay;
-std::vector<double> brian::_dynamic_array_synapses_w;
 
 //////////////// dynamic arrays 2d /////////
 DynamicArray2D<double> brian::_dynamic_array_statemonitor__recorded_w;
@@ -99,10 +104,16 @@ SynapticPathway<double> brian::synapses_pre(
 		0, 1000
 		);
 
+//for random numbers
+float* brian::dev_array_rands;
+curandGenerator_t brian::gen;
 
 void _init_arrays()
 {
 	using namespace brian;
+	cudaMalloc((void**)&dev_array_rands, sizeof(float)*1000);
+	curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+	curandSetPseudoRandomGeneratorSeed(gen, time(0));
 
     // Arrays initialized to 0
 	_array_spikemonitor__count = new int32_t[1000];
@@ -371,7 +382,8 @@ void _write_arrays()
 	outfile__dynamic_array_synapses_Apost.open("results/_dynamic_array_synapses_Apost", ios::binary | ios::out);
 	if(outfile__dynamic_array_synapses_Apost.is_open())
 	{
-		outfile__dynamic_array_synapses_Apost.write(reinterpret_cast<char*>(&_dynamic_array_synapses_Apost[0]), _dynamic_array_synapses_Apost.size()*sizeof(_dynamic_array_synapses_Apost[0]));
+		thrust::host_vector<double> _dynamic_array_synapses_Apost_host = _dynamic_array_synapses_Apost;
+		outfile__dynamic_array_synapses_Apost.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&_dynamic_array_synapses_Apost_host[0])), _dynamic_array_synapses_Apost_host.size()*sizeof(_dynamic_array_synapses_Apost_host[0]));
 		outfile__dynamic_array_synapses_Apost.close();
 	} else
 	{
@@ -381,8 +393,9 @@ void _write_arrays()
 	outfile__dynamic_array_synapses_Apre.open("results/_dynamic_array_synapses_Apre", ios::binary | ios::out);
 	if(outfile__dynamic_array_synapses_Apre.is_open())
 	{
-		outfile__dynamic_array_synapses_Apre.write(reinterpret_cast<char*>(&_dynamic_array_synapses_Apre[0]), _dynamic_array_synapses_Apre.size()*sizeof(_dynamic_array_synapses_Apre[0]));
-		outfile__dynamic_array_synapses_Apre.close();
+		thrust::host_vector<double> _dynamic_array_synapses_Apre_host = _dynamic_array_synapses_Apre;
+		outfile__dynamic_array_synapses_Apre.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&_dynamic_array_synapses_Apre_host[0])), _dynamic_array_synapses_Apre_host.size()*sizeof(_dynamic_array_synapses_Apre_host[0]));
+		outfile__dynamic_array_synapses_Apost.close();
 	} else
 	{
 		std::cout << "Error writing output file for _dynamic_array_synapses_Apre." << endl;
@@ -391,7 +404,8 @@ void _write_arrays()
 	outfile__dynamic_array_synapses_lastupdate.open("results/_dynamic_array_synapses_lastupdate", ios::binary | ios::out);
 	if(outfile__dynamic_array_synapses_lastupdate.is_open())
 	{
-		outfile__dynamic_array_synapses_lastupdate.write(reinterpret_cast<char*>(&_dynamic_array_synapses_lastupdate[0]), _dynamic_array_synapses_lastupdate.size()*sizeof(_dynamic_array_synapses_lastupdate[0]));
+		thrust::host_vector<double> _dynamic_array_synapses_lastupdate_host = _dynamic_array_synapses_lastupdate;
+		outfile__dynamic_array_synapses_lastupdate.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate_host[0])), _dynamic_array_synapses_lastupdate_host.size()*sizeof(_dynamic_array_synapses_lastupdate_host[0]));
 		outfile__dynamic_array_synapses_lastupdate.close();
 	} else
 	{
@@ -421,7 +435,8 @@ void _write_arrays()
 	outfile__dynamic_array_synapses_w.open("results/_dynamic_array_synapses_w", ios::binary | ios::out);
 	if(outfile__dynamic_array_synapses_w.is_open())
 	{
-		outfile__dynamic_array_synapses_w.write(reinterpret_cast<char*>(&_dynamic_array_synapses_w[0]), _dynamic_array_synapses_w.size()*sizeof(_dynamic_array_synapses_w[0]));
+		thrust::host_vector<double> _dynamic_array_synapses_w_host = _dynamic_array_synapses_w;
+		outfile__dynamic_array_synapses_w.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&_dynamic_array_synapses_w_host[0])), _dynamic_array_synapses_w_host.size()*sizeof(_dynamic_array_synapses_w_host[0]));
 		outfile__dynamic_array_synapses_w.close();
 	} else
 	{
@@ -432,11 +447,14 @@ void _write_arrays()
 	outfile__dynamic_array_statemonitor__recorded_w.open("results/_dynamic_array_statemonitor__recorded_w", ios::binary | ios::out);
 	if(outfile__dynamic_array_statemonitor__recorded_w.is_open())
 	{
-        for (int n=0; n<_dynamic_array_statemonitor__recorded_w.n; n++)
-        {
-            outfile__dynamic_array_statemonitor__recorded_w.write(reinterpret_cast<char*>(&_dynamic_array_statemonitor__recorded_w(n, 0)), _dynamic_array_statemonitor__recorded_w.m*sizeof(_dynamic_array_statemonitor__recorded_w(0, 0)));
-        }
-        outfile__dynamic_array_statemonitor__recorded_w.close();
+        	for (int n=0; n<_dynamic_array_statemonitor__recorded_w.n; n++)
+	        {
+			int* data = (int*)malloc(sizeof(double) * _dynamic_array_statemonitor__recorded_w.m);
+			cudaMemcpy(&data, thrust::raw_pointer_cast(&_dynamic_array_statemonitor__recorded_w.data[n*m], sizeof(double) * _dynamic_array_statemonitor__recorded_w.m, cudaMemcpyDeviceToHost);
+			outfile__dynamic_array_statemonitor__recorded_w.write(reinterpret_cast<char*>(&data, );
+			free(data);
+	        }
+        	outfile__dynamic_array_statemonitor__recorded_w.close();
 	} else
 	{
 		std::cout << "Error writing output file for _dynamic_array_statemonitor__recorded_w." << endl;
@@ -447,6 +465,9 @@ void _dealloc_arrays()
 {
 	using namespace brian;
 
+	curandDestroyGenerator(gen);
+	cudaFree(dev_array_rands);
+
 	_dynamic_array_ratemonitor_rate.clear();
 	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_rate);
 	_dynamic_array_ratemonitor_t.clear();
@@ -455,6 +476,16 @@ void _dealloc_arrays()
 	thrust::device_vector<int32_t>().swap(_dynamic_array_spikemonitor_i);
 	_dynamic_array_spikemonitor_t.clear();
 	thrust::device_vector<double>().swap(_dynamic_array_spikemonitor_t);
+	_dynamic_array_synapses_Apost.clear();
+	thrust::device_vector<double>().swap(_dynamic_array_synapses_Apost);
+	_dynamic_array_synapses_Apre.clear();
+	thrust::device_vector<double>().swap(_dynamic_array_synapses_Apre);
+	_dynamic_array_synapses_lastupdate.clear();
+	thrust::device_vector<double>().swap(_dynamic_array_synapses_lastupdate);
+	_dynamic_array_synapses_w.clear();
+	thrust::device_vector<double>().swap(_dynamic_array_synapses_w);
+	_dynamic_array_statemonitor__recorded_w.destroy();
+
 	
 	if(_array_neurongroup__spikespace!=0)
 	{

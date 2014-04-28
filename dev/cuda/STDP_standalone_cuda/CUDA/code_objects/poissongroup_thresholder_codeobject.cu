@@ -9,10 +9,6 @@
 
 ////// SUPPORT CODE ///////
 namespace {
-	double _rand(int vectorisation_idx)
-	{
-	    return (double)rand()/RAND_MAX;
-	}
 }
 
 ////// HASH DEFINES ///////
@@ -21,10 +17,9 @@ namespace {
 
 __device__ int cpp_numspikes;
 
-__global__ void _run_poissongroup_thresholder_codeobject_kernel(double* par_rands,
+__global__ void _run_poissongroup_thresholder_codeobject_kernel(float* par_rands,
 	int par_numrates, double par_t, int par_numspikespace, double par_dt,
-	double* par_array_poissongroup_rates,
-	int32_t* par_array_poissongroup__spikespace)
+	double* par_array_poissongroup_rates, int32_t*  par_array_poissongroup__spikespace)
 {
 	int tid = threadIdx.x;
 
@@ -65,17 +60,7 @@ void _run_poissongroup_thresholder_codeobject()
 	const int _num_spikespace = 1001;
 	const double dt = defaultclock.dt_();
 
-	//TODO: real rands on GPU
-	double* dev_array_rands;
-	cudaMalloc((void**)&dev_array_rands, sizeof(double)*N);
-	double* rands = (double*)malloc(sizeof(double)*N);
-	for(int i = 0; i < N; i++) rands[i] = _rand(0);
-	cudaMemcpy(dev_array_rands, rands, sizeof(double)*N, cudaMemcpyHostToDevice);
-
 	//// MAIN CODE ////////////
-	_run_poissongroup_thresholder_codeobject_kernel<<<1, N>>>(dev_array_rands,
-		_numrates, t, _num_spikespace, dt, dev_array_poissongroup_rates,
-		dev_array_poissongroup__spikespace);
-
-	cudaFree(dev_array_rands);
+	_run_poissongroup_thresholder_codeobject_kernel<<<1, N>>>(dev_array_rands, _numrates, t,
+		_num_spikespace, dt, dev_array_poissongroup_rates, dev_array_poissongroup__spikespace);
 }

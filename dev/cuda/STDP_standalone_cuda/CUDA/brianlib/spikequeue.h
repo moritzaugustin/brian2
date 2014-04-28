@@ -103,6 +103,7 @@ public:
 			queue[(int)(i * conversion_factor + 0.5)] = spikes;
 		}
 		offset = 0;
+		free(queue_copy);
 	}
 
         dt = _dt;
@@ -111,17 +112,17 @@ public:
 	void push(int *spikes, unsigned int nspikes)
 	{
 		//TODO: copy_if ?
-		for(int i = source_start; i < source_end; i++)
+		for(int i = source_start, j = 0; i < source_end && j < nspikes; i++)
 		{
 			if(spikes[i] != -1)
 			{
+				j++;
 				const unsigned int idx_neuron = spikes[i] - source_start;
 				vector<int> &cur_indices = synapses[idx_neuron];
 				for(unsigned int idx_indices=0; idx_indices<cur_indices.size(); idx_indices++)
 				{
 					const int synaptic_index = cur_indices[idx_indices];
 					const unsigned int delay = delays[synaptic_index];
-					// make sure there is enough space and resize if not
 					// insert the index into the correct queue
 					queue[(offset+delay)%max_delay].push_back(synaptic_index);
 				}

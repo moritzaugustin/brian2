@@ -25,14 +25,7 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_synapses_pre_codeobject_kernel(double* par_array_synapses_Apre,
-	double* par_array_synapses_lastupdate, double* par_array_synapses_Apost,
-	double* par_array_synapses_w, double* par_array_neurongroup_ge,
-	int32_t* par_array_synapses__synaptic_pre,
-	int32_t* par_array_synapses__synaptic_post, int par_numApre, int par_numlastupdate,
-	int par_numApost, int par_numw, int par_numge, double par_t,
-	int par_num_postsynaptic_idx, int par_num_synaptic_pre,
-	int32_t * par_spiking_synapses, int par_num_spiking_synapses)
+__global__ void _run_synapses_pre_codeobject_kernel(double* par_array_synapses_Apre, double* par_array_synapses_lastupdate, double* par_array_synapses_Apost, double* par_array_synapses_w, double* par_array_neurongroup_ge, int32_t* par_array_synapses__synaptic_pre, int32_t* par_array_synapses__synaptic_post, 	int par_numApre, int par_numlastupdate, int par_numApost, int par_numw, int par_numge, double par_t, int par_num_postsynaptic_idx, int par_num_synaptic_pre, int32_t * par_spiking_synapses, int par_num_spiking_synapses)
 {
 	int tid = threadIdx.x;
 
@@ -97,24 +90,16 @@ void _run_synapses_pre_codeobject()
 	const int _num_postsynaptic_idx = _dynamic_array_synapses__synaptic_post.size();
 	const int _num_synaptic_pre = _dynamic_array_synapses__synaptic_pre.size();
 
-	double* dev_array_synapses_Apre;
-	double* dev_array_synapses_lastupdate;
-	double* dev_array_synapses_Apost;
-	double* dev_array_synapses_w;
+	double* dev_array_synapses_Apre = thrust::raw_pointer_cast(&_dynamic_array_synapses_Apre[0]);
+	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
+	double* dev_array_synapses_Apost = thrust::raw_pointer_cast(&_dynamic_array_synapses_Apost[0]);
+	double* dev_array_synapses_w = thrust::raw_pointer_cast(&_dynamic_array_synapses_w[0]);
 	int32_t* dev_array_synapses__synaptic_pre;
 	int32_t* dev_array_synapses__synaptic_post;
 
-	cudaMalloc((void**)&dev_array_synapses_Apre, sizeof(double)*_numApre);
-	cudaMalloc((void**)&dev_array_synapses_lastupdate, sizeof(double)*_numlastupdate);
-	cudaMalloc((void**)&dev_array_synapses_Apost, sizeof(double)*_numApost);
-	cudaMalloc((void**)&dev_array_synapses_w, sizeof(double)*_numw);
 	cudaMalloc((void**)&dev_array_synapses__synaptic_pre, sizeof(int32_t)*_num_synaptic_pre);
 	cudaMalloc((void**)&dev_array_synapses__synaptic_post, sizeof(int32_t)*_num_postsynaptic_idx);
 
-	cudaMemcpy(dev_array_synapses_Apre, &_dynamic_array_synapses_Apre[0], sizeof(double)*_numApre, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_array_synapses_lastupdate, &_dynamic_array_synapses_lastupdate[0], sizeof(double)*_numlastupdate, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_array_synapses_Apost, &_dynamic_array_synapses_Apost[0], sizeof(double)*_numApost, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_array_synapses_w, &_dynamic_array_synapses_w[0], sizeof(double)*_numw, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_array_synapses__synaptic_pre, &_dynamic_array_synapses__synaptic_pre[0], sizeof(int32_t)*_num_synaptic_pre, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_array_synapses__synaptic_post, &_dynamic_array_synapses__synaptic_post[0], sizeof(int32_t)*_num_postsynaptic_idx, cudaMemcpyHostToDevice);
 
@@ -130,17 +115,9 @@ void _run_synapses_pre_codeobject()
 		_numge, t, _num_postsynaptic_idx, _num_synaptic_pre, dev_spiking_synapses,
 		_num_spiking_synapses);
 
-	cudaMemcpy(&_dynamic_array_synapses_Apre[0], dev_array_synapses_Apre, sizeof(double)*_numApre, cudaMemcpyDeviceToHost);
-	cudaMemcpy(&_dynamic_array_synapses_lastupdate[0], dev_array_synapses_lastupdate, sizeof(double)*_numlastupdate, cudaMemcpyDeviceToHost);
-	cudaMemcpy(&_dynamic_array_synapses_Apost[0], dev_array_synapses_Apost, sizeof(double)*_numApost, cudaMemcpyDeviceToHost);
-	cudaMemcpy(&_dynamic_array_synapses_w[0], dev_array_synapses_w, sizeof(double)*_numw, cudaMemcpyDeviceToHost);
 	cudaMemcpy(&_dynamic_array_synapses__synaptic_pre[0], dev_array_synapses__synaptic_pre, sizeof(int32_t)*_num_synaptic_pre, cudaMemcpyDeviceToHost);
 	cudaMemcpy(&_dynamic_array_synapses__synaptic_post[0], dev_array_synapses__synaptic_post, sizeof(int32_t)*_num_postsynaptic_idx, cudaMemcpyDeviceToHost);
 
-	cudaFree(dev_array_synapses_Apre);
-	cudaFree(dev_array_synapses_lastupdate);
-	cudaFree(dev_array_synapses_Apost);
-	cudaFree(dev_array_synapses_w);
 	cudaFree(dev_array_synapses__synaptic_pre);
 	cudaFree(dev_array_synapses__synaptic_post);
 }

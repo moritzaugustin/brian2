@@ -38,10 +38,7 @@ void _run_spikemonitor_codeobject()
 	const int _numt = _dynamic_array_spikemonitor_t.size();
 	const int _numi = _dynamic_array_spikemonitor_i.size();
 
-	int num_spikes = thrust::count_if(thrust::device,
-		dev_array_poissongroup__spikespace,
-		dev_array_poissongroup__spikespace + _num__array_poissongroup__spikespace - 1,
-		is_in_range());
+	int num_spikes = thrust::count_if(thrust::device, dev_array_poissongroup__spikespace, dev_array_poissongroup__spikespace + _num__array_poissongroup__spikespace - 1, is_in_range());
 
 	_dynamic_array_spikemonitor_t.resize(_numt + num_spikes);
 	_dynamic_array_spikemonitor_i.resize(_numi + num_spikes);
@@ -49,9 +46,7 @@ void _run_spikemonitor_codeobject()
 	double* dev_array_spikemonitor_t = thrust::raw_pointer_cast(&_dynamic_array_spikemonitor_t[_numt - 1]);
 	int32_t* dev_array_spikemonitor_i = thrust::raw_pointer_cast(&_dynamic_array_spikemonitor_i[_numi - 1]);
 
-	thrust::copy_if(thrust::device, dev_array_poissongroup__spikespace,
-		dev_array_poissongroup__spikespace + _num__array_poissongroup__spikespace - 1,
-		dev_array_spikemonitor_i, is_in_range());
+	thrust::copy_if(thrust::device, dev_array_poissongroup__spikespace, dev_array_poissongroup__spikespace + _num__array_poissongroup__spikespace - 1, dev_array_spikemonitor_i, is_in_range());
 	thrust::fill_n(thrust::device, dev_array_spikemonitor_t, num_spikes, _clock_t);
 }
 
@@ -60,3 +55,4 @@ void _debugmsg_spikemonitor_codeobject()
 	using namespace brian;
 	std::cout << "Number of spikes: " << _dynamic_array_spikemonitor_i.size() << endl;
 }
+
