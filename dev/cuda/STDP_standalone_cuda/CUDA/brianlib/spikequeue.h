@@ -69,7 +69,7 @@ public:
 			// dt changed, we have to get the old spikes out of the queue and
 			// reinsert them at the correct positions, after creating the new queue
 			const double conversion_factor = dt / _dt;
-
+		
 			//get old max_delay
 			newsize = (int)(oldsize * conversion_factor) + 1;
 		}
@@ -89,7 +89,7 @@ public:
 				synapses_indices[j]++;
 			}
 		}
-
+		
 		max_delay = get_maxdelay(delays, n_synapses);
 		//Get maximal delay of new and old spikes
 		max_delay = (max_delay > newsize) ? max_delay : newsize;
