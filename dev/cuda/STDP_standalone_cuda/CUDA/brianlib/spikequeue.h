@@ -103,9 +103,10 @@ public:
 
 	__global__ void push_kernel(int* synapses, int* synapses_indices, CudaVector** q, int num_parallel, int* par_spikes, int nspikes)
 	{
-		int tid = threadIdx.x;
+		int mpid = threadIdx.x;
 		
-		for(unsigned int idx_spike = tid; idx_spike < spikespace_size; idx_spike += num_parallel)
+		for(unsigned int idx_spike = mpid; idx_spike < spikespace_size; idx_spike += num_parallel)
+//in zusammenhängende loop umschreiben => MP0 hat 0...5, MP1 hat 6...10
 		{
 			if(idx < spikespace_size)
 			{
@@ -117,7 +118,8 @@ public:
 					const int synaptic_index = synapses[idx_indices];
 					const unsigned int delay = delays[synaptic_index];
 					// insert the index into the correct queue
-					queue[tid][(offset+delay)%max_delay].push(synaptic_index);
+					//nicht nur synapses index, sondern auch pre/post synaptische id speichern => mehr queues
+					queue[mpid][(offset+delay)%max_delay].push(synaptic_index);
 				}
 			}
 		}
