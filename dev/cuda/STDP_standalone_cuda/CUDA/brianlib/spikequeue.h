@@ -150,7 +150,7 @@ public:
 		__syncthreads();
 		if(tid == 0)
 		{
-			offset++;
+			offset = (offset + 1) % max_delay;
 		}
 		__syncthreads();
 	}

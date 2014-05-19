@@ -25,7 +25,7 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_synapses_pre_pre_codeobject_kernel(double* par_array_synapses_Apre, double* par_array_synapses_lastupdate, double* par_array_synapses_Apost, double* par_array_synapses_w, double* par_array_neurongroup_ge, int32_t* par_array_synapses__synaptic_pre, int32_t* par_array_synapses__synaptic_post, 	int par_numApre, int par_numlastupdate, int par_numApost, int par_numw, int par_numge, double par_t, int par_num_postsynaptic_idx, int par_num_synaptic_pre)
+__global__ void _run_synapses_pre_syn_codeobject_kernel(double* par_array_synapses_Apre, double* par_array_synapses_lastupdate, double* par_array_synapses_Apost, double* par_array_synapses_w, double* par_array_neurongroup_ge, int32_t* par_array_synapses__synaptic_pre, int32_t* par_array_synapses__synaptic_post, 	int par_numApre, int par_numlastupdate, int par_numApost, int par_numw, int par_numge, double par_t, int par_num_postsynaptic_idx, int par_num_synaptic_pre)
 {
 	int tid = threadIdx.x;
 
@@ -123,7 +123,7 @@ void _run_synapses_pre_codeobject()
 	int32_t* dev_array_synapses__synaptic_pre = thrust::raw_pointer_cast(&_dynamic_array_synapses__synaptic_pre[0]);
 	int32_t* dev_array_synapses__synaptic_post = thrust::raw_pointer_cast(&_dynamic_array_synapses__synaptic_post[0]);
 
-	_run_synapses_pre_pre_codeobject_kernel<<<1, 1000>>>(dev_array_synapses_Apre,
+	_run_synapses_pre_syn_codeobject_kernel<<<1, 1000>>>(dev_array_synapses_Apre,
 		dev_array_synapses_lastupdate, dev_array_synapses_Apost, dev_array_synapses_w,
 		dev_array_neurongroup_ge, dev_array_synapses__synaptic_pre,
 		dev_array_synapses__synaptic_post, _numApre, _numlastupdate, _numApost, _numw,
