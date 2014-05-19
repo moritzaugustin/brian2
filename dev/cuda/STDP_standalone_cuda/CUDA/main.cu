@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 
 	{
 		using namespace brian;
-		_run_poissongroup_group_variable_set_conditional_codeobject();
+		_run_poissongroup_group_variable_set_conditional_codeobject();	
 		_run_synapses_synapses_create_codeobject();					//not parallel
 		_run_synapses_group_variable_set_conditional_codeobject();
 		for(int i=0; i<_num__static_array__array_statemonitor__indices; i++)
@@ -51,10 +51,10 @@ int main(int argc, char **argv)
 		magicnetwork.add(&defaultclock, _run_neurongroup_stateupdater_codeobject);
 		magicnetwork.add(&defaultclock, _run_neurongroup_thresholder_codeobject);
 		magicnetwork.add(&defaultclock, _run_poissongroup_thresholder_codeobject);
-		magicnetwork.add(&defaultclock, _run_synapses_pre_push_spikes);			//cudaMemcpy
-		magicnetwork.add(&defaultclock, _run_synapses_pre_codeobject);			//cudaMemcpy
-		magicnetwork.add(&defaultclock, _run_synapses_post_push_spikes);		//cudaMemcpy
-		magicnetwork.add(&defaultclock, _run_synapses_post_codeobject);			//cudaMemcpy
+		magicnetwork.add(&defaultclock, _run_synapses_pre_push_spikes);
+		magicnetwork.add(&defaultclock, _run_synapses_pre_codeobject);
+		magicnetwork.add(&defaultclock, _run_synapses_post_push_spikes);
+		magicnetwork.add(&defaultclock, _run_synapses_post_codeobject);
 		magicnetwork.add(&defaultclock, _run_neurongroup_resetter_codeobject);
 		magicnetwork.add(&defaultclock, _run_spikemonitor_codeobject);
 		magicnetwork.add(&defaultclock, _run_ratemonitor_codeobject);
@@ -65,11 +65,9 @@ int main(int argc, char **argv)
 		_debugmsg_synapses_post_codeobject();
 		_debugmsg_synapses_pre_codeobject();
 	}
-
 	double _run_duration = (std::clock()-start)/(double)CLOCKS_PER_SEC;
 	std::cout << "Simulation time: " << _run_duration << endl;
 
 	brian_end();
-
 	return 0;
 }

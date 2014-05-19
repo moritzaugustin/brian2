@@ -1,4 +1,3 @@
-
 #ifndef _BRIAN_OBJECTS_H
 #define _BRIAN_OBJECTS_H
 
@@ -13,6 +12,8 @@
 #include <thrust/device_vector.h>
 
 namespace brian {
+
+extern int num_multiprocessors;
 
 //////////////// clocks ///////////////////
 extern Clock defaultclock;
@@ -30,12 +31,12 @@ extern thrust::device_vector<double> _dynamic_array_synapses_Apost;
 extern thrust::device_vector<double> _dynamic_array_synapses_Apre;
 extern thrust::device_vector<double> _dynamic_array_synapses_lastupdate;
 extern thrust::device_vector<double> _dynamic_array_synapses_w;
+extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_post;
+extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_pre;
+extern thrust::device_vector<double> _dynamic_array_synapses_post_delay;
+extern thrust::device_vector<double> _dynamic_array_synapses_pre_delay;	
 
 extern std::vector<double> _dynamic_array_statemonitor_t;
-extern std::vector<int32_t> _dynamic_array_synapses__synaptic_post;
-extern std::vector<int32_t> _dynamic_array_synapses__synaptic_pre;
-extern std::vector<double> _dynamic_array_synapses_post_delay;
-extern std::vector<double> _dynamic_array_synapses_pre_delay;	
 
 //////////////// arrays ///////////////////
 extern int32_t *_array_neurongroup__spikespace;
@@ -89,10 +90,11 @@ extern const int _num__static_array__array_statemonitor__indices;
 //////////////// synapses /////////////////
 // synapses
 extern Synapses<double> synapses;
-extern SynapticPathway<double> synapses_post;
-extern SynapticPathway<double> synapses_pre;
+__device__ SynapticPathway<double> synapses_post;
+__device__ SynapticPathway<double> synapses_pre;
 
-//for random numbers
+
+///////////// for random numbers ///////////
 extern float* dev_array_rands;
 extern curandGenerator_t gen;
 }
@@ -103,5 +105,4 @@ void _write_arrays();
 void _dealloc_arrays();
 
 #endif
-
 

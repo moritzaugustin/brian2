@@ -25,13 +25,19 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_synapses_post_codeobject_kernel(double* par_array_synapses_Apre, int par_numApre,
+__global__ void _run_synapses_post_post_codeobject_kernel(double* par_array_synapses_Apre, int par_numApre,
 	double* par_array_synapses_lastupdate, int par_numlastupdate,
 	double* par_array_synapses_Apost, int par_numApost, double* par_array_synapses_w,
 	int par_numw, int32_t* par_array_synapses__synaptic_pre, int par_num_synaptic_pre,
-	double par_t, int32_t* par_spiking_synapses, int par_num_spiking_synapses)
+	double par_t)
 {
 	int tid = threadIdx.x;
+
+	CudaVector<int32_t>* synapses_queue;
+	CudaVector<int32_t>* pre_neuron_queue;
+	CudaVector<int32_t>* post_neuron_queue;
+	brian::synapses_post.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
+
 	double * _ptr_array_synapses_Apre = par_array_synapses_Apre;
 	//int _numApre = par_numApre;
 	double * _ptr_array_synapses_lastupdate = par_array_synapses_lastupdate;
@@ -43,24 +49,51 @@ __global__ void _run_synapses_post_codeobject_kernel(double* par_array_synapses_
 	//int32_t * _ptr_array_synapses__synaptic_pre = par_array_synapses__synaptic_pre;
 	//int _num_synaptic_pre = par_num_synaptic_pre;
 	double t = par_t;
-	int32_t * _spiking_synapses = par_spiking_synapses;
-	//int num_spiking_synapses = par_num_spiking_synapses;
 
+	for(int i = 0; i < brian::synapses_post.queue->num_parallel; i++)
+	{
+		for(int j = 0; j < post_neuron_queue[i].size(); j++)
+		{
+			if(post_neuron_queue[i].get(j) == tid)
+			{
+				const int32_t _idx = synapses_queue[i].get(j);
+				double Apre = _ptr_array_synapses_Apre[_idx];
+				double lastupdate = _ptr_array_synapses_lastupdate[_idx];
+				double Apost = _ptr_array_synapses_Apost[_idx];
+				double w = _ptr_array_synapses_w[_idx];
+				Apre = Apre * exp(-(t - lastupdate) / 0.02);
+				Apost = Apost * exp(-(t - lastupdate) / 0.02);
+				Apost += -0.000105;
+				w = _clip(w + Apre, 0, 0.01);
+				lastupdate = t;
+				_ptr_array_synapses_Apre[_idx] = Apre;
+				_ptr_array_synapses_lastupdate[_idx] = lastupdate;
+				_ptr_array_synapses_Apost[_idx] = Apost;
+				_ptr_array_synapses_w[_idx] = w;
+			}
+		}
+	}
+}
 
-	const int32_t _idx = _spiking_synapses[tid];
-	double Apre = _ptr_array_synapses_Apre[_idx];
-	double lastupdate = _ptr_array_synapses_lastupdate[_idx];
-	double Apost = _ptr_array_synapses_Apost[_idx];
-	double w = _ptr_array_synapses_w[_idx];
-	Apre = Apre * exp(-(t - lastupdate) / 0.02);
-	Apost = Apost * exp(-(t - lastupdate) / 0.02);
-	Apost += -0.000105;
-	w = _clip(w + Apre, 0, 0.01);
-	lastupdate = t;
-	_ptr_array_synapses_Apre[_idx] = Apre;
-	_ptr_array_synapses_lastupdate[_idx] = lastupdate;
-	_ptr_array_synapses_Apost[_idx] = Apost;
-	_ptr_array_synapses_w[_idx] = w;
+__global__ void _run_synapses_post_pre_codeobject_kernel()
+{
+	int tid = threadIdx.x;
+
+	CudaVector<int32_t>* synapses_queue;
+	CudaVector<int32_t>* pre_neuron_queue;
+	CudaVector<int32_t>* post_neuron_queue;
+	brian::synapses_post.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
+
+	for(int i = 0; i < brian::synapses_post.queue->num_parallel; i++)
+	{
+		for(int j = 0; j < pre_neuron_queue[i].size(); j++)
+		{
+			if(pre_neuron_queue[i].get(j) == tid)
+			{
+				//DO NOTHING
+			}
+		}
+	}
 }
 
 void _run_synapses_post_codeobject()
@@ -75,28 +108,18 @@ void _run_synapses_post_codeobject()
 	const double t = defaultclock.t_();
 
 	// This is only needed for the _debugmsg function below
-	thrust::device_vector<int32_t> _spiking_synapses = synapses_post.queue->peek();
-	int32_t* dev_spiking_synapses = thrust::raw_pointer_cast(_spiking_synapses.data());
-	const unsigned int _num_spiking_synapses = _spiking_synapses.size();
-
 	double* dev_array_synapses_Apre = thrust::raw_pointer_cast(&_dynamic_array_synapses_Apre[0]);
 	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
 	double* dev_array_synapses_Apost = thrust::raw_pointer_cast(&_dynamic_array_synapses_Apost[0]);
 	double* dev_array_synapses_w = thrust::raw_pointer_cast(&_dynamic_array_synapses_w[0]);
-	int32_t* dev_array_synapses__synaptic_pre;
+	int32_t* dev_array_synapses__synaptic_pre = thrust::raw_pointer_cast(&_dynamic_array_synapses__synaptic_pre[0]);
 
-	cudaMalloc((void**)&dev_array_synapses__synaptic_pre, sizeof(int32_t)*_num_synaptic_pre);
-
-	cudaMemcpy(dev_array_synapses__synaptic_pre, &_dynamic_array_synapses__synaptic_pre[0], sizeof(int32_t)*_num_synaptic_pre, cudaMemcpyHostToDevice);
-
-	_run_synapses_post_codeobject_kernel<<<1, _num_spiking_synapses>>>(dev_array_synapses_Apre,
+	_run_synapses_post_post_codeobject_kernel<<<1, 1>>>(dev_array_synapses_Apre,
 		_numApre, dev_array_synapses_lastupdate, _numlastupdate, dev_array_synapses_Apost,
 		_numApost, dev_array_synapses_w, _numw, dev_array_synapses__synaptic_pre,
-		_num_synaptic_pre, t, dev_spiking_synapses, _num_spiking_synapses);
+		_num_synaptic_pre, t);
 
-	cudaMemcpy(&_dynamic_array_synapses__synaptic_pre[0], dev_array_synapses__synaptic_pre, sizeof(int32_t)*_num_synaptic_pre, cudaMemcpyDeviceToHost);
-
-	cudaFree(dev_array_synapses__synaptic_pre);
+	_run_synapses_post_pre_codeobject_kernel<<<1, 1000>>>();
 }
 
 void _debugmsg_synapses_post_codeobject()

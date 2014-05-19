@@ -6,21 +6,30 @@
 #include<stdint.h>
 #include "brianlib/common_math.h"
 
+__global__ void _run_synapses_pre_push_spikes_advance_kernel()
+{
+	int tid = threadIdx.x;
+	brian::synapses_pre.queue->advance(tid);
+}
+
+__global__ void _run_synapses_pre_push_spikes_push_kernel(int* spikespace)
+{
+	int tid = threadIdx.x;
+	brian::synapses_pre.queue->push(tid, spikespace, spikespace[1000]);
+}
+
 void _run_synapses_pre_push_spikes()
 {
 	using namespace brian;
-    ///// CONSTANTS ///////////
-	//const int _num_spikespace = 1001;
+	///// CONSTANTS ///////////
+	//const int _num_spikespace = 2;
 	///// POINTERS ////////////
+
 	int32_t * __restrict__ _ptr_array_poissongroup__spikespace = _array_poissongroup__spikespace;
 
-    //// MAIN CODE ////////////
+	//// MAIN CODE ////////////
 	// we do advance at the beginning rather than at the end because it saves us making
 	// a copy of the current spiking synapses
-
-	cudaMemcpy(_array_poissongroup__spikespace, dev_array_poissongroup__spikespace, sizeof(int32_t)*_num__array_poissongroup__spikespace, cudaMemcpyDeviceToHost);
-
-	synapses_pre.queue->advance();
-	synapses_pre.queue->push(_ptr_array_poissongroup__spikespace, _ptr_array_poissongroup__spikespace[1000]);
-	synapses_pre.queue->peek();
+	_run_synapses_pre_push_spikes_advance_kernel<<<1, num_multiprocessors>>>();
+	_run_synapses_pre_push_spikes_push_kernel<<<1, num_multiprocessors>>>(_ptr_array_poissongroup__spikespace);
 }
