@@ -25,15 +25,46 @@ namespace {
 
 ////// HASH DEFINES ///////
 
-__global__ void _run_synapses_pre_syn_codeobject_kernel(double* par_array_synapses_Apre, double* par_array_synapses_lastupdate, double* par_array_synapses_Apost, double* par_array_synapses_w, double* par_array_neurongroup_ge, int32_t* par_array_synapses__synaptic_pre, int32_t* par_array_synapses__synaptic_post, 	int par_numApre, int par_numlastupdate, int par_numApost, int par_numw, int par_numge, double par_t, int par_num_postsynaptic_idx, int par_num_synaptic_pre)
+__global__ void _run_synapses_pre_pre_codeobject_kernel(int par_num_threads, int par_num_syn)
 {
-	int tid = threadIdx.x;
+	int tid = blockIdx.x;
+
+	CudaVector<int32_t>* synapses_queue;
+	CudaVector<int32_t>* pre_neuron_queue;
+	CudaVector<int32_t>* post_neuron_queue;
+
+	int num_threads = par_num_threads;
+	int num_syn = par_num_syn;
+
+	brian::synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
+
+	int lower = tid*(num_syn/num_threads);
+	int upper = (tid + 1)*(num_syn/num_threads);
+
+	for(int i = 0; i < brian::synapses_pre.queue->num_parallel; i++)
+	{
+		for(int j = 0; j < pre_neuron_queue[i].size(); j++)
+		{
+			int32_t pre_idx = pre_neuron_queue[i].get(j);
+			if(pre_idx >= lower && pre_idx < upper)
+			{
+				//DO NOTHING
+			}
+		}
+	}
+}
+
+__global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int par_num_syn, double* par_array_synapses_Apre, double* par_array_synapses_lastupdate, double* par_array_synapses_Apost, double* par_array_synapses_w, double* par_array_neurongroup_ge, int32_t* par_array_synapses__synaptic_pre, int32_t* par_array_synapses__synaptic_post, int par_numApre, int par_numlastupdate, int par_numApost, int par_numw, int par_numge, double par_t, int par_num_postsynaptic_idx, int par_num_synaptic_pre)
+{
+	int tid = blockIdx.x;
 
 	CudaVector<int32_t>* synapses_queue;
 	CudaVector<int32_t>* pre_neuron_queue;
 	CudaVector<int32_t>* post_neuron_queue;
 	brian::synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
 
+	int num_threads = par_num_threads;
+	int num_syn = par_num_syn;
 	double * _ptr_array_synapses_Apre = par_array_synapses_Apre;
 	double * _ptr_array_synapses_lastupdate = par_array_synapses_lastupdate;
 	double * _ptr_array_synapses_Apost = par_array_synapses_Apost;
@@ -50,54 +81,67 @@ __global__ void _run_synapses_pre_syn_codeobject_kernel(double* par_array_synaps
 	//const int _num_postsynaptic_idx = par_num_postsynaptic_idx;
 	//const int _num_synaptic_pre = par_num_synaptic_pre;
 
+	int lower = tid*(num_syn/num_threads);
+	int upper = (tid + 1)*(num_syn/num_threads);
+	//iterate over all queues
 	for(int i = 0; i < brian::synapses_pre.queue->num_parallel; i++)
 	{
-		for(int j = 0; j < pre_neuron_queue[i].size(); j++)
+		//and over all elements in each queue
+		for(int j = 0; j < synapses_queue[i].size(); j++)
 		{
-			if(pre_neuron_queue[i].get(j) == tid)
+			int32_t syn_idx = synapses_queue[i].get(j);
+			//we are only responsible for parts of the work
+			if(syn_idx >= lower && syn_idx < upper)
 			{
-				int32_t _idx = synapses_queue[i].get(j);
-				double Apre = _ptr_array_synapses_Apre[_idx];
-				double lastupdate = _ptr_array_synapses_lastupdate[_idx];
-				double Apost = _ptr_array_synapses_Apost[_idx];
-				double w = _ptr_array_synapses_w[_idx];
+				double Apre = _ptr_array_synapses_Apre[syn_idx];
+				double lastupdate = _ptr_array_synapses_lastupdate[syn_idx];
+				double Apost = _ptr_array_synapses_Apost[syn_idx];
+				double w = _ptr_array_synapses_w[syn_idx];
 				Apre = Apre * exp(-(t - lastupdate) / 0.02);
 				Apost = Apost * exp(-(t - lastupdate) / 0.02);
 				Apre += 0.0001;
 				w = _clip(w + Apost, 0, 0.01);
 				lastupdate = t;
-				_ptr_array_synapses_Apre[_idx] = Apre;
-				_ptr_array_synapses_lastupdate[_idx] = lastupdate;
-				_ptr_array_synapses_Apost[_idx] = Apost;
-				_ptr_array_synapses_w[_idx] = w;
+				_ptr_array_synapses_Apre[syn_idx] = Apre;
+				_ptr_array_synapses_lastupdate[syn_idx] = lastupdate;
+				_ptr_array_synapses_Apost[syn_idx] = Apost;
+				_ptr_array_synapses_w[syn_idx] = w;
 			}
 		}
 	}
 }
 
-__global__ void _run_synapses_pre_post_codeobject_kernel(double* par_array_neurongroup_ge, double* par_array_synapses_w)
+__global__ void _run_synapses_pre_post_codeobject_kernel(int par_num_threads, int par_num_syn, double* par_array_neurongroup_ge, double* par_array_synapses_w)
 {
-	int tid = threadIdx.x;
+	int tid = blockIdx.x;
 
 	CudaVector<int32_t>* synapses_queue;
 	CudaVector<int32_t>* pre_neuron_queue;
 	CudaVector<int32_t>* post_neuron_queue;
+
+	int num_threads = par_num_threads;
+	int num_syn = par_num_syn;
+
 	brian::synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
 
 	double * _ptr_array_neurongroup_ge = par_array_neurongroup_ge;
 	double * _ptr_array_synapses_w = par_array_synapses_w;
 
+	int lower = tid*(num_syn/num_threads);
+	int upper = (tid + 1)*(num_syn/num_threads);
+
 	for(int i = 0; i < brian::synapses_pre.queue->num_parallel; i++)
 	{
 		for(int j = 0; j < post_neuron_queue[i].size(); j++)
 		{
-			if(post_neuron_queue[i].get(j) == tid)
+			int32_t post_idx = post_neuron_queue[i].get(j);
+			if(post_idx >= lower && post_idx < upper)
 			{
-				int32_t _idx = synapses_queue[i].get(j);
-				double ge = _ptr_array_neurongroup_ge[_idx];
-				double w = _ptr_array_synapses_w[_idx];
+				int32_t syn_idx = synapses_queue[i].get(j);
+				double ge = _ptr_array_neurongroup_ge[post_idx];
+				double w = _ptr_array_synapses_w[syn_idx];
 				ge += w;
-				_ptr_array_neurongroup_ge[tid] = ge;
+				_ptr_array_neurongroup_ge[post_idx] = ge;
 			}
 		}
 	}
@@ -116,6 +160,8 @@ void _run_synapses_pre_codeobject()
 	const int _num_postsynaptic_idx = _dynamic_array_synapses__synaptic_post.size();
 	const int _num_synaptic_pre = _dynamic_array_synapses__synaptic_pre.size();
 
+	int max_num_threads = num_blocks_sequential;
+
 	double* dev_array_synapses_Apre = thrust::raw_pointer_cast(&_dynamic_array_synapses_Apre[0]);
 	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
 	double* dev_array_synapses_Apost = thrust::raw_pointer_cast(&_dynamic_array_synapses_Apost[0]);
@@ -123,13 +169,16 @@ void _run_synapses_pre_codeobject()
 	int32_t* dev_array_synapses__synaptic_pre = thrust::raw_pointer_cast(&_dynamic_array_synapses__synaptic_pre[0]);
 	int32_t* dev_array_synapses__synaptic_post = thrust::raw_pointer_cast(&_dynamic_array_synapses__synaptic_post[0]);
 
-	_run_synapses_pre_syn_codeobject_kernel<<<1, 1000>>>(dev_array_synapses_Apre,
+	_run_synapses_pre_pre_codeobject_kernel<<<max_num_threads,1>>>(max_num_threads, 1000);
+
+	_run_synapses_pre_syn_codeobject_kernel<<<max_num_threads, 1>>>(max_num_threads, 1000, dev_array_synapses_Apre,
 		dev_array_synapses_lastupdate, dev_array_synapses_Apost, dev_array_synapses_w,
 		dev_array_neurongroup_ge, dev_array_synapses__synaptic_pre,
 		dev_array_synapses__synaptic_post, _numApre, _numlastupdate, _numApost, _numw,
 		_numge, t, _num_postsynaptic_idx, _num_synaptic_pre);
 
-	_run_synapses_pre_post_codeobject_kernel<<<1, 1>>>(dev_array_neurongroup_ge, dev_array_synapses_w);
+	_run_synapses_pre_post_codeobject_kernel<<<max_num_threads, 1>>>(max_num_threads, 1, dev_array_neurongroup_ge, dev_array_synapses_w);
+
 }
 
 void _debugmsg_synapses_pre_codeobject()

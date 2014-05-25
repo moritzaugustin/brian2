@@ -13,7 +13,8 @@
 
 namespace brian {
 
-extern int num_multiprocessors;
+extern int num_blocks_sequential;
+extern int num_blocks_parallel;
 
 //////////////// clocks ///////////////////
 extern Clock defaultclock;
@@ -25,8 +26,8 @@ extern Network magicnetwork;
 //////////////// dynamic arrays ///////////
 extern thrust::device_vector<double> _dynamic_array_ratemonitor_rate;
 extern thrust::device_vector<double> _dynamic_array_ratemonitor_t;
-extern thrust::device_vector<int32_t> _dynamic_array_spikemonitor_i;
-extern thrust::device_vector<double> _dynamic_array_spikemonitor_t;
+extern thrust::device_vector<double>* _dynamic_array_statemonitor__recorded_w;
+extern thrust::device_vector<double> _dynamic_array_statemonitor_t;
 extern thrust::device_vector<double> _dynamic_array_synapses_Apost;
 extern thrust::device_vector<double> _dynamic_array_synapses_Apre;
 extern thrust::device_vector<double> _dynamic_array_synapses_lastupdate;
@@ -36,7 +37,8 @@ extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_pre;
 extern thrust::device_vector<double> _dynamic_array_synapses_post_delay;
 extern thrust::device_vector<double> _dynamic_array_synapses_pre_delay;	
 
-extern std::vector<double> _dynamic_array_statemonitor_t;
+extern __device__ CudaVector<int32_t> *_dynamic_array_spikemonitor_i;
+extern __device__ CudaVector<double> *_dynamic_array_spikemonitor_t;
 
 //////////////// arrays ///////////////////
 extern int32_t *_array_neurongroup__spikespace;
@@ -80,9 +82,6 @@ extern const int _num__array_synapses_N_incoming;
 extern int32_t *_array_synapses_N_outgoing;
 extern const int _num__array_synapses_N_outgoing;
 
-//////////////// dynamic arrays 2d /////////
-extern DynamicArray2D<double> _dynamic_array_statemonitor__recorded_w;
-
 /////////////// static arrays /////////////
 extern int32_t *_static_array__array_statemonitor__indices;
 extern const int _num__static_array__array_statemonitor__indices;
@@ -90,13 +89,13 @@ extern const int _num__static_array__array_statemonitor__indices;
 //////////////// synapses /////////////////
 // synapses
 extern Synapses<double> synapses;
-__device__ SynapticPathway<double> synapses_post;
-__device__ SynapticPathway<double> synapses_pre;
-
+extern __device__ SynapticPathway<double> synapses_post;
+extern __device__ SynapticPathway<double> synapses_pre;
 
 ///////////// for random numbers ///////////
 extern float* dev_array_rands;
 extern curandGenerator_t gen;
+
 }
 
 void _init_arrays();

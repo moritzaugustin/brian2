@@ -7,7 +7,6 @@
 #include<inttypes.h>
 
 #include "CudaVector.h"
-#include <thrust/device_vector.h>
 
 using namespace std;
 
@@ -24,12 +23,12 @@ public:
 	CudaVector<DTYPE_int>** post_neuron_queue;
 	scalar dt;
 	unsigned int offset;
-	unsigned int *delays;
+	unsigned int* delays;
 	int max_delay;
 	int num_parallel;
 	int source_start;
 	int source_end;
-	int* targets;
+	int32_t* targets;
 	CudaVector<int>* synapses;
 
 	__device__ void init(int num_mps, int _source_start, int _source_end)
@@ -40,7 +39,12 @@ public:
 		dt = 0.0;
 		delays = NULL;
 		max_delay = 0;
+		targets = NULL;
 		num_parallel = num_mps;
+		synapses_queue = NULL;
+		pre_neuron_queue = NULL;
+		post_neuron_queue = NULL;
+		synapses = NULL;
 	};
 
 	__device__ void destroy()
@@ -51,11 +55,16 @@ public:
 			delete [] pre_neuron_queue[i];
 			delete [] post_neuron_queue[i];
 		}
-		delete [] synapses_queue;
-		delete [] pre_neuron_queue;
-		delete [] post_neuron_queue;
-		delete [] delays;
-		delete [] synapses;
+		if(synapses_queue)
+			delete [] synapses_queue;
+		if(pre_neuron_queue)
+			delete [] pre_neuron_queue;
+		if(post_neuron_queue)
+			delete [] post_neuron_queue;
+		if (delays)
+			delete [] delays;
+		if(synapses)
+			delete [] synapses;
 	}
 
 	__device__ int get_maxdelay(unsigned int* delays, int n_delays)
@@ -75,20 +84,19 @@ public:
 		return max + 1;
 	};
 
-	__device__ void prepare(scalar *real_delays, int *sources, int* target, unsigned int n_synapses,
+	__device__ void prepare(scalar *real_delays, int32_t* sources, int32_t* target, unsigned int n_synapses,
 		 double _dt)
 	{
 		unsigned int newsize = 0;
 		targets = target;
-
 		if (delays)
 		    delete [] delays;
 
 		delays = new unsigned int[n_synapses];
-		synapses = new CudaVector<int>[source_start - source_end];
+		synapses = new CudaVector<int>[source_end - source_start];
 
 		//syn connect aufbauen
-		for(unsigned int i = 0; i < n_synapses + 1; i++)
+		for(unsigned int i = 0; i < n_synapses; i++)
 		{
 			delays[i] =  (int)(real_delays[i] / _dt + 0.5);
 			synapses[sources[i] - source_start].push(i);
@@ -109,26 +117,23 @@ public:
 		}
 	}
 
-	__device__ void push(int mpid, int* par_spikes, int nspikes)
+	__device__ void push(int mpid, int* spikespace, int size_spikespace)
 	{
-
-		for(int idx_spike = mpid*(nspikes/num_parallel); idx_spike < (mpid + 1)*(nspikes/num_parallel) - 1; idx_spike++)
+		//each kernel works on consecutive elements of the spikespace
+		for(int idx_spike = mpid*(size_spikespace/num_parallel); idx_spike < (mpid + 1)*(size_spikespace/num_parallel); idx_spike++)
 		{
-			if(idx_spike < source_start - source_end)
+			const int idx_neuron = spikespace[idx_spike] - source_start;
+			if(idx_neuron != -1)
 			{
-				const int idx_neuron = par_spikes[idx_spike] - source_start;
-				if(idx_neuron != -1)
+				//insert all connected synapses
+				for(unsigned int idx_indices = 0; idx_indices < synapses[idx_neuron].size(); idx_indices++)
 				{
-					for(unsigned int idx_indices = 0; idx_indices < synapses[idx_neuron].size(); idx_indices++)
-					{
-						const int synaptic_index = synapses[idx_neuron].get(idx_indices);
-						const unsigned int delay = delays[synaptic_index];
-						// insert the index into the correct queue
-						synapses_queue[mpid][(offset+delay)%max_delay].push(synaptic_index);
-						pre_neuron_queue[mpid][(offset+delay)%max_delay].push(idx_neuron);
-						post_neuron_queue[mpid][(offset+delay)%max_delay].push(targets[synaptic_index]);
-
-					}
+					const int synaptic_index = synapses[idx_neuron].get(idx_indices);
+					const unsigned int delay = delays[synaptic_index];
+					// insert the synaptic, pre/post neuron indices into the correct queue
+					synapses_queue[(offset+delay)%max_delay][mpid].push(synaptic_index);
+					pre_neuron_queue[(offset+delay)%max_delay][mpid].push(idx_neuron);
+					post_neuron_queue[(offset+delay)%max_delay][mpid].push(targets[synaptic_index]);
 				}
 			}
 		}
@@ -144,9 +149,9 @@ public:
 
 	__device__ void advance(int tid)
 	{
-		synapses_queue[tid][offset].reset();
-		pre_neuron_queue[tid][offset].reset();
-		post_neuron_queue[tid][offset].reset();
+		synapses_queue[offset][tid].reset();
+		pre_neuron_queue[offset][tid].reset();
+		post_neuron_queue[offset][tid].reset();
 		__syncthreads();
 		if(tid == 0)
 		{

@@ -33,9 +33,12 @@ int main(int argc, char **argv)
 	brian_start();
 
 	{
+		//TODOs:
+		//	Spikemonitor is slow!
 		using namespace brian;
-		_run_poissongroup_group_variable_set_conditional_codeobject();	
-		_run_synapses_synapses_create_codeobject();					//not parallel
+
+		_run_poissongroup_group_variable_set_conditional_codeobject();
+		_run_synapses_synapses_create_codeobject();
 		_run_synapses_group_variable_set_conditional_codeobject();
 		for(int i=0; i<_num__static_array__array_statemonitor__indices; i++)
 		{
@@ -58,7 +61,7 @@ int main(int argc, char **argv)
 		magicnetwork.add(&defaultclock, _run_neurongroup_resetter_codeobject);
 		magicnetwork.add(&defaultclock, _run_spikemonitor_codeobject);
 		magicnetwork.add(&defaultclock, _run_ratemonitor_codeobject);
-		magicnetwork.add(&defaultclock, _run_statemonitor_codeobject);			//cudaMemcpy, not on GPU
+		magicnetwork.add(&defaultclock, _run_statemonitor_codeobject);
 		magicnetwork.run(1.0);
 
 		_debugmsg_spikemonitor_codeobject();
@@ -69,5 +72,6 @@ int main(int argc, char **argv)
 	std::cout << "Simulation time: " << _run_duration << endl;
 
 	brian_end();
+
 	return 0;
 }

@@ -6,11 +6,6 @@
 #include<iostream>
 #include<fstream>
 
-#include <thrust/copy.h>
-#include <thrust/count.h>
-#include <thrust/execution_policy.h>
-#include <thrust/fill.h>
-
 
 ////// SUPPORT CODE ///////
 namespace {
@@ -21,38 +16,41 @@ namespace {
 
 #define N 1000
 
-struct is_in_range
+__global__ void _run_spikemonitor_codeobject_kernel(double par_clock_t, int32_t* par_array_poissongroup__spikespace)
 {
-	__host__ __device__ bool operator()(const int32_t x) const
+	using namespace brian;
+
+	int _num__array_poissongroup__spikespace = 1000;
+	int32_t* _array_poissongroup__spikespace = par_array_poissongroup__spikespace;
+	double clock_t = par_clock_t;
+
+	for(int i = 0; i < _num__array_poissongroup__spikespace - 1; i++)
 	{
-		//return true;
-		return x >= 0 && x < 1000;
+		if(_array_poissongroup__spikespace[i] != -1)
+		{
+			_dynamic_array_spikemonitor_i->push(i);
+			_dynamic_array_spikemonitor_t->push(clock_t);
+		}
 	}
-};
+}
 
 void _run_spikemonitor_codeobject()
 {
 	using namespace brian;
-
 	const double _clock_t = defaultclock.t_();
-	const int _numt = _dynamic_array_spikemonitor_t.size();
-	const int _numi = _dynamic_array_spikemonitor_i.size();
 
-	int num_spikes = thrust::count_if(thrust::device, dev_array_poissongroup__spikespace, dev_array_poissongroup__spikespace + _num__array_poissongroup__spikespace - 1, is_in_range());
-
-	_dynamic_array_spikemonitor_t.resize(_numt + num_spikes);
-	_dynamic_array_spikemonitor_i.resize(_numi + num_spikes);
-
-	double* dev_array_spikemonitor_t = thrust::raw_pointer_cast(&_dynamic_array_spikemonitor_t[_numt - 1]);
-	int32_t* dev_array_spikemonitor_i = thrust::raw_pointer_cast(&_dynamic_array_spikemonitor_i[_numi - 1]);
-
-	thrust::copy_if(thrust::device, dev_array_poissongroup__spikespace, dev_array_poissongroup__spikespace + _num__array_poissongroup__spikespace - 1, dev_array_spikemonitor_i, is_in_range());
-	thrust::fill_n(thrust::device, dev_array_spikemonitor_t, num_spikes, _clock_t);
+	_run_spikemonitor_codeobject_kernel<<<1,1>>>(_clock_t, dev_array_poissongroup__spikespace);
 }
+
+__global__ void _debugmsg_spikemonitor_codeobject_kernel()
+{
+	printf("Number of spikes: %d\n", brian::_dynamic_array_spikemonitor_i->size());
+}
+
 
 void _debugmsg_spikemonitor_codeobject()
 {
 	using namespace brian;
-	std::cout << "Number of spikes: " << _dynamic_array_spikemonitor_i.size() << endl;
+	_debugmsg_spikemonitor_codeobject_kernel<<<1,1>>>();
 }
 

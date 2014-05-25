@@ -37,7 +37,6 @@ __global__ void _run_poissongroup_thresholder_codeobject_kernel(float* par_rands
 	int32_t * _ptr_array_poissongroup__spikespace = par_array_poissongroup__spikespace;
 
 	const double rates = _ptr_array_poissongroup_rates[tid];
-	//TODO: const double _cond = _rand(_vectorisation_idx) < rates * dt;
 	const double _cond = r < rates * dt;
 	if(_cond) {
 		_ptr_array_poissongroup__spikespace[tid] = tid;

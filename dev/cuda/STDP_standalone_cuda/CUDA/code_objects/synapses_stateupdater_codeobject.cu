@@ -14,7 +14,7 @@ namespace {
 
 __global__ void _run_synapses_stateupdater_codeobject_kernel()
 {
-	
+	//DO NOTHING
 }
 
 ////// HASH DEFINES ///////
@@ -25,7 +25,7 @@ void _run_synapses_stateupdater_codeobject()
 	using namespace brian;
 
 	//// MAIN CODE ////////////
-	//_run_synapses_stateupdater_codeobject_kernel<<<1,1>>>();
+	_run_synapses_stateupdater_codeobject_kernel<<<1,1>>>();
 }
 
 

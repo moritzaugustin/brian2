@@ -1,7 +1,7 @@
 #include "objects.h"
 #include "code_objects/synapses_post_initialise_queue.h"
 
-__global__ void _run_synapses_post_initialise_queue_kernel(double* par_real_delays, int* par_sources, int* par_targets, int n_synapses)
+__global__ void _run_synapses_post_initialise_queue_kernel(double* par_real_delays, int32_t* par_sources, int32_t* par_targets, int n_synapses)
 {	
 	brian::synapses_post.queue->prepare(par_real_delays, par_sources, par_targets, n_synapses, brian::synapses_post.dt);
 }
