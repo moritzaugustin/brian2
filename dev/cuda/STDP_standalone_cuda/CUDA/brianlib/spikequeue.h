@@ -120,7 +120,9 @@ public:
 	__device__ void push(int mpid, int* spikespace, int size_spikespace)
 	{
 		//each kernel works on consecutive elements of the spikespace
-		for(int idx_spike = mpid*(size_spikespace/num_parallel); idx_spike < (mpid + 1)*(size_spikespace/num_parallel); idx_spike++)
+		for(int idx_spike = mpid*(size_spikespace/num_parallel);
+		    idx_spike < (mpid + 1)*(size_spikespace/num_parallel);
+            idx_spike++)
 		{
 			const int idx_neuron = spikespace[idx_spike] - source_start;
 			if(idx_neuron != -1)
