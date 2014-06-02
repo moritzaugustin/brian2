@@ -33,8 +33,6 @@ int main(int argc, char **argv)
 	brian_start();
 
 	{
-		//TODOs:
-		//	Spikemonitor is slow!
 		using namespace brian;
 
 		_run_poissongroup_group_variable_set_conditional_codeobject();

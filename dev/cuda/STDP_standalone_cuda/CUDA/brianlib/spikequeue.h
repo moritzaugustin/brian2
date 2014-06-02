@@ -119,10 +119,11 @@ public:
 
 	__device__ void push(int mpid, int* spikespace, int size_spikespace)
 	{
+		float num_per_thread = (float)size_spikespace/(float)num_parallel;
+		int lower = mpid*(num_per_thread);
+		int upper = (mpid + 1)*(num_per_thread);
 		//each kernel works on consecutive elements of the spikespace
-		for(int idx_spike = mpid*(size_spikespace/num_parallel);
-		    idx_spike < (mpid + 1)*(size_spikespace/num_parallel);
-            idx_spike++)
+		for(int idx_spike = lower; idx_spike < upper; idx_spike++)
 		{
 			const int idx_neuron = spikespace[idx_spike] - source_start;
 			if(idx_neuron != -1)
@@ -149,13 +150,13 @@ public:
 		*(_post_neuron_queue) =  &(post_neuron_queue[offset][0]);
 	}
 
-	__device__ void advance(int tid)
+	__device__ void advance(int bid)
 	{
-		synapses_queue[offset][tid].reset();
-		pre_neuron_queue[offset][tid].reset();
-		post_neuron_queue[offset][tid].reset();
+		synapses_queue[offset][bid].reset();
+		pre_neuron_queue[offset][bid].reset();
+		post_neuron_queue[offset][bid].reset();
 		__syncthreads();
-		if(tid == 0)
+		if(bid == 0)
 		{
 			offset = (offset + 1) % max_delay;
 		}

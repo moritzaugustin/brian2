@@ -12,7 +12,7 @@ __global__ void _run_synapses_pre_push_spikes_advance_kernel()
 	brian::synapses_pre.queue->advance(bid);
 }
 
-__global__ void _run_synapses_pre_push_spikes_push_kernel(int* spikespace)
+__global__ void _run_synapses_pre_push_spikes_push_kernel(int32_t* spikespace)
 {
 	int bid = blockIdx.x;
 	brian::synapses_pre.queue->push(bid, spikespace, 1000);

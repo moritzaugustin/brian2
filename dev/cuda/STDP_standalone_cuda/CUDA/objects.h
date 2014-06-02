@@ -37,8 +37,8 @@ extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_pre;
 extern thrust::device_vector<double> _dynamic_array_synapses_post_delay;
 extern thrust::device_vector<double> _dynamic_array_synapses_pre_delay;	
 
-extern __device__ CudaVector<int32_t> *_dynamic_array_spikemonitor_i;
-extern __device__ CudaVector<double> *_dynamic_array_spikemonitor_t;
+extern __device__ CudaVector<int32_t> **_dynamic_array_spikemonitor_i;
+extern __device__ CudaVector<double> **_dynamic_array_spikemonitor_t;
 
 //////////////// arrays ///////////////////
 extern int32_t *_array_neurongroup__spikespace;

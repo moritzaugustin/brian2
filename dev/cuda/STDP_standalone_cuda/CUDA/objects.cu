@@ -82,8 +82,8 @@ thrust::device_vector<int32_t> brian::_dynamic_array_synapses__synaptic_pre;
 thrust::device_vector<double> brian::_dynamic_array_synapses_post_delay;
 thrust::device_vector<double> brian::_dynamic_array_synapses_pre_delay;
 
-__device__ CudaVector<int32_t>* brian::_dynamic_array_spikemonitor_i;
-__device__ CudaVector<double>* brian::_dynamic_array_spikemonitor_t;
+__device__ CudaVector<int32_t>** brian::_dynamic_array_spikemonitor_i;
+__device__ CudaVector<double>** brian::_dynamic_array_spikemonitor_t;
 
 /////////////// static arrays /////////////
 int32_t * brian::_static_array__array_statemonitor__indices;
@@ -114,8 +114,13 @@ __global__ void init_kernel(int num_mps)
 		0, 1000
 		);
 
-	brian::_dynamic_array_spikemonitor_i = new CudaVector<int32_t>;
-	brian::_dynamic_array_spikemonitor_t = new CudaVector<double>;
+	brian::_dynamic_array_spikemonitor_i = new CudaVector<int32_t>*[num_mps];
+	brian::_dynamic_array_spikemonitor_t = new CudaVector<double>*[num_mps];
+	for(int i = 0; i < num_mps; i++)
+	{
+		brian::_dynamic_array_spikemonitor_i[i] = new CudaVector<int32_t>;
+		brian::_dynamic_array_spikemonitor_t[i] = new CudaVector<double>;
+	}
 }
 
 void _init_arrays()
@@ -127,7 +132,7 @@ void _init_arrays()
 
 	cudaDeviceProp props;
 	cudaGetDeviceProperties(&props, 0);
-	num_blocks_sequential = props.multiProcessorCount;
+	num_blocks_sequential = props.multiProcessorCount * 2;
 
 	init_kernel<<<1,1>>>(num_blocks_sequential);
 
@@ -184,7 +189,7 @@ void _init_arrays()
 	// static arrays
 	_static_array__array_statemonitor__indices = new int32_t[2];
 
-	_dynamic_array_statemonitor__recorded_w = new thrust::device_vector<double>[2];
+	_dynamic_array_statemonitor__recorded_w = new thrust::device_vector<double>[_num__array_statemonitor__recorded_w];
 }
 
 void _load_arrays()
@@ -473,10 +478,17 @@ void _write_arrays()
 	outfile__dynamic_array_statemonitor__recorded_w.open("results/_dynamic_array_statemonitor__recorded_w", ios::binary | ios::out);
 	if(outfile__dynamic_array_statemonitor__recorded_w.is_open())
 	{
-		for (int n=0; n< _num__array_statemonitor__recorded_w; n++)
+		thrust::host_vector<double>* _dynamic_array_statemonitor__recorded_w_host_array = new thrust::host_vector<double>[_num__array_statemonitor__recorded_w];
+		for(int i = 0; i < _num__array_statemonitor__recorded_w; i++)
 		{
-			thrust::host_vector<double> _dynamic_array_statemonitor__recorded_w_host = _dynamic_array_statemonitor__recorded_w[n];
-			outfile__dynamic_array_statemonitor__recorded_w.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&_dynamic_array_statemonitor__recorded_w[n][0])), _dynamic_array_statemonitor__recorded_w[n].size()*sizeof(_dynamic_array_statemonitor__recorded_w[n][0]));
+			_dynamic_array_statemonitor__recorded_w_host_array[i] = _dynamic_array_statemonitor__recorded_w[i];
+		}
+		for(int j = 0; j < _dynamic_array_statemonitor__recorded_w_host_array[0].size(); j++)
+		{
+			for(int n = 0; n < _num__array_statemonitor__recorded_w; n++)
+			{
+				outfile__dynamic_array_statemonitor__recorded_w.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&_dynamic_array_statemonitor__recorded_w_host_array[n][j])), sizeof(_dynamic_array_statemonitor__recorded_w_host_array[0][0]));
+			}
 		}
 		outfile__dynamic_array_statemonitor__recorded_w.close();
 	} else
@@ -485,12 +497,16 @@ void _write_arrays()
 	}
 }
 
-__global__ void dealloc_kernel()
+__global__ void dealloc_kernel(int par_num_threads)
 {
 	brian::synapses_post.destroy();
 	brian::synapses_pre.destroy();
-	delete brian::_dynamic_array_spikemonitor_i;
-	delete brian::_dynamic_array_spikemonitor_t;
+	
+	for(int i = 0; i < par_num_threads; i++)
+	{
+		delete brian::_dynamic_array_spikemonitor_i[i];
+		delete brian::_dynamic_array_spikemonitor_t[i];
+	}
 }
 
 void _dealloc_arrays()
@@ -500,7 +516,7 @@ void _dealloc_arrays()
 	curandDestroyGenerator(gen);
 	cudaFree(dev_array_rands);
 	
-	dealloc_kernel<<<1,1>>>();
+	dealloc_kernel<<<1,1>>>(num_blocks_sequential);
 	
 	_dynamic_array_ratemonitor_rate.clear();
 	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_rate);

@@ -8,14 +8,14 @@
 
 __global__ void _run_synapses_post_push_spikes_advance_kernel()
 {
-	int tid = blockIdx.x;
-	brian::synapses_post.queue->advance(tid);
+	int bid = blockIdx.x;
+	brian::synapses_post.queue->advance(bid);
 }
 
 __global__ void _run_synapses_post_push_spikes_push_kernel(int* spikespace)
 {
-	int tid = blockIdx.x;
-	brian::synapses_post.queue->push(tid, spikespace, 1);
+	int bid = blockIdx.x;
+	brian::synapses_post.queue->push(bid, spikespace, 1);
 }
 
 void _run_synapses_post_push_spikes()

@@ -1,0 +1,36 @@
+==26402== NVPROF is profiling process 26402, command: ./main
+==26402== Profiling application: ./main
+==26402== Warning: Found 900 invalid records in the result.
+==26402== Warning: This could be because device ran out of memory when profiling.
+==26402== Profiling result:
+Time(%)      Time     Calls       Avg       Min       Max  Name
+ 17.99%  2.09390s     99959  20.947us  17.503us  564.18us  _run_synapses_pre_push_spikes_push_kernel(int*)
+ 16.26%  1.89243s     99960  18.931us  15.392us  6.0411ms  _run_spikemonitor_codeobject_kernel(int, double, int*)
+ 15.24%  1.77426s     99944  17.752us  1.2470us  6.8017ms  _run_synapses_post_push_spikes_push_kernel(int*)
+  8.67%  1.00893s     99961  10.093us  7.0070us  18.943us  _run_synapses_pre_syn_codeobject_kernel(int, int, double*, double*, double*, double*, double*, int*, int*, int, int, int, int, int, double, int, int)
+  8.48%  987.67ms     99970  9.8790us  7.0390us  586.05us  _run_synapses_post_syn_codeobject_kernel(int, int, double*, int, double*, int, double*, int, double*, int, int*, int, double)
+  7.90%  919.43ms     99957  9.1980us  7.0080us  19.456us  _run_synapses_pre_post_codeobject_kernel(int, int, double*, double*)
+  5.08%  590.95ms     99958  5.9110us  5.6630us  6.7190us  void gen_sequenced<curandStateXORWOW, float, int, __operator_&__(float curand_uniform_noargs<curandStateXORWOW>(curandStateXORWOW*, int))>(curandStateXORWOW*, float*, unsigned long, unsigned long, int)
+  4.15%  483.19ms    499803     966ns     863ns  1.3440us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
+  2.81%  327.11ms     99955  3.2720us  3.1990us  4.1920us  _run_neurongroup_stateupdater_codeobject_kernel(int, int, double, double*, double*)
+  2.24%  261.03ms     99962  2.6110us  2.1440us  4.6400us  _run_ratemonitor_codeobject_kernel(double, double, int, int, int, int*, double*, double*)
+  1.90%  221.60ms     99952  2.2170us  2.1430us  3.0710us  _run_synapses_post_push_spikes_advance_kernel(void)
+  1.89%  220.58ms     99950  2.2060us  2.1430us  3.0720us  _run_synapses_pre_push_spikes_advance_kernel(void)
+  1.88%  219.15ms    199915  1.0960us     991ns  1.8240us  _run_statemonitor_codeobject_kernel(double*, int, double*)
+  1.62%  188.11ms     99960  1.8810us  1.7920us  2.2720us  _run_poissongroup_thresholder_codeobject_kernel(float*, int, double, int, double, double*, int*)
+  1.25%  145.15ms     99964  1.4520us  1.4070us  2.0480us  _run_neurongroup_thresholder_codeobject_kernel(unsigned int, double, int, int*, double*)
+  1.09%  127.27ms     99962  1.2730us  1.2150us  1.9200us  _run_neurongroup_resetter_codeobject_kernel(int, int, int*, double*)
+  0.82%  95.235ms     99962     952ns     895ns  1.3440us  _run_synapses_stateupdater_codeobject_kernel(void)
+  0.25%  29.017ms         1  29.017ms  29.017ms  29.017ms  _run_synapses_pre_initialise_queue_kernel(double*, int*, int*, int)
+  0.24%  28.522ms         1  28.522ms  28.522ms  28.522ms  dealloc_kernel(int)
+  0.17%  19.306ms         2  9.6529ms  9.6132ms  9.6926ms  generate_seed_pseudo(__int64, __int64, __int64, curandOrdering, curandStateXORWOW*, unsigned int*)
+  0.05%  5.4655ms         1  5.4655ms  5.4655ms  5.4655ms  _run_synapses_post_initialise_queue_kernel(double*, int*, int*, int)
+  0.02%  1.8665ms      2000     933ns     864ns  1.0880us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<int>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<int>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(int)
+  0.01%  691.21us        18  38.400us  1.5680us  148.54us  [CUDA memcpy DtoH]
+  0.01%  666.30us         1  666.30us  666.30us  666.30us  init_kernel(int)
+  0.00%  303.96us       105  2.8940us  2.1440us  9.0870us  [CUDA memcpy DtoD]
+  0.00%  76.990us         1  76.990us  76.990us  76.990us  _debugmsg_spikemonitor_codeobject_kernel(int)
+  0.00%  5.6000us         5  1.1200us     736ns  1.8880us  [CUDA memcpy HtoD]
+  0.00%  1.9200us         1  1.9200us  1.9200us  1.9200us  _run_synapses_group_variable_set_conditional_codeobject_kernel(float*, long, int, double*)
+  0.00%  1.2480us         1  1.2480us  1.2480us  1.2480us  _run_poissongroup_group_variable_set_conditional_codeobject_kernel(int, double*)
+  0.00%  1.1840us         1  1.1840us  1.1840us  1.1840us  _run_synapses_group_variable_set_conditional_codeobject_1_kernel(long, int, double*)
