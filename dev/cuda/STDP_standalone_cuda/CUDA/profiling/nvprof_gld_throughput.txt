@@ -1,0 +1,61 @@
+==6006== NVPROF is profiling process 6006, command: ./main
+==6006== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==6006== Profiling application: ./main
+==6006== Profiling result:
+==6006== Metric result:
+Invocations                     Metric Name              Metric Description         Min         Max         Avg
+Device "GeForce GTX 770 (0)"
+	Kernel: _run_ratemonitor_codeobject_kernel(double, double, int, int, int, int*, double*, double*)
+       1000                  gld_throughput          Global Load Throughput  1.8084MB/s  3.1011MB/s  2.7921MB/s
+	Kernel: _run_synapses_pre_syn_codeobject_kernel(int, int, double*, double*, double*, double*, double*, int*, int*, int, int, int, int, int, double, int, int)
+       1000                  gld_throughput          Global Load Throughput  462.06MB/s  893.22MB/s  680.56MB/s
+	Kernel: _run_synapses_pre_post_codeobject_kernel(int, int, double*, double*)
+       1000                  gld_throughput          Global Load Throughput  602.82MB/s  948.80MB/s  795.69MB/s
+	Kernel: void gen_sequenced<curandStateXORWOW, float, int, __operator_&__(float curand_uniform_noargs<curandStateXORWOW>(curandStateXORWOW*, int))>(curandStateXORWOW*, float*, unsigned long, unsigned long, int)
+       1001                  gld_throughput          Global Load Throughput  116.81GB/s  123.21GB/s  120.66GB/s
+	Kernel: _run_poissongroup_thresholder_codeobject_kernel(float*, int, double, int, double, double*, int*)
+       1000                  gld_throughput          Global Load Throughput  2.3401GB/s  2.6076GB/s  2.5283GB/s
+	Kernel: void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<int>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<int>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(int)
+       2000                  gld_throughput          Global Load Throughput  0.00000B/s  95.354MB/s  10.953MB/s
+	Kernel: generate_seed_pseudo(__int64, __int64, __int64, curandOrdering, curandStateXORWOW*, unsigned int*)
+          2                  gld_throughput          Global Load Throughput  17.785GB/s  18.081GB/s  17.933GB/s
+	Kernel: _run_synapses_post_syn_codeobject_kernel(int, int, double*, int, double*, int, double*, int, double*, int, int*, int, double)
+       1000                  gld_throughput          Global Load Throughput  495.49MB/s  894.87MB/s  881.49MB/s
+	Kernel: _run_synapses_pre_push_spikes_advance_kernel(void)
+       1000                  gld_throughput          Global Load Throughput  602.33MB/s  885.06MB/s  761.00MB/s
+	Kernel: init_kernel(int)
+          1                  gld_throughput          Global Load Throughput  66.347MB/s  66.347MB/s  66.347MB/s
+	Kernel: _run_neurongroup_resetter_codeobject_kernel(int, int, int*, double*)
+       1000                  gld_throughput          Global Load Throughput  9.8522MB/s  11.031MB/s  10.870MB/s
+	Kernel: _run_synapses_post_initialise_queue_kernel(double*, int*, int*, int)
+          1                  gld_throughput          Global Load Throughput  45.925MB/s  45.925MB/s  45.925MB/s
+	Kernel: dealloc_kernel(int)
+          1                  gld_throughput          Global Load Throughput  141.90MB/s  141.90MB/s  141.90MB/s
+	Kernel: _run_synapses_post_push_spikes_push_kernel(int*)
+       1000                  gld_throughput          Global Load Throughput  19.546MB/s  282.00MB/s  112.01MB/s
+	Kernel: void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
+       5006                  gld_throughput          Global Load Throughput  0.00000B/s  47.405MB/s  5.8759MB/s
+	Kernel: _run_synapses_post_push_spikes_advance_kernel(void)
+       1000                  gld_throughput          Global Load Throughput  583.59MB/s  890.32MB/s  761.32MB/s
+	Kernel: _run_spikemonitor_codeobject_kernel(int, double, int*)
+       1000                  gld_throughput          Global Load Throughput  119.82MB/s  982.05MB/s  817.73MB/s
+	Kernel: _run_synapses_stateupdater_codeobject_kernel(void)
+       1000                  gld_throughput          Global Load Throughput  0.00000B/s  0.00000B/s  0.00000B/s
+	Kernel: _run_statemonitor_codeobject_kernel(double*, int, double*)
+       2000                  gld_throughput          Global Load Throughput  7.4074MB/s  12.461MB/s  12.250MB/s
+	Kernel: _run_synapses_pre_initialise_queue_kernel(double*, int*, int*, int)
+          1                  gld_throughput          Global Load Throughput  86.472MB/s  86.472MB/s  86.472MB/s
+	Kernel: _run_synapses_group_variable_set_conditional_codeobject_1_kernel(long, int, double*)
+          1                  gld_throughput          Global Load Throughput  0.00000B/s  0.00000B/s  0.00000B/s
+	Kernel: _run_neurongroup_stateupdater_codeobject_kernel(int, int, double, double*, double*)
+       1000                  gld_throughput          Global Load Throughput  4.3743MB/s  4.8331MB/s  4.7348MB/s
+	Kernel: _run_poissongroup_group_variable_set_conditional_codeobject_kernel(int, double*)
+          1                  gld_throughput          Global Load Throughput  0.00000B/s  0.00000B/s  0.00000B/s
+	Kernel: _run_synapses_group_variable_set_conditional_codeobject_kernel(float*, long, int, double*)
+          1                  gld_throughput          Global Load Throughput  1.1577GB/s  1.1577GB/s  1.1577GB/s
+	Kernel: _run_synapses_pre_push_spikes_push_kernel(int*)
+       1000                  gld_throughput          Global Load Throughput  232.33MB/s  842.66MB/s  695.56MB/s
+	Kernel: _debugmsg_spikemonitor_codeobject_kernel(int)
+          1                  gld_throughput          Global Load Throughput  43.282MB/s  43.282MB/s  43.282MB/s
+	Kernel: _run_neurongroup_thresholder_codeobject_kernel(unsigned int, double, int, int*, double*)
+       1000                  gld_throughput          Global Load Throughput  7.3529MB/s  9.1769MB/s  9.0624MB/s

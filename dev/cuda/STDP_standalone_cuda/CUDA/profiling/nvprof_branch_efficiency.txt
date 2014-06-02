@@ -1,0 +1,61 @@
+==4745== NVPROF is profiling process 4745, command: ./main
+==4745== Profiling application: ./main
+==4745== Profiling result:
+==4745== Metric result:
+Invocations                     Metric Name              Metric Description         Min         Max         Avg
+Device "GeForce GTX 770 (0)"
+	Kernel: _run_ratemonitor_codeobject_kernel(double, double, int, int, int, int*, double*, double*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_pre_syn_codeobject_kernel(int, int, double*, double*, double*, double*, double*, int*, int*, int, int, int, int, int, double, int, int)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_pre_post_codeobject_kernel(int, int, double*, double*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: void gen_sequenced<curandStateXORWOW, float, int, __operator_&__(float curand_uniform_noargs<curandStateXORWOW>(curandStateXORWOW*, int))>(curandStateXORWOW*, float*, unsigned long, unsigned long, int)
+       1001               branch_efficiency               Branch Efficiency      95.38%      98.57%      97.64%
+	Kernel: void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<int>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<int>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(int)
+       2000               branch_efficiency               Branch Efficiency      99.91%      99.91%      99.91%
+	Kernel: _run_poissongroup_thresholder_codeobject_kernel(float*, int, double, int, double, double*, int*)
+       1000               branch_efficiency               Branch Efficiency      96.64%      99.12%      98.50%
+	Kernel: generate_seed_pseudo(__int64, __int64, __int64, curandOrdering, curandStateXORWOW*, unsigned int*)
+          2               branch_efficiency               Branch Efficiency      99.64%      99.64%      99.64%
+	Kernel: _run_synapses_post_syn_codeobject_kernel(int, int, double*, int, double*, int, double*, int, double*, int, int*, int, double)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_pre_push_spikes_advance_kernel(void)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: init_kernel(int)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_neurongroup_resetter_codeobject_kernel(int, int, int*, double*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_post_initialise_queue_kernel(double*, int*, int*, int)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: dealloc_kernel(int)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_post_push_spikes_push_kernel(int*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_post_push_spikes_advance_kernel(void)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
+       5006               branch_efficiency               Branch Efficiency      99.86%      99.97%      99.86%
+	Kernel: _run_spikemonitor_codeobject_kernel(int, double, int*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_stateupdater_codeobject_kernel(void)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_statemonitor_codeobject_kernel(double*, int, double*)
+       2000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_group_variable_set_conditional_codeobject_1_kernel(long, int, double*)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_pre_initialise_queue_kernel(double*, int*, int*, int)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_neurongroup_stateupdater_codeobject_kernel(int, int, double, double*, double*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_poissongroup_group_variable_set_conditional_codeobject_kernel(int, double*)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_group_variable_set_conditional_codeobject_kernel(float*, long, int, double*)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_synapses_pre_push_spikes_push_kernel(int*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _debugmsg_spikemonitor_codeobject_kernel(int)
+          1               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+	Kernel: _run_neurongroup_thresholder_codeobject_kernel(unsigned int, double, int, int*, double*)
+       1000               branch_efficiency               Branch Efficiency     100.00%     100.00%     100.00%
+
