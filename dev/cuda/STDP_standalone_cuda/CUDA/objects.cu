@@ -101,26 +101,29 @@ curandGenerator_t brian::gen;
 
 __global__ void init_kernel(int num_mps)
 {
-	brian::synapses_post.init(
-		num_mps,
-		1, 1000,
-		0.0001,
-		0, 1
-		);
-	brian::synapses_pre.init(
-		num_mps,
-		1000, 1,
-		0.0001,
-		0, 1000
-		);
+	int tid = threadIdx.x;
 
-	brian::_dynamic_array_spikemonitor_i = new CudaVector<int32_t>*[num_mps];
-	brian::_dynamic_array_spikemonitor_t = new CudaVector<double>*[num_mps];
-	for(int i = 0; i < num_mps; i++)
+	if(tid == 0)
 	{
-		brian::_dynamic_array_spikemonitor_i[i] = new CudaVector<int32_t>;
-		brian::_dynamic_array_spikemonitor_t[i] = new CudaVector<double>;
+		brian::synapses_post.init(
+			1,
+			1, 1000,
+			0.0001,
+			0, 1
+			);
+		brian::synapses_pre.init(
+			num_mps,
+			1000, 1,
+			0.0001,
+			0, 1000
+			);
+
+		brian::_dynamic_array_spikemonitor_i = new CudaVector<int32_t>*[num_mps];
+		brian::_dynamic_array_spikemonitor_t = new CudaVector<double>*[num_mps];
 	}
+	__syncthreads();
+	brian::_dynamic_array_spikemonitor_i[tid] = new CudaVector<int32_t>;
+	brian::_dynamic_array_spikemonitor_t[tid] = new CudaVector<double>;
 }
 
 void _init_arrays()
@@ -132,9 +135,9 @@ void _init_arrays()
 
 	cudaDeviceProp props;
 	cudaGetDeviceProperties(&props, 0);
-	num_blocks_sequential = props.multiProcessorCount * 2;
+	num_blocks_sequential = props.multiProcessorCount * 4;
 
-	init_kernel<<<1,1>>>(num_blocks_sequential);
+	init_kernel<<<1,num_blocks_sequential>>>(num_blocks_sequential);
 
     // Arrays initialized to 0
 	_array_spikemonitor__count = new int32_t[1000];
@@ -499,14 +502,16 @@ void _write_arrays()
 
 __global__ void dealloc_kernel(int par_num_threads)
 {
-	brian::synapses_post.destroy();
-	brian::synapses_pre.destroy();
-	
-	for(int i = 0; i < par_num_threads; i++)
+	int tid = threadIdx.x;
+
+	if(tid == 0)
 	{
-		delete brian::_dynamic_array_spikemonitor_i[i];
-		delete brian::_dynamic_array_spikemonitor_t[i];
+		brian::synapses_post.destroy();
+		brian::synapses_pre.destroy();
 	}
+
+	delete brian::_dynamic_array_spikemonitor_i[tid];
+	delete brian::_dynamic_array_spikemonitor_t[tid];
 }
 
 void _dealloc_arrays()
@@ -516,7 +521,7 @@ void _dealloc_arrays()
 	curandDestroyGenerator(gen);
 	cudaFree(dev_array_rands);
 	
-	dealloc_kernel<<<1,1>>>(num_blocks_sequential);
+	dealloc_kernel<<<1,num_blocks_sequential>>>(num_blocks_sequential);
 	
 	_dynamic_array_ratemonitor_rate.clear();
 	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_rate);

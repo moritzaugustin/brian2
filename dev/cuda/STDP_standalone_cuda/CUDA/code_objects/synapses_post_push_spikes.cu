@@ -30,6 +30,6 @@ void _run_synapses_post_push_spikes()
 	//// MAIN CODE ////////////
 	// we do advance at the beginning rather than at the end because it saves us making
 	// a copy of the current spiking synapses
-	_run_synapses_post_push_spikes_advance_kernel<<<num_blocks_sequential, 1>>>();
-	_run_synapses_post_push_spikes_push_kernel<<<num_blocks_sequential, 1>>>(_ptr_array_neurongroup__spikespace);
+	_run_synapses_post_push_spikes_advance_kernel<<<1, 1>>>();
+	_run_synapses_post_push_spikes_push_kernel<<<1, 1>>>(_ptr_array_neurongroup__spikespace);
 }

@@ -11,6 +11,7 @@
 
 #include <thrust/device_vector.h>
 
+
 ////// SUPPORT CODE ///////
 namespace {
 	__device__ double _clip(const float value, const float a_min, const float a_max)
@@ -56,12 +57,14 @@ __global__ void _run_synapses_pre_pre_codeobject_kernel(int par_num_threads, int
 
 __global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int par_num_syn, double* par_array_synapses_Apre, double* par_array_synapses_lastupdate, double* par_array_synapses_Apost, double* par_array_synapses_w, double* par_array_neurongroup_ge, int32_t* par_array_synapses__synaptic_pre, int32_t* par_array_synapses__synaptic_post, int par_numApre, int par_numlastupdate, int par_numApost, int par_numw, int par_numge, double par_t, int par_num_postsynaptic_idx, int par_num_synaptic_pre)
 {
+	using namespace brian;
 	int bid = blockIdx.x;
 
 	CudaVector<int32_t>* synapses_queue;
 	CudaVector<int32_t>* pre_neuron_queue;
 	CudaVector<int32_t>* post_neuron_queue;
-	brian::synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
+
+	synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
 
 	int num_threads = par_num_threads;
 	int num_syn = par_num_syn;
@@ -86,7 +89,7 @@ __global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int
 	//const int _num_synaptic_pre = par_num_synaptic_pre;
 
 	//iterate over all queues
-	for(int i = 0; i < brian::synapses_pre.queue->num_parallel; i++)
+	for(int i = 0; i < synapses_pre.queue->num_parallel; i++)
 	{
 		//and over all elements in each queue
 		for(int j = 0; j < synapses_queue[i].size(); j++)
@@ -174,13 +177,13 @@ void _run_synapses_pre_codeobject()
 
 	//_run_synapses_pre_pre_codeobject_kernel<<<max_num_threads,1>>>(max_num_threads, 1000);
 
-	_run_synapses_pre_syn_codeobject_kernel<<<max_num_threads, 1>>>(max_num_threads, 1000, dev_array_synapses_Apre,
+	_run_synapses_pre_syn_codeobject_kernel<<<max_num_threads,1>>>(max_num_threads, 1000, dev_array_synapses_Apre,
 		dev_array_synapses_lastupdate, dev_array_synapses_Apost, dev_array_synapses_w,
 		dev_array_neurongroup_ge, dev_array_synapses__synaptic_pre,
 		dev_array_synapses__synaptic_post, _numApre, _numlastupdate, _numApost, _numw,
 		_numge, t, _num_postsynaptic_idx, _num_synaptic_pre);
 
-	_run_synapses_pre_post_codeobject_kernel<<<max_num_threads, 1>>>(max_num_threads, 1, dev_array_neurongroup_ge, dev_array_synapses_w);
+	_run_synapses_pre_post_codeobject_kernel<<<1, 1>>>(max_num_threads, 1, dev_array_neurongroup_ge, dev_array_synapses_w);
 
 }
 

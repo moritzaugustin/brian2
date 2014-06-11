@@ -172,7 +172,7 @@ void _run_synapses_post_codeobject()
 		_numApost, dev_array_synapses_w, _numw, dev_array_synapses__synaptic_pre,
 		_num_synaptic_pre, t);
 
-	//_run_synapses_post_post_codeobject_kernel<<<max_num_threads,1>>>(max_num_threads, 1);
+	//_run_synapses_post_post_codeobject_kernel<<<1,1>>>(max_num_threads, 1);
 }
 
 void _debugmsg_synapses_post_codeobject()
