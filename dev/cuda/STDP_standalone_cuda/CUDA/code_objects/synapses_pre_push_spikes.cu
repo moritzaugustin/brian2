@@ -12,10 +12,10 @@ __global__ void _run_synapses_pre_push_spikes_advance_kernel()
 	brian::synapses_pre.queue->advance(bid);
 }
 
-__global__ void _run_synapses_pre_push_spikes_push_kernel(int32_t* spikespace)
+__global__ void _run_synapses_pre_push_spikes_push_kernel(int stride, int32_t* spikespace)
 {
 	int bid = blockIdx.x;
-	brian::synapses_pre.queue->push(bid, spikespace, 1000);
+	brian::synapses_pre.queue->push(bid, spikespace, 1024/stride, 1000);
 }
 
 void _run_synapses_pre_push_spikes()
@@ -31,5 +31,5 @@ void _run_synapses_pre_push_spikes()
 	// we do advance at the beginning rather than at the end because it saves us making
 	// a copy of the current spiking synapses
 	_run_synapses_pre_push_spikes_advance_kernel<<<num_blocks_sequential, 1>>>();
-	_run_synapses_pre_push_spikes_push_kernel<<<num_blocks_sequential, 1>>>(_ptr_array_poissongroup__spikespace);
+	_run_synapses_pre_push_spikes_push_kernel<<<num_blocks_sequential, 1>>>(1024/num_blocks_sequential, _ptr_array_poissongroup__spikespace);
 }

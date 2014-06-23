@@ -117,13 +117,12 @@ public:
 		}
 	}
 
-	__device__ void push(int mpid, int* spikespace, int size_spikespace)
+	__device__ void push(int mpid, int* spikespace, int stride, int size_spikespace)
 	{
-		float num_per_thread = (float)size_spikespace/(float)num_parallel;
-		int lower = mpid*(num_per_thread);
-		int upper = (mpid + 1)*(num_per_thread);
+		int lower = mpid*stride;
+		int upper = (mpid + 1)*stride;
 		//each kernel works on consecutive elements of the spikespace
-		for(int idx_spike = lower; idx_spike < upper; idx_spike++)
+		for(int idx_spike = lower; idx_spike < upper && idx_spike < size_spikespace; idx_spike++)
 		{
 			const int idx_neuron = spikespace[idx_spike] - source_start;
 			if(idx_neuron != -1)
@@ -138,6 +137,10 @@ public:
 					pre_neuron_queue[(offset+delay)%max_delay][mpid].push(idx_neuron);
 					post_neuron_queue[(offset+delay)%max_delay][mpid].push(targets[synaptic_index]);
 				}
+			}
+			else
+			{
+				return;
 			}
 		}
 	}

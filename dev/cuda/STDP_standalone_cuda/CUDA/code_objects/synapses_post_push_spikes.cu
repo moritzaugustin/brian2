@@ -15,7 +15,7 @@ __global__ void _run_synapses_post_push_spikes_advance_kernel()
 __global__ void _run_synapses_post_push_spikes_push_kernel(int* spikespace)
 {
 	int bid = blockIdx.x;
-	brian::synapses_post.queue->push(bid, spikespace, 1);
+	brian::synapses_post.queue->push(bid, spikespace, 1, 1);
 }
 
 void _run_synapses_post_push_spikes()

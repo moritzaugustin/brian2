@@ -59,6 +59,9 @@ __global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int
 {
 	using namespace brian;
 	int bid = blockIdx.x;
+	int tid = threadIdx.x;
+
+	__shared__ int32_t data[1024];
 
 	CudaVector<int32_t>* synapses_queue;
 	CudaVector<int32_t>* pre_neuron_queue;
@@ -71,6 +74,13 @@ __global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int
 	float num_per_thread = (float)num_syn/(float)num_threads;
 	int lower = bid*(num_per_thread);
 	int upper = (bid + 1)*(num_per_thread);
+
+	data[bid * num_threads + tid] = -1;
+
+	if(bid >= synapses_pre.queue->num_parallel || synapses_queue[bid].size() >= tid)
+		return;
+
+	data[bid * num_threads + tid] = synapses_queue[bid].get(tid);
 
 	double * _ptr_array_synapses_Apre = par_array_synapses_Apre;
 	double * _ptr_array_synapses_lastupdate = par_array_synapses_lastupdate;
@@ -89,13 +99,12 @@ __global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int
 	//const int _num_synaptic_pre = par_num_synaptic_pre;
 
 	//iterate over all queues
-	for(int i = 0; i < synapses_pre.queue->num_parallel; i++)
+
+	if(tid == 0)
 	{
-		//and over all elements in each queue
-		for(int j = 0; j < synapses_queue[i].size(); j++)
+		for(int i = 0; i < 1000; i++)
 		{
-			int32_t syn_idx = synapses_queue[i].get(j);
-			//we are only responsible for parts of the work
+			int32_t syn_idx = data[i];
 			if(syn_idx >= lower && syn_idx < upper)
 			{
 				double Apre = _ptr_array_synapses_Apre[syn_idx];
@@ -112,8 +121,13 @@ __global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int
 				_ptr_array_synapses_Apost[syn_idx] = Apost;
 				_ptr_array_synapses_w[syn_idx] = w;
 			}
+			else if(syn_idx == -1)
+			{
+				i += (num_threads - i % num_threads);
+			}
 		}
 	}
+
 }
 
 __global__ void _run_synapses_pre_post_codeobject_kernel(int par_num_threads, int par_num_syn, double* par_array_neurongroup_ge, double* par_array_synapses_w)
@@ -177,7 +191,7 @@ void _run_synapses_pre_codeobject()
 
 	//_run_synapses_pre_pre_codeobject_kernel<<<max_num_threads,1>>>(max_num_threads, 1000);
 
-	_run_synapses_pre_syn_codeobject_kernel<<<max_num_threads,1>>>(max_num_threads, 1000, dev_array_synapses_Apre,
+	_run_synapses_pre_syn_codeobject_kernel<<<max_num_threads, 1024/max_num_threads>>>(max_num_threads, 1000, dev_array_synapses_Apre,
 		dev_array_synapses_lastupdate, dev_array_synapses_Apost, dev_array_synapses_w,
 		dev_array_neurongroup_ge, dev_array_synapses__synaptic_pre,
 		dev_array_synapses__synaptic_post, _numApre, _numlastupdate, _numApost, _numw,
