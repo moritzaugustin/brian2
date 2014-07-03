@@ -28,8 +28,10 @@ v_r = 0 * mV # reset voltage
 dw = 0.1 * mV # spike-triggered adaptation increment
 Tref = 2.5 * ms # refractory period
 if sparsity>0:
-    syn_weight = 1.03/(N_neurons*sparsity) * mV # currently: constant synaptic weights
-    syn_delay = 2 * ms  # currently: constant synaptic delays
+    syn_weight_mean = 1.06/(N_neurons*sparsity) * mV
+    syn_weight_std = syn_weight_mean/2
+    syn_delay_mean = 2 * ms
+    syn_delay_std = syn_delay_mean/2
 # input noise:
 input_mean = 0.14 * mV/ms
 input_std = 0.07 * mV/ms**.5
@@ -58,8 +60,8 @@ neurons.w = 'rand()*10*dw'
 if sparsity>0:
     synapses = Synapses(neurons, neurons, 'c: volt', pre='v += c')
     synapses.connect('i!=j', p=sparsity)
-    synapses.c[:] = 'syn_weight' 
-    synapses.delay[:] = 'syn_delay' 
+    synapses.c[:] = 'syn_weight_mean + rand()*syn_weight_std - syn_weight_std/2' 
+    synapses.delay[:] = 'syn_delay_mean + rand()*syn_delay_std - syn_delay_std/2' 
     # BUG in brian2?: 
     # distributed delays do not work + rand()*0.1*ms'# len(synapses))*defaultclock.dt*1   #'syn_delay'
 #     print(defaultclock.dt)
@@ -146,7 +148,7 @@ title('adaptation  dynamics of the first neuron')
 plot(stateMon_t/ms, stateMon_w/mV)
 xlabel('time (ms)')
 xlim(0, runtime/ms)
-ylabel('membrane voltage w (mV)')
+ylabel('adaptation voltage w (mV)')
 # POPULATION AVERAGED ADAPTATION:
 # plot(stateMon.t/ms, (stateMon.w/mV).mean(axis=0))
 
