@@ -1,0 +1,47 @@
+==14147== NVPROF is profiling process 14147, command: ./main
+==14147== Profiling application: ./main
+==14147== Profiling result:
+==14147== Metric result:
+Invocations                     Metric Name              Metric Description         Min         Max         Avg
+Device "(null)"
+	Kernel: _run_neurongroup_group_variable_set_conditional_codeobject_kernel(int, double*, bool*, float*)
+          1                   sm_efficiency         Multiprocessor Activity      18.14%      18.14%      18.14%
+	Kernel: _run_synapses_pre_push_spikes_push_kernel(int, int*)
+       3458                   sm_efficiency         Multiprocessor Activity      12.50%      77.68%      41.03%
+	Kernel: _run_synapses_group_variable_set_conditional_codeobject_kernel(int, double*, float*)
+          1                   sm_efficiency         Multiprocessor Activity      68.76%      68.76%      68.76%
+	Kernel: void gen_sequenced<curandStateXORWOW, float, int, __operator_&__(float curand_uniform_noargs<curandStateXORWOW>(curandStateXORWOW*, int))>(curandStateXORWOW*, float*, unsigned long, unsigned long, int)
+          4                   sm_efficiency         Multiprocessor Activity      72.43%      78.16%      75.34%
+	Kernel: generate_seed_pseudo(__int64, __int64, __int64, curandOrdering, curandStateXORWOW*, unsigned int*)
+          5                   sm_efficiency         Multiprocessor Activity      88.92%      90.33%      89.88%
+	Kernel: _run_synapses_group_variable_set_conditional_codeobject_kernel_1(int, double*, float*)
+          1                   sm_efficiency         Multiprocessor Activity      68.00%      68.00%      68.00%
+	Kernel: _run_neurongroup_group_variable_set_conditional_codeobject_kernel_1(int, double*, bool*, float*)
+          1                   sm_efficiency         Multiprocessor Activity      21.12%      21.12%      21.12%
+	Kernel: _run_neurongroup_stateupdater_codeobject_kernel(int, float*, double, double, double*, double*, double*, bool*)
+       3458                   sm_efficiency         Multiprocessor Activity      36.75%      44.65%      43.19%
+	Kernel: _run_synapses_pre_push_spikes_advance_kernel(void)
+       3458                   sm_efficiency         Multiprocessor Activity      16.36%      47.30%      32.57%
+	Kernel: _run_synapses_pre_post_codeobject_kernel(int, int, double*, bool*, double*)
+       3458                   sm_efficiency         Multiprocessor Activity      57.22%      96.55%      91.37%
+	Kernel: _run_synapses_group_variable_set_conditional_codeobject_kernel_2(int, double*)
+          1                   sm_efficiency         Multiprocessor Activity      49.73%      49.73%      49.73%
+	Kernel: init_kernel(int)
+          1                   sm_efficiency         Multiprocessor Activity      12.24%      12.24%      12.24%
+	Kernel: _run_ratemonitor_codeobject_kernel(double, double, int*, double*, double*, int, int)
+       3457                   sm_efficiency         Multiprocessor Activity       2.47%       6.97%       4.92%
+	Kernel: void gen_sequenced<curandStateXORWOW, float2, normal_args_st, __operator_&__(float2 curand_normal_scaled2<curandStateXORWOW>(curandStateXORWOW*, normal_args_st))>(curandStateXORWOW*, float2*, unsigned long, unsigned long, normal_args_st)
+       3458                   sm_efficiency         Multiprocessor Activity      44.76%      73.84%      66.36%
+	Kernel: _run_neurongroup_thresholder_codeobject_kernel(int, double, int*, double*, double*, bool*)
+       3458                   sm_efficiency         Multiprocessor Activity      95.45%      98.05%      97.58%
+	Kernel: void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
+      13831                   sm_efficiency         Multiprocessor Activity       0.83%      54.64%       2.14%
+	Kernel: _run_spikemonitor_codeobject_kernel(int, double, int*)
+       3457                   sm_efficiency         Multiprocessor Activity      12.54%      58.11%      33.35%
+	Kernel: _run_statemonitor_codeobject_kernel(int, double*, double*, double*, double*)
+       3457                   sm_efficiency         Multiprocessor Activity       1.08%       4.75%       2.48%
+	Kernel: _run_neurongroup_resetter_codeobject_kernel(int, int*, double*, double*)
+       3458                   sm_efficiency         Multiprocessor Activity       5.81%      18.99%      13.47%
+	Kernel: _run_synapses_pre_syn_codeobject_kernel(int, int, double, double*)
+       3458                   sm_efficiency         Multiprocessor Activity      57.93%      98.08%      95.38%
+==14147== Warning: One or more event counters overflowed. Rerun with "--print-gpu-trace" for detail.
