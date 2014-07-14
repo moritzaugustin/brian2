@@ -31,7 +31,7 @@ public:
 	int source_start;
 	int source_end;
 	int32_t* targets;
-	CudaVector<int>* synapses;
+	int32_t* starting_positions;
 
 	__device__ void init(int num_mps, int _source_start, int _source_end)
 	{
@@ -46,7 +46,6 @@ public:
 		synapses_queue = NULL;
 		pre_neuron_queue = NULL;
 		post_neuron_queue = NULL;
-		synapses = NULL;
 	};
 
 	__device__ void destroy()
@@ -65,8 +64,6 @@ public:
 			delete [] post_neuron_queue;
 		if (delays)
 			delete [] delays;
-		if(synapses)
-			delete [] synapses;
 	}
 
 	__device__ int get_maxdelay(unsigned int* delays, int n_delays)
@@ -86,22 +83,20 @@ public:
 		return max + 1;
 	};
 
-	__device__ void prepare(scalar *real_delays, int32_t* sources, int32_t* target, unsigned int n_synapses,
+	__device__ void prepare(scalar *real_delays, int32_t* sources, int32_t* target, int32_t* pos, unsigned int n_synapses,
 		 double _dt)
 	{
 		unsigned int newsize = 0;
 		targets = target;
+		starting_positions = pos;
 		if (delays)
 		    delete [] delays;
 
 		delays = new unsigned int[n_synapses];
-		synapses = new CudaVector<int>[source_end - source_start];
 
-		//syn connect aufbauen
 		for(unsigned int i = 0; i < n_synapses; i++)
 		{
 			delays[i] =  (int)(real_delays[i] / _dt + 0.5);
-			synapses[sources[i] - source_start].push(i);
 		}
 
 		max_delay = get_maxdelay(delays, n_synapses);
@@ -130,9 +125,11 @@ public:
 			if(idx_neuron != -1)
 			{
 				//insert all connected synapses
-				for(unsigned int idx_indices = 0; idx_indices < synapses[idx_neuron].size(); idx_indices++)
+				int start = starting_positions[idx_neuron];
+				int end = starting_positions[idx_neuron + 1];
+				for(unsigned int idx_indices = start; idx_indices < end; idx_indices++)
 				{
-					const int synaptic_index = synapses[idx_neuron].get(idx_indices);
+					const int synaptic_index = idx_indices;
 					const unsigned int delay = delays[synaptic_index];
 					// insert the synaptic, pre/post neuron indices into the correct queue
 					synapses_queue[(offset+delay)%max_delay][mpid].push(synaptic_index);

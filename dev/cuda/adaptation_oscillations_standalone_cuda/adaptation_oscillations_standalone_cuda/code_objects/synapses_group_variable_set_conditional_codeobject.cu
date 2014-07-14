@@ -48,5 +48,8 @@ void _run_synapses_group_variable_set_conditional_codeobject()
 
 
 	_run_synapses_group_variable_set_conditional_codeobject_kernel<<<ceil(N, 1024),1024>>>(N, dev_array_synapses_c, dev_array_rands);
+
+	curandDestroyGenerator(gen);
+	cudaFree(dev_array_rands);
 }
 

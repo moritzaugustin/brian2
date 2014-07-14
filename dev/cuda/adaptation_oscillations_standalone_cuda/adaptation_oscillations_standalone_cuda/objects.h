@@ -27,6 +27,7 @@ extern thrust::device_vector<double> _dynamic_array_ratemonitor_rate;
 extern thrust::device_vector<double> _dynamic_array_ratemonitor_t;
 extern thrust::device_vector<double>* _dynamic_array_statemonitor__recorded_v;
 extern thrust::device_vector<double>* _dynamic_array_statemonitor__recorded_w;
+extern thrust::device_vector<int32_t> _dynamic_array_synapses__pos;
 extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_post;
 extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_pre;
 extern thrust::device_vector<double> _dynamic_array_synapses_c;

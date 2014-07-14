@@ -96,7 +96,6 @@ __global__ void _run_synapses_pre_post_codeobject_kernel(int par_num_threads, in
 	int lower = bid*(num_per_thread);
 	int upper = (bid + 1)*(num_per_thread);
 
-
 	double* array_synapses_c = par_array_synapses_c;
 	bool* array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
 	double* array_neurongroup_v = par_array_neurongroup_v;

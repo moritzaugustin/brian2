@@ -19,29 +19,29 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(int stride, doubl
 	if(bid*stride + tid >= N)
 		return;
 
+	extern __shared__ bool cond_cache[];
+
 	double t = par_t;
 	int32_t* array_neurongroup__spikespace = par_array_neurongroup__spikespace;
 	double* array_neurongroup_v = par_array_neurongroup_v;
 	double* array_neurongroup_lastspike = par_array_neurongroup_lastspike;
 	bool* array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
 
-
 	array_neurongroup__spikespace[bid * stride + tid] = -1;
-	if(tid == bid && bid == 0)
+	if(tid == 0 && bid == 0)
 	{
 		array_neurongroup__spikespace[N] = 0;
 	}
+
+	cond_cache[tid] = (array_neurongroup_v[bid * stride + tid] > 0.001) && (array_neurongroup_not_refractory[bid * stride + tid]);
 
 	if(tid == 0)
 	{
 		int num_spikes = 0;
 
-		for(int i = bid * stride; i < (bid + 1)*stride; i++)
+		for(int i = bid * stride; i < (bid + 1)*stride && i < N; i++)
 		{
-			const double v = array_neurongroup_v[i];
-			const bool not_refractory = array_neurongroup_not_refractory[i];
-			const double _cond = (v > 0.001) && (not_refractory);
-			if(_cond && i < N)
+			if(cond_cache[i%stride] && i < N)
 			{
 				array_neurongroup__spikespace[bid*stride + num_spikes] = i;
 				array_neurongroup_not_refractory[i] = false;
@@ -60,7 +60,7 @@ void _run_neurongroup_thresholder_codeobject()
 	const double t = defaultclock.t_();
 
 	//// MAIN CODE ////////////
-	_run_neurongroup_thresholder_codeobject_kernel<<<num_blocks_sequential, ceil(N, num_blocks_sequential)>>>(ceil(N, num_blocks_sequential), t, dev_array_neurongroup__spikespace, dev_array_neurongroup_v, dev_array_neurongroup_lastspike, dev_array_neurongroup_not_refractory);
+	_run_neurongroup_thresholder_codeobject_kernel<<<num_blocks_sequential, ceil(N, num_blocks_sequential), ceil(N, num_blocks_sequential) * sizeof(bool)>>>(ceil(N, num_blocks_sequential), t, dev_array_neurongroup__spikespace, dev_array_neurongroup_v, dev_array_neurongroup_lastspike, dev_array_neurongroup_not_refractory);
 }
 
 

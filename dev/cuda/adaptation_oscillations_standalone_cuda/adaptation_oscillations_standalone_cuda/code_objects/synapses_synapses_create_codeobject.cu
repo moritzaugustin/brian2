@@ -33,12 +33,14 @@ void _run_synapses_synapses_create_codeobject()
 	int32_t * __restrict__ _ptr_array_synapses_N_outgoing = _array_synapses_N_outgoing;
 	int32_t * __restrict__ _ptr_array_neurongroup_i = _array_neurongroup_i;
 
+	std::vector<int32_t> temp_pos;
 	std::vector<int32_t> temp_pre;
 	std::vector<int32_t> temp_post;
 
 	int _synapse_idx = _dynamic_array_synapses__synaptic_pre.size();
 	for(int i=0; i<_num_all_pre; i++)
 	{
+		temp_pos.push_back(_synapse_idx);
 		for(int j=0; j<_num_all_post; j++)
 		{
 			const int32_t _all_post = _ptr_array_neurongroup_i[j];
@@ -48,7 +50,7 @@ void _run_synapses_synapses_create_codeobject()
 			const bool _cond = i != j;
 			const int32_t _n = 1;
 //			const double _p = 0.05;
-			const double _p = 0.005;
+			const double _p = 0.01;
 			// Add to buffer
 			if(_cond)
 			{
@@ -71,7 +73,9 @@ void _run_synapses_synapses_create_codeobject()
 			}
 		}
 	}
+	temp_pos.push_back(_synapse_idx);
 
+	_dynamic_array_synapses__pos = temp_pos;
 	_dynamic_array_synapses__synaptic_post = temp_post;
 	_dynamic_array_synapses__synaptic_pre = temp_pre;
 
@@ -84,6 +88,9 @@ void _run_synapses_synapses_create_codeobject()
 	_dynamic_array_synapses_lastupdate.resize(newsize);
 	// Also update the total number of synapses
 	synapses._N_value = newsize;
+
+	curandDestroyGenerator(gen);
+	free(_array_random);
 }
 
 

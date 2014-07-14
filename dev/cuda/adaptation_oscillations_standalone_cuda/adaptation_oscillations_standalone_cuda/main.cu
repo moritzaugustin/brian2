@@ -48,7 +48,8 @@ int main(int argc, char **argv)
 		_run_synapses_synapses_create_codeobject();
 		_run_synapses_group_variable_set_conditional_codeobject();
 		_run_synapses_group_variable_set_conditional_codeobject_1();
-		
+
+	
                 for(int i=0; i<_num__static_array__array_statemonitor__indices; i++)
                 {
                     _array_statemonitor__indices[i] = _static_array__array_statemonitor__indices[i];
@@ -60,8 +61,8 @@ int main(int argc, char **argv)
 		magicnetwork.add(&defaultclock, _get_random);
 		magicnetwork.add(&defaultclock, _run_synapses_stateupdater_codeobject);
 		magicnetwork.add(&defaultclock, _run_neurongroup_stateupdater_codeobject);
-		magicnetwork.add(&defaultclock, _run_neurongroup_thresholder_codeobject);	
-		magicnetwork.add(&defaultclock, _run_synapses_pre_push_spikes);
+		magicnetwork.add(&defaultclock, _run_neurongroup_thresholder_codeobject);
+		magicnetwork.add(&defaultclock, _run_synapses_pre_push_spikes);	//shared mem, dyn parallel
 		magicnetwork.add(&defaultclock, _run_synapses_pre_codeobject);
 		magicnetwork.add(&defaultclock, _run_neurongroup_resetter_codeobject);
 		magicnetwork.add(&defaultclock, _run_spikemonitor_codeobject);

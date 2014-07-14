@@ -69,6 +69,7 @@ thrust::device_vector<double> brian::_dynamic_array_ratemonitor_rate;
 thrust::device_vector<double> brian::_dynamic_array_ratemonitor_t;
 thrust::device_vector<double>* brian::_dynamic_array_statemonitor__recorded_v;
 thrust::device_vector<double>* brian::_dynamic_array_statemonitor__recorded_w;
+thrust::device_vector<int32_t> brian::_dynamic_array_synapses__pos;
 thrust::device_vector<int32_t> brian::_dynamic_array_synapses__synaptic_post;
 thrust::device_vector<int32_t> brian::_dynamic_array_synapses__synaptic_pre;
 thrust::device_vector<double> brian::_dynamic_array_synapses_c;
@@ -100,7 +101,7 @@ __device__ SynapticPathway<double> brian::synapses_pre;
 float* brian::dev_array_random;
 curandGenerator_t brian::gen;
 
-int brian::num_blocks_sequential = 8;
+int brian::num_blocks_sequential = 16;
 
 __global__ void init_kernel(int num_mps)
 {
@@ -260,6 +261,11 @@ void _write_arrays()
 	cudaMemcpy(spikemonitor_i_sizes, dev_spikemonitor_i_sizes, sizeof(int)*num_blocks_sequential, cudaMemcpyDeviceToHost);
 	cudaMemcpy(spikemonitor_t_data, dev_spikemonitor_t_data, sizeof(double)*num_blocks_sequential, cudaMemcpyDeviceToHost);
 	cudaMemcpy(spikemonitor_t_sizes, dev_spikemonitor_t_sizes, sizeof(int)*num_blocks_sequential, cudaMemcpyDeviceToHost);
+
+	cudaFree(dev_spikemonitor_i_data);
+	cudaFree(dev_spikemonitor_i_sizes);
+	cudaFree(dev_spikemonitor_t_data);
+	cudaFree(dev_spikemonitor_t_sizes);
 
 	cudaMemcpy(_array_neurongroup__spikespace, dev_array_neurongroup__spikespace, sizeof(int32_t)*_num__array_neurongroup__spikespace, cudaMemcpyDeviceToHost);
 	cudaMemcpy(_array_neurongroup_i, dev_array_neurongroup_i, sizeof(int32_t)*_num__array_neurongroup_i, cudaMemcpyDeviceToHost);
@@ -442,7 +448,6 @@ void _write_arrays()
 	}
 
 
-
 	ofstream outfile__dynamic_array_spikemonitor_t;
 	outfile__dynamic_array_spikemonitor_t.open("results/_dynamic_array_spikemonitor_t", ios::binary | ios::out);
 	if(outfile__dynamic_array_spikemonitor_t.is_open())
@@ -593,10 +598,6 @@ void _write_arrays()
 	free(spikemonitor_i_sizes);
 	free(spikemonitor_t_data);
 	free(spikemonitor_t_sizes);
-	cudaFree(dev_spikemonitor_i_data);
-	cudaFree(dev_spikemonitor_i_sizes);
-	cudaFree(dev_spikemonitor_t_data);
-	cudaFree(dev_spikemonitor_t_sizes);
 }
 
 __global__ void dealloc_kernel(int par_num_threads)
@@ -628,6 +629,8 @@ void _dealloc_arrays()
 	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_rate);
 	_dynamic_array_ratemonitor_t.clear();
 	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_t);
+	_dynamic_array_synapses__pos.clear();
+	thrust::device_vector<int32_t>().swap(_dynamic_array_synapses__pos);
 	_dynamic_array_synapses__synaptic_post.clear();
 	thrust::device_vector<int32_t>().swap(_dynamic_array_synapses__synaptic_post);
 	_dynamic_array_synapses__synaptic_pre.clear();
