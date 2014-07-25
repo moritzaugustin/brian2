@@ -22,10 +22,7 @@ private:
 				scalar* new_data = (scalar*)malloc(sizeof(scalar) * new_capacity);
 				if (new_data)
 				{
-					for(int i = 0; i < size(); i++)
-					{
-						new_data[i] = data[i];
-					}
+					memcpy(new_data, data, size());
 					free(data);
 					data = new_data;
 					capacity = new_capacity;

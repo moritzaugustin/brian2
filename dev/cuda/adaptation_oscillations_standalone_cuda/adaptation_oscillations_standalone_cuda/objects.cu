@@ -608,7 +608,7 @@ __global__ void dealloc_kernel(int par_num_threads)
 
 	if(tid == 0)
 	{
-		synapses_pre.destroy();
+		//synapses_pre.destroy();
 	}
 	delete _dynamic_array_spikemonitor_i[tid];
 	delete _dynamic_array_spikemonitor_t[tid];
@@ -621,7 +621,6 @@ void _dealloc_arrays()
 	curandDestroyGenerator(gen);
 	cudaFree(dev_array_random);
 
-	int num_blocks_sequential = 1;
 	dealloc_kernel<<<1, num_blocks_sequential>>>(num_blocks_sequential);
 
 

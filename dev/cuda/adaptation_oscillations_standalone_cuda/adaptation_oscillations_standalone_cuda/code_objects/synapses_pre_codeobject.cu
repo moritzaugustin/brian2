@@ -26,8 +26,8 @@ __global__ void _run_synapses_pre_pre_codeobject_kernel(int par_num_threads, int
 	int num_threads = par_num_threads;
 	int num_pre = par_num_pre;
 	float num_per_thread = (float)num_pre/(float)num_threads;
-	int lower = bid*(num_per_thread);
-	int upper = (bid + 1)*(num_per_thread);
+	int lower = bid;
+	int upper = (bid + 1);
 
 	for(int i = 0; i < synapses_pre.queue->num_parallel; i++)
 	{
@@ -56,9 +56,9 @@ __global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int
 
 	int num_threads = par_num_threads;
 	int num_syn = par_num_syn;
-	float num_per_thread = (float)num_syn/(float)num_threads;
-	int lower = bid*(num_per_thread);
-	int upper = (bid + 1)*(num_per_thread);
+	float num_per_thread = (float)num_syn/(float)num_threads; 
+	int lower = bid;
+	int upper = (bid + 1);
 
 	double* _array_synapses_lastupdate = par_array_synapses_lastupdate;
 	double t = par_t;
@@ -93,30 +93,28 @@ __global__ void _run_synapses_pre_post_codeobject_kernel(int par_num_threads, in
 	int num_threads = par_num_threads;
 	int num_post = par_num_post;
 	float num_per_thread = (float)num_post/(float)num_threads;
-	int lower = bid*(num_per_thread);
-	int upper = (bid + 1)*(num_per_thread);
+	int lower = bid;
+	int upper = (bid + 1);
 
 	double* array_synapses_c = par_array_synapses_c;
 	bool* array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
 	double* array_neurongroup_v = par_array_neurongroup_v;
 
-	for(int i = 0; i < synapses_pre.queue->num_parallel; i++)
+	//we are only working on part of the queue
+	for(int i = lower; i < upper; i++)
 	{
 		for(int j = 0; j < post_neuron_queue[i].size(); j++)
 		{
+			int syn_idx = synapses_queue[i].get(j);
 			int32_t post_idx = post_neuron_queue[i].get(j);
-			if(post_idx >= lower && post_idx < upper)
+			const double c = array_synapses_c[syn_idx];
+			const bool not_refractory = array_neurongroup_not_refractory[post_idx];
+			double v = array_neurongroup_v[post_idx];
+			if(not_refractory)
 			{
-				int syn_idx = synapses_queue[i].get(j);
-				const double c = array_synapses_c[syn_idx];
-				const bool not_refractory = array_neurongroup_not_refractory[post_idx];
-				double v = array_neurongroup_v[post_idx];
-				if(not_refractory)
-				{
-					v += c;
-				}
-				array_neurongroup_v[post_idx] = v;
+				v += c;
 			}
+			array_neurongroup_v[post_idx] = v;
 		}
 	}
 }

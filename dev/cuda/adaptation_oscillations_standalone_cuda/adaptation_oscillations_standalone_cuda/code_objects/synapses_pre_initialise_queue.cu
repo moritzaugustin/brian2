@@ -8,7 +8,8 @@ __global__ void _run_synapses_pre_initialise_queue_kernel(double* par_real_delay
 {
 	using namespace brian;
 
-	synapses_pre.queue->prepare(par_real_delays, par_sources, par_targets, par_pos, n_synapses, synapses_pre.dt);
+	int tid = blockIdx.x * 1000 + threadIdx.x;
+	synapses_pre.queue->prepare(tid, par_real_delays, par_sources, par_targets, par_pos, n_synapses, N, synapses_pre.dt);
 }
 
 void _run_synapses_pre_initialise_queue()
@@ -17,7 +18,7 @@ void _run_synapses_pre_initialise_queue()
 
 	int syn_N = _dynamic_array_synapses__synaptic_pre.size();
 
-	_run_synapses_pre_initialise_queue_kernel<<<1, 1>>>(
+	_run_synapses_pre_initialise_queue_kernel<<<1, 1000>>>(
 		thrust::raw_pointer_cast(&_dynamic_array_synapses_pre_delay[0]),
 		thrust::raw_pointer_cast(&_dynamic_array_synapses__synaptic_pre[0]),
 		thrust::raw_pointer_cast(&_dynamic_array_synapses__synaptic_post[0]),

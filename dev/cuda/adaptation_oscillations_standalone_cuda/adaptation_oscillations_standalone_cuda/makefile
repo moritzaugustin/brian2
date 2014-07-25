@@ -6,8 +6,8 @@ SRCS_CU  = $(wildcard *.cu */*.cu)
 OBJS_CPP = ${SRCS_CPP:.cpp=.o}
 OBJS_CU  = ${SRCS_CU:.cu=.o}
 CC = @nvcc
-DEBUG = -g
-OPTIMISATIONS = --use_fast_math -O3 -arch=sm_20
+DEBUG = -g -G
+OPTIMISATIONS = --use_fast_math -O2 -arch=sm_20
 CFLAGS = -c $(OPTIMISATIONS) -I.
 LFLAGS = -lcurand
 
