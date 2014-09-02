@@ -80,6 +80,9 @@ extern const int _num__array_synapses_N_incoming;
 extern int32_t *_array_synapses_N_outgoing;
 extern const int _num__array_synapses_N_outgoing;
 
+extern int32_t *_array_neurongroup_queue_bounds;
+extern int32_t * dev_array_neurongroup_queue_bounds;
+
 //////////////// dynamic arrays 2d /////////
 
 /////////////// static arrays /////////////

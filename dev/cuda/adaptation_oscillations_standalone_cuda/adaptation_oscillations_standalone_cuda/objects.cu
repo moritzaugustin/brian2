@@ -62,6 +62,9 @@ const int brian::_num__array_synapses_N_incoming = N;
 int32_t * brian::_array_synapses_N_outgoing;
 const int brian::_num__array_synapses_N_outgoing = N;
 
+int32_t * brian::_array_neurongroup_queue_bounds;
+int32_t * brian::dev_array_neurongroup_queue_bounds;
+
 //////////////// dynamic arrays 1d /////////
 std::vector<double> brian::_dynamic_array_statemonitor_t;
 
@@ -182,6 +185,11 @@ void _init_arrays()
 	// Arrays initialized to an "arange"
 	_array_neurongroup_i = new int32_t[N];
 	for(int i=0; i<N; i++) _array_neurongroup_i[i] = 0 + i;
+
+	_array_neurongroup_queue_bounds = new int32_t[N*(num_blocks_sequential + 1)];
+	for(int i=0; i<N*(num_blocks_sequential + 1); i++) _array_neurongroup_queue_bounds[i] = 0;
+	cudaMalloc((void**)&dev_array_neurongroup_queue_bounds, sizeof(int32_t)*N*(num_blocks_sequential + 1));
+	cudaMemcpy(dev_array_neurongroup_queue_bounds, _array_neurongroup_queue_bounds, sizeof(int32_t)*N*(num_blocks_sequential + 1), cudaMemcpyHostToDevice);
 
 	// static arrays
 	_static_array__array_neurongroup_lastspike = new double[N];
@@ -608,7 +616,7 @@ __global__ void dealloc_kernel(int par_num_threads)
 
 	if(tid == 0)
 	{
-		//synapses_pre.destroy();
+		synapses_pre.destroy();
 	}
 	delete _dynamic_array_spikemonitor_i[tid];
 	delete _dynamic_array_spikemonitor_t[tid];
@@ -716,6 +724,13 @@ void _dealloc_arrays()
 	if(_array_synapses_N_outgoing!=0)
 	{
 		delete [] _array_synapses_N_outgoing;
+		_array_synapses_N_outgoing = 0;
+	}
+
+	if(_array_neurongroup_queue_bounds !=0)
+	{
+		delete [] _array_neurongroup_queue_bounds;
+		cudaFree(dev_array_neurongroup_queue_bounds);
 		_array_synapses_N_outgoing = 0;
 	}
 

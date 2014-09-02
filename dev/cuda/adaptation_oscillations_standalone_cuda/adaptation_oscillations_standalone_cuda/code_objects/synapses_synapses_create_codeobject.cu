@@ -11,6 +11,7 @@
 
 #define N 4000
 #define N_squared (N*N)
+#define ceil(M, num) ((M + num-1)/num)
 
 void _run_synapses_synapses_create_codeobject()
 {
@@ -49,8 +50,7 @@ void _run_synapses_synapses_create_codeobject()
 			const int32_t _post_idx = _all_post;
 			const bool _cond = i != j;
 			const int32_t _n = 1;
-//			const double _p = 0.05;
-			const double _p = 0.01;
+			const double _p = 0.05;
 			// Add to buffer
 			if(_cond)
 			{
@@ -79,6 +79,20 @@ void _run_synapses_synapses_create_codeobject()
 	_dynamic_array_synapses__synaptic_post = temp_post;
 	_dynamic_array_synapses__synaptic_pre = temp_pre;
 
+	for(int i = 0; i < N; i++)
+	{
+		int num_syn = _ptr_array_synapses_N_outgoing[i];
+		int num_per_block = ceil(num_syn, num_blocks_sequential);
+		int cur_block = 0;
+		for(int j = 0; j < _ptr_array_synapses_N_outgoing[i]; j += num_per_block)
+		{
+			_array_neurongroup_queue_bounds[i*num_blocks_sequential + cur_block] = temp_pre[temp_pos[i] + j];
+			cur_block++;
+		}
+		_array_neurongroup_queue_bounds[i*num_blocks_sequential + num_blocks_sequential - 1] = temp_pre[temp_pos[i + 1] - 1];
+	}
+	cudaMemcpy(dev_array_neurongroup_queue_bounds, _array_neurongroup_queue_bounds, sizeof(int32_t)*N*(num_blocks_sequential + 1), cudaMemcpyHostToDevice);
+	
 	// now we need to resize all registered variables
 	const int newsize = _dynamic_array_synapses__synaptic_pre.size();
 	_dynamic_array_synapses__synaptic_post.resize(newsize);

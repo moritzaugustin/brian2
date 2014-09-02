@@ -48,8 +48,8 @@ int main(int argc, char **argv)
 		_run_synapses_synapses_create_codeobject();
 		_run_synapses_group_variable_set_conditional_codeobject();
 		_run_synapses_group_variable_set_conditional_codeobject_1();
-		//sort synapses constants by post_neuron_ids
 
+		//TODO: sort synapses constants by post_neuron_ids
 	
                 for(int i=0; i<_num__static_array__array_statemonitor__indices; i++)
                 {

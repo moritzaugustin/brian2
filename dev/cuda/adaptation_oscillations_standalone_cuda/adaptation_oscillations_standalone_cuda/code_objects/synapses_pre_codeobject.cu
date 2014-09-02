@@ -112,7 +112,7 @@ __global__ void _run_synapses_pre_post_codeobject_kernel(int par_num_threads, in
 			double v = array_neurongroup_v[post_idx];
 			if(not_refractory)
 			{
-				v += c;
+				//v += c;
 			}
 			array_neurongroup_v[post_idx] = v;
 		}

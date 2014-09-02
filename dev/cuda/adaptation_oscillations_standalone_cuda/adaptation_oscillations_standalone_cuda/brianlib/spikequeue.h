@@ -25,8 +25,8 @@ public:
 	CudaVector<DTYPE_int>** post_neuron_queue;
 	scalar dt;
 	unsigned int offset;
-	unsigned int* delays;
-	int max_delay;
+	int* delays;
+	unsigned int max_delay;
 	int num_neurons;
 	int num_parallel;
 	int source_start;
@@ -135,19 +135,22 @@ public:
 		data[mpid*3 + 1] = post_id;
 		data[mpid*3 + 2] = delay;
 
-		if(mpid == 0)
+		if(mpid < num_parallel)
 		{
 			for(int i = 0; i < num_connected; i++)
 			{
-				int queue_pre_id = pre_id;
-				int queue_syn_id = data[i*3];
 				int queue_post_id = data[i*3 + 1];
+				if(queue_post_id == mpid)
+				{
+					int queue_pre_id = pre_id;
+					int queue_syn_id = data[i*3];
 
-				int queue_delay = data[i*3 + 2];
-				int queue_id = (queue_post_id * num_parallel) / num_neurons;
-				synapses_queue[(offset+queue_delay)%max_delay][queue_id].push(queue_syn_id);
-				pre_neuron_queue[(offset+queue_delay)%max_delay][queue_id].push(queue_pre_id);
-				post_neuron_queue[(offset+queue_delay)%max_delay][queue_id].push(queue_post_id);
+					int queue_delay = data[i*3 + 2];
+					int queue_id = (queue_post_id * num_parallel) / num_neurons;
+					synapses_queue[(offset+queue_delay)%max_delay][queue_id].push(queue_syn_id);
+					pre_neuron_queue[(offset+queue_delay)%max_delay][queue_id].push(queue_pre_id);
+					post_neuron_queue[(offset+queue_delay)%max_delay][queue_id].push(queue_post_id);
+				}
 			}
 		}
 	}
