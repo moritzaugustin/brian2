@@ -52,6 +52,7 @@ __global__ void _run_synapses_pre_codeobject_pre_kernel()
 	}
 }
 
+// parallelization over post neuron id groups (due to organization of spike queues)
 __global__ void _run_synapses_pre_codeobject_syn_kernel(
 	double _t,
 	double* _array_synapses_lastupdate)

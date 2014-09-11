@@ -58,6 +58,8 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 	{
 		if(spike_cache[i])
 		{
+		    // note that neuron_id here refers to the id of the first neuron
+		    // in this block (mapped from thread id 0)
 			int spiking_neuron = neuron_id + i;
 			_ptr_array_neurongroup__spikespace[neuron_id + num_spikes_in_block] = spiking_neuron;
 			_ptr_array_neurongroup_not_refractory[spiking_neuron] = false;

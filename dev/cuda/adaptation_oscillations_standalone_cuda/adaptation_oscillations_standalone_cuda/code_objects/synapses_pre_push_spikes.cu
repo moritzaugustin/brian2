@@ -39,6 +39,7 @@ void _run_synapses_pre_push_spikes()
 
 	_run_synapses_pre_push_spikes_advance_kernel<<<1, num_blocks_sequential>>>();
 
+    // please briefly comment the logic (and underlying data structure)
 	for(int i = 0; i < neuron_N;)
 	{
 		int32_t spiking_neuron = _array_neurongroup__spikespace[i];
