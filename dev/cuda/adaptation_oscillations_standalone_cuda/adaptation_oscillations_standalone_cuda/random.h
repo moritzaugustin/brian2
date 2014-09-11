@@ -3,7 +3,6 @@
 
 #include "objects.h"
 
-void _get_random();
-
+void _random_number_generation();
 
 #endif

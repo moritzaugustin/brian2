@@ -9,32 +9,42 @@
 #include <inttypes.h>
 #include "brianlib/synapses.h"
 
-#define neuron_N 4000
+#define THREADS 1024
+#define BLOCKS (num_blocks_sequential)
+#define neurons_N 4000
 
-__global__ void _run_synapses_pre_pre_codeobject_kernel(int par_num_threads, int par_num_pre)
+__global__ void _run_synapses_pre_codeobject_pre_kernel()
 {
 	using namespace brian;
 
 	int bid = blockIdx.x;
 
-	CudaVector<int32_t>* synapses_queue;
-	CudaVector<int32_t>* pre_neuron_queue;
-	CudaVector<int32_t>* post_neuron_queue;
+	cudaVector<int32_t>* pre_neuron_queue;
+	cudaVector<int32_t>* synapses_queue;
+	cudaVector<int32_t>* post_neuron_queue;
 
-	synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
+	synapses_pre.queue->peek(
+		&synapses_queue,
+		&pre_neuron_queue,
+		&post_neuron_queue);
 
-	int num_threads = par_num_threads;
-	int num_pre = par_num_pre;
-	float num_per_thread = (float)num_pre/(float)num_threads;
-	int lower = bid;
-	int upper = (bid + 1);
-
-	for(int i = 0; i < synapses_pre.queue->num_parallel; i++)
+	if(bid < 0 || bid >= synapses_pre.queue->num_blocks_sequential)
 	{
-		for(int j = 0; j < pre_neuron_queue[i].size(); j++)
+		return;
+	}
+
+	int neurons_per_thread = (neurons_N + THREADS - 1)/THREADS;
+	int lower_limit = bid*neurons_per_thread;
+	int upper_limit = (bid + 1)*neurons_per_thread;
+
+	int num_queues = synapses_pre.queue->num_blocks_sequential;
+	for(int i = 0; i < num_queues; i++)
+	{
+		int size = pre_neuron_queue[i].size();
+		for(int j = 0; j < size; j++)
 		{
-			int32_t pre_idx = pre_neuron_queue[i].get(j);
-			if(pre_idx >= lower && pre_idx < upper)
+			int32_t pre_neuron_id = pre_neuron_queue[i].getDataByIndex(j);
+			if(pre_neuron_id >= lower_limit && pre_neuron_id < upper_limit)
 			{
 				//DO NOTHING
 			}
@@ -42,79 +52,78 @@ __global__ void _run_synapses_pre_pre_codeobject_kernel(int par_num_threads, int
 	}
 }
 
-__global__ void _run_synapses_pre_syn_codeobject_kernel(int par_num_threads, int par_num_syn, double par_t, double* par_array_synapses_lastupdate)
+__global__ void _run_synapses_pre_codeobject_syn_kernel(
+	double _t,
+	double* _array_synapses_lastupdate)
 {
 	using namespace brian;
-	
+
 	int bid = blockIdx.x;
+	int tid = blockIdx.x;
+	cudaVector<int32_t>* pre_neuron_queue;
+	cudaVector<int32_t>* synapses_queue;
+	cudaVector<int32_t>* post_neuron_queue;
 
-	CudaVector<int32_t>* synapses_queue;
-	CudaVector<int32_t>* pre_neuron_queue;
-	CudaVector<int32_t>* post_neuron_queue;
+	double t = _t;
+	double* _ptr_array_synapses_lastupdate = _array_synapses_lastupdate;
 
-	synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
-
-	int num_threads = par_num_threads;
-	int num_syn = par_num_syn;
-	float num_per_thread = (float)num_syn/(float)num_threads; 
-	int lower = bid;
-	int upper = (bid + 1);
-
-	double* _array_synapses_lastupdate = par_array_synapses_lastupdate;
-	double t = par_t;
-
-	for(int i = 0; i < synapses_pre.queue->num_parallel; i++)
+	if(bid < 0 || bid >= synapses_pre.queue->num_blocks_sequential)
 	{
-		for(int j = 0; j < synapses_queue[i].size(); j++)
-		{
-			int32_t syn_idx = synapses_queue[i].get(j);
-			if(syn_idx >= lower && syn_idx < upper)
-			{
-				double lastupdate;
-				lastupdate = t;
-				_array_synapses_lastupdate[syn_idx] = lastupdate;
-			}
-		}
+		return;
+	}
+
+	synapses_pre.queue->peek(
+		&synapses_queue,
+		&pre_neuron_queue,
+		&post_neuron_queue);
+
+	int size = synapses_queue[bid].size();
+	for(int j = tid; j < size; j++)
+	{
+		int32_t syn_id = synapses_queue[bid].getDataByIndex(j);	
+		_ptr_array_synapses_lastupdate[syn_id] = t;		
 	}
 }
 
-__global__ void _run_synapses_pre_post_codeobject_kernel(int par_num_threads, int par_num_post, double* par_array_synapses_c, bool* par_array_neurongroup_not_refractory, double* par_array_neurongroup_v)
+__global__ void _run_synapses_pre_codeobject_post_kernel(
+	double* _array_synapses_c,
+	bool* _array_neurongroup_not_refractory,
+	double* _array_neurongroup_v)
 {
 	using namespace brian;
-	
+
 	int bid = blockIdx.x;
+	cudaVector<int32_t>* pre_neuron_queue;
+	cudaVector<int32_t>* synapses_queue;
+	cudaVector<int32_t>* post_neuron_queue;
 
-	CudaVector<int32_t>* synapses_queue;
-	CudaVector<int32_t>* pre_neuron_queue;
-	CudaVector<int32_t>* post_neuron_queue;
+	double* _ptr_array_synapses_c = _array_synapses_c;
+	bool* _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
+	double* _ptr_array_neurongroup_v = _array_neurongroup_v;
 
-	synapses_pre.queue->peek(&synapses_queue, &pre_neuron_queue, &post_neuron_queue);
-
-	int num_threads = par_num_threads;
-	int num_post = par_num_post;
-	float num_per_thread = (float)num_post/(float)num_threads;
-	int lower = bid;
-	int upper = (bid + 1);
-
-	double* array_synapses_c = par_array_synapses_c;
-	bool* array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
-	double* array_neurongroup_v = par_array_neurongroup_v;
-
-	//we are only working on part of the queue
-	for(int i = lower; i < upper; i++)
+	if(bid < 0 || bid >= synapses_pre.queue->num_blocks_sequential)
 	{
-		for(int j = 0; j < post_neuron_queue[i].size(); j++)
+		return;
+	}
+
+	synapses_pre.queue->peek(
+		&synapses_queue,
+		&pre_neuron_queue,
+		&post_neuron_queue);
+
+	int size = post_neuron_queue[bid].size();
+	for(int j = 0; j < size; j++)
+	{
+		int32_t post_neuron_id = post_neuron_queue[bid].getDataByIndex(j);
+		int32_t syn_id = synapses_queue[bid].getDataByIndex(j);
+
+		bool not_refractory = _ptr_array_neurongroup_not_refractory[post_neuron_id];
+		if(not_refractory)
 		{
-			int syn_idx = synapses_queue[i].get(j);
-			int32_t post_idx = post_neuron_queue[i].get(j);
-			const double c = array_synapses_c[syn_idx];
-			const bool not_refractory = array_neurongroup_not_refractory[post_idx];
-			double v = array_neurongroup_v[post_idx];
-			if(not_refractory)
-			{
-				//v += c;
-			}
-			array_neurongroup_v[post_idx] = v;
+			double v = _ptr_array_neurongroup_v[post_neuron_id];
+			double c = _ptr_array_synapses_c[syn_id];
+			v += c;
+			_ptr_array_neurongroup_v[post_neuron_id] = v;
 		}
 	}
 }
@@ -123,16 +132,20 @@ void _run_synapses_pre_codeobject()
 {
 	using namespace brian;
 
-	double t = defaultclock.t_();
-	int syn_N = synapses._N();
-	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
 	double* dev_array_synapses_c = thrust::raw_pointer_cast(&_dynamic_array_synapses_c[0]);
+	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
+	double t = defaultclock.t_();
 
-	//_run_synapses_pre_pre_codeobject_kernel<<<num_blocks_sequential,1>>>(num_blocks_sequential, neuron_N);
+	//_run_synapses_pre_codeobject_pre_kernel<<<BLOCKS, THREADS>>>();
 
-	_run_synapses_pre_syn_codeobject_kernel<<<num_blocks_sequential,1>>>(num_blocks_sequential, syn_N, t, dev_array_synapses_lastupdate);
+	_run_synapses_pre_codeobject_syn_kernel<<<BLOCKS, THREADS>>>(
+		t,
+		dev_array_synapses_lastupdate);
 
-	_run_synapses_pre_post_codeobject_kernel<<<num_blocks_sequential,1>>>(num_blocks_sequential, neuron_N, dev_array_synapses_c, dev_array_neurongroup_not_refractory, dev_array_neurongroup_v);
+	_run_synapses_pre_codeobject_post_kernel<<<BLOCKS, 1>>>(
+		dev_array_synapses_c,
+		dev_array_neurongroup_not_refractory,
+		dev_array_neurongroup_v);
 }
 
 void _debugmsg_synapses_pre_codeobject()

@@ -6,50 +6,66 @@
 #include<iostream>
 #include<fstream>
 
-#define N 4000
-#define ceil(N, num) ((N + num-1)/num)
+#define neuron_N 4000
+#define MEM_PER_THREAD (sizeof(bool))
+#define THREADS (4000 + BLOCKS - 1)/(BLOCKS)
+#define BLOCKS (num_blocks_sequential)
 
-__global__ void _run_neurongroup_thresholder_codeobject_kernel(int stride, double par_t, int32_t* par_array_neurongroup__spikespace, double* par_array_neurongroup_v, double* par_array_neurongroup_lastspike, bool* par_array_neurongroup_not_refractory)
+__global__ void _run_neurongroup_thresholder_codeobject_kernel(
+	int par_num_thread_per_block,
+	double par_t,
+	int32_t* par_array_neurongroup__spikespace,
+	double* par_array_neurongroup_v,
+	double* par_array_neurongroup_lastspike,
+	bool* par_array_neurongroup_not_refractory)
 {
-	using namespace brian;
-
-	int tid = threadIdx.x;
 	int bid = blockIdx.x;
+	int tid = threadIdx.x;
+	int num_threads_per_block = par_num_thread_per_block;
 
-	if(bid*stride + tid >= N)
-		return;
-
-	extern __shared__ bool cond_cache[];
-
-	double t = par_t;
-	int32_t* array_neurongroup__spikespace = par_array_neurongroup__spikespace;
-	double* array_neurongroup_v = par_array_neurongroup_v;
-	double* array_neurongroup_lastspike = par_array_neurongroup_lastspike;
-	bool* array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
-
-	array_neurongroup__spikespace[bid * stride + tid] = -1;
-	if(tid == 0 && bid == 0)
+	int neuron_id = bid*num_threads_per_block + tid;
+	if(neuron_id < 0 || neuron_id >= neuron_N)
 	{
-		array_neurongroup__spikespace[N] = 0;
+		return;
 	}
 
-	cond_cache[tid] = (array_neurongroup_v[bid * stride + tid] > 0.001) && (array_neurongroup_not_refractory[bid * stride + tid]);
+	extern __shared__ bool spike_cache[];
+	double t = par_t;
+	int32_t* _ptr_array_neurongroup__spikespace = par_array_neurongroup__spikespace;
+	double* _ptr_array_neurongroup_v = par_array_neurongroup_v;
+	double* _ptr_array_neurongroup_lastspike = par_array_neurongroup_lastspike;
+	bool* _ptr_array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
 
-	if(tid == 0)
+	spike_cache[tid] = false;
+	if(tid == 0 && bid == 0)
 	{
-		int num_spikes = 0;
+		//init number of spikes with 0
+		_ptr_array_neurongroup__spikespace[neuron_N] = 0;
+	}
 
-		for(int i = bid * stride; i < (bid + 1)*stride && i < N; i++)
+	double v = _ptr_array_neurongroup_v[neuron_id];
+	bool not_refractory = _ptr_array_neurongroup_not_refractory[neuron_id];
+	spike_cache[tid] = (v > 0.001) && (not_refractory);
+
+	//only one thread per block iterates over the cache
+	if(tid != 0)
+	{
+		return;
+	}
+
+	int num_spikes_in_block = 0;
+	for(int i = 0; (i < num_threads_per_block) && (neuron_id + i < neuron_N); i++)
+	{
+		if(spike_cache[i])
 		{
-			if(cond_cache[i%stride] && i < N)
-			{
-				array_neurongroup__spikespace[bid*stride + num_spikes] = i;
-				array_neurongroup_not_refractory[i] = false;
-				array_neurongroup_lastspike[i] = t;
-				num_spikes++;
-			}
+			int spiking_neuron = neuron_id + i;
+			_ptr_array_neurongroup__spikespace[neuron_id + num_spikes_in_block] = spiking_neuron;
+			_ptr_array_neurongroup_not_refractory[spiking_neuron] = false;
+			_ptr_array_neurongroup_lastspike[spiking_neuron] = t;
+			num_spikes_in_block++;
 		}
-		atomicAdd(&array_neurongroup__spikespace[N], num_spikes);
+		//add all blocks together
+		atomicAdd(&_ptr_array_neurongroup__spikespace[neuron_N], num_spikes_in_block);
 	}
 }
 
@@ -59,8 +75,12 @@ void _run_neurongroup_thresholder_codeobject()
 
 	const double t = defaultclock.t_();
 
-	//// MAIN CODE ////////////
-	_run_neurongroup_thresholder_codeobject_kernel<<<num_blocks_sequential, ceil(N, num_blocks_sequential), ceil(N, num_blocks_sequential) * sizeof(bool)>>>(ceil(N, num_blocks_sequential), t, dev_array_neurongroup__spikespace, dev_array_neurongroup_v, dev_array_neurongroup_lastspike, dev_array_neurongroup_not_refractory);
+	_run_neurongroup_thresholder_codeobject_kernel<<<BLOCKS, THREADS, THREADS*MEM_PER_THREAD>>>(
+		THREADS,
+		t,
+		dev_array_neurongroup__spikespace,
+		dev_array_neurongroup_v,
+		dev_array_neurongroup_lastspike,
+		dev_array_neurongroup_not_refractory);
 }
-
 

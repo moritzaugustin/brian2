@@ -6,39 +6,43 @@
 #include<iostream>
 #include<fstream>
 
-#define ceil(N, num) ((N + num-1)/num)
+#define THREADS 1024
+#define BLOCKS(N) (N + THREADS -1)/THREADS
 
-__global__ void _run_synapses_group_variable_set_conditional_codeobject_kernel_2(int par_N, double* par_array_synapses_lastupdate)
+__global__ void _run_synapses_group_variable_set_conditional_codeobject_2_kernel(
+	int par_syn_N,
+	double* par_array_synapses_lastupdate)
 {
-	using namespace brian;
-
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
-	int idx = bid * 1024 + tid;
 
-	if(idx >= par_N)
+	int syn_N = par_syn_N;
+	double* _ptr_array_synapses_lastupdate = par_array_synapses_lastupdate;
+
+	int syn_id = bid*THREADS + tid;
+	if(syn_id < 0 || syn_id >= syn_N)
 	{
 		return;
 	}
 
-	double* _ptr_array_synapses_lastupdate = par_array_synapses_lastupdate;
 	const bool _cond = true;
-
 	if(_cond)
 	{
 		double lastupdate;
 		lastupdate = 0.0 * 1.0;
-		_ptr_array_synapses_lastupdate[idx] = lastupdate;
-	}	
+		_ptr_array_synapses_lastupdate[syn_id] = lastupdate;
+	}
 }
 
 void _run_synapses_group_variable_set_conditional_codeobject_2()
 {
 	using namespace brian;
 
-	const int64_t N = synapses._N();
-	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
+	const int64_t syn_N = synapses._N();
+	double* const dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
 
-	_run_synapses_group_variable_set_conditional_codeobject_kernel_2<<<ceil(N, 1024),1024>>>(N, dev_array_synapses_lastupdate);
+	_run_synapses_group_variable_set_conditional_codeobject_2_kernel<<<BLOCKS(syn_N), THREADS>>>(
+		syn_N,
+		dev_array_synapses_lastupdate);
 }
 

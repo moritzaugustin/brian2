@@ -1,11 +1,15 @@
 #include "objects.h"
 #include "random.h"
+
 #include <curand.h>
 
-#define N 4000
+#define neuron_N 4000
 
-void _get_random()
+void _random_number_generation()
 {
 	using namespace brian;
-	curandGenerateNormal(gen, dev_array_random, N, 0.0, 1.0);
+
+	float mean = 0.0;
+	float std_deviation = 1.0;
+	curandGenerateNormal(random_float_generator, dev_array_random_floats, neuron_N, mean, std_deviation);
 }

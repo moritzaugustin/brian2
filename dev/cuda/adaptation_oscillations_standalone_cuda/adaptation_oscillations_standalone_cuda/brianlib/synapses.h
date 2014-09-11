@@ -1,6 +1,8 @@
 #ifndef _BRIAN_SYNAPSES_H
 #define _BRIAN_SYNAPSES_H
 
+#include<vector>
+#include<algorithm>
 #include "spikequeue.h"
 
 template<class scalar> class Synapses;
@@ -10,25 +12,21 @@ template <class scalar>
 class SynapticPathway
 {
 public:
-	int Nsource, Ntarget;
-	scalar dt;
-	CSpikeQueue<scalar>* queue;
-	
-	__device__ void init(int num_mps, int _Nsource, int _Ntarget,
-					scalar _dt, int _spikes_start, int _spikes_stop)
-	{
-		Nsource = _Nsource;
-		Ntarget = _Ntarget;
-		dt = _dt;
-		this->queue = new CSpikeQueue<scalar>;
-		queue->init(num_mps, _spikes_start, _spikes_stop);
-	};
+	CSpikeQueue<scalar> *queue;
 
+	__device__ void init()
+	{
+		queue = new CSpikeQueue<scalar>;
+	}
+	
 	__device__ void destroy()
 	{
-		queue->destroy();
-		delete queue;
-	};
+		if(queue)
+		{
+			queue->destroy();
+			delete queue;
+		}
+	}
 };
 
 template <class scalar>

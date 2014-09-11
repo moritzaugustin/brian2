@@ -6,8 +6,9 @@
 #include<iostream>
 #include<fstream>
 
-#define N 4000
-#define ceil(N, num) ((N + num-1)/num)
+#define neuron_N 4000
+#define THREADS 1024
+#define BLOCKS (neuron_N + THREADS -1)/THREADS
 
 namespace {
 	__device__ int int_(const bool value)
@@ -16,34 +17,39 @@ namespace {
 	}
 }
 
-
-__global__ void _run_neurongroup_stateupdater_codeobject_kernel(int par_N, float* par_array_random, double par_t, double par_dt, double* par_array_neurongroup_w, double* par_array_neurongroup_v, double* par_array_neurongroup_lastspike, bool* par_array_neurongroup_not_refractory)
+__global__ void _run_neurongroup_stateupdater_codeobject_kernel(
+	double par_t,
+	double par_dt,
+	float* par_array_random_floats,
+	double* par_array_neurongroup_v,
+	double* par_array_neurongroup_w,
+	double* par_array_neurongroup_lastspike,
+	bool* par_array_neurongroup_not_refractory)
 {
-	using namespace brian;
-
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
-	int idx = bid * 1024 + tid;
+	int neuron_id = bid * THREADS + tid;
 
-	if(idx >= par_N)
+	if(neuron_id < 0 || neuron_id >= neuron_N)
 	{
 		return;
 	}
 
-	double dt = par_dt;
 	double t = par_t;
-	float* _ptr_array_random = par_array_random;
-	double* _ptr_array_neurongroup_w = par_array_neurongroup_w;
+	double dt = par_dt;
+	float* _ptr_array_random_floats = par_array_random_floats;
 	double* _ptr_array_neurongroup_v = par_array_neurongroup_v;
+	double* _ptr_array_neurongroup_w = par_array_neurongroup_w;
 	double* _ptr_array_neurongroup_lastspike = par_array_neurongroup_lastspike;
 	bool* _ptr_array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
 
-	double w = _ptr_array_neurongroup_w[idx];
-	double v = _ptr_array_neurongroup_v[idx];
-	const double lastspike = _ptr_array_neurongroup_lastspike[idx];
-	bool not_refractory = _ptr_array_neurongroup_not_refractory[idx];
+	double w = _ptr_array_neurongroup_w[neuron_id];
+	double v = _ptr_array_neurongroup_v[neuron_id];
+	double lastspike = _ptr_array_neurongroup_lastspike[neuron_id];
+	bool not_refractory = _ptr_array_neurongroup_not_refractory[neuron_id];
+
 	not_refractory = t - lastspike > 0.0025;
-	float r = _ptr_array_random[idx];
+	float r = _ptr_array_random_floats[neuron_id]; //get random pregenerated number
 	const double xi = pow(dt, 0.5) * r;
 	const double _w = -(dt) * w * int_(not_refractory) / 0.2 + w;
 	const double _v = dt * (0.14 * int_(not_refractory) - v * int_(not_refractory) / 0.01 - w * int_(not_refractory) / 0.01) + v + 0.002213594362117866 * xi * int_(not_refractory);
@@ -55,18 +61,27 @@ __global__ void _run_neurongroup_stateupdater_codeobject_kernel(int par_N, float
 	{
 		v = _v;
 	}
-	_ptr_array_neurongroup_not_refractory[idx] = not_refractory;
-	_ptr_array_neurongroup_w[idx] = w;
-	_ptr_array_neurongroup_v[idx] = v;
+
+	_ptr_array_neurongroup_not_refractory[neuron_id] = not_refractory;
+	_ptr_array_neurongroup_w[neuron_id] = w;
+	_ptr_array_neurongroup_v[neuron_id] = v;
 }
 
 void _run_neurongroup_stateupdater_codeobject()
 {
 	using namespace brian;
 
-	double t = defaultclock.t_();
-	double dt = defaultclock.dt_();
+	const double t = defaultclock.t_();
+	const double dt = defaultclock.dt_();
 
-	_run_neurongroup_stateupdater_codeobject_kernel<<<ceil(N, 1024),1024>>>(N, dev_array_random, t, dt, dev_array_neurongroup_w, dev_array_neurongroup_v, dev_array_neurongroup_lastspike, dev_array_neurongroup_not_refractory);
+	_run_neurongroup_stateupdater_codeobject_kernel<<<BLOCKS, THREADS>>>(
+		t,
+		dt,
+		dev_array_random_floats,
+		dev_array_neurongroup_v,
+		dev_array_neurongroup_w,
+		dev_array_neurongroup_lastspike,
+		dev_array_neurongroup_not_refractory
+		);
 }
 
