@@ -6,7 +6,6 @@
 #include<iostream>
 #include<fstream>
 
-
 #define neuron_N 4000
 #define THREADS 1024
 #define BLOCKS (neuron_N + THREADS -1)/THREADS
@@ -39,7 +38,8 @@ __global__ void _run_neurongroup_resetter_codeobject_kernel(
 		_ptr_array_neurongroup_v[spiking_neuron] = v;
 		_ptr_array_neurongroup_w[spiking_neuron] = w;
 	}
-	//reset spikespace
+
+	//also reset spikespace array
 	_ptr_array_neurongroup__spikespace[neuron_id] = -1;
 }
 

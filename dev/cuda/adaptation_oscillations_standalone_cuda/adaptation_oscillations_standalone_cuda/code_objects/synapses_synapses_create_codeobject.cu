@@ -16,6 +16,7 @@ void _run_synapses_synapses_create_codeobject()
 {
 	using namespace brian;
 
+	//generate neuron_N * neuron_N random numbers
 	float* _array_random_float_numbers;
 	_array_random_float_numbers = (float*)malloc(sizeof(float)*max_syn_N);
 	curandGenerator_t gen;
@@ -23,8 +24,11 @@ void _run_synapses_synapses_create_codeobject()
 	curandSetPseudoRandomGeneratorSeed(gen, time(0));
 	curandGenerateUniform(gen, _array_random_float_numbers, max_syn_N);
 
+	//these two vectors just cache everything on the CPU-side
+	//data is copied to GPU at the end
 	thrust::host_vector<int32_t> temp_synaptic_post;
 	thrust::host_vector<int32_t> temp_synaptic_pre;
+
 	int32_t * _ptr_array_synapses_N_incoming = _array_synapses_N_incoming;
 	int32_t * _ptr_array_synapses_N_outgoing = _array_synapses_N_outgoing;
 	int32_t * _ptr_array_neurongroup_i = _array_neurongroup_i;
@@ -65,6 +69,7 @@ void _run_synapses_synapses_create_codeobject()
 		}
 	}
 	synapses_by_pre_neuron.push_back(syn_id);
+	//copy data to GPU
 	_dynamic_array_synapses__synaptic_post = temp_synaptic_post;
 	_dynamic_array_synapses__synaptic_pre = temp_synaptic_pre;
 

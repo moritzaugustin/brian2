@@ -23,14 +23,14 @@ extern Network magicnetwork;
 extern Network magicnetwork;
 
 //////////////// dynamic arrays ///////////
-extern thrust::device_vector<double> _dynamic_array_ratemonitor_rate;
-extern thrust::device_vector<double> _dynamic_array_ratemonitor_t;
+extern std::vector<double> _dynamic_array_ratemonitor_rate;
+extern std::vector<double> _dynamic_array_ratemonitor_t;
 extern thrust::device_vector<double> _dynamic_array_synapses_c;
 extern thrust::device_vector<double> _dynamic_array_synapses_lastupdate;
 extern thrust::device_vector<double> _dynamic_array_synapses_pre_delay;
 extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_post;
 extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_pre;
-extern thrust::device_vector<int32_t> synapses_by_pre_neuron;	//neuron 0 has syns arr[0] to (arr[1] - 1)
+extern thrust::device_vector<int32_t> synapses_by_pre_neuron;	//neuron 0 has syns arr[0] to (arr[1] - 1), etc...
 extern std::vector<int32_t> _dynamic_array_spikemonitor_i;
 extern std::vector<double> _dynamic_array_spikemonitor_t;
 
@@ -99,7 +99,7 @@ extern __device__ SynapticPathway<double> synapses_pre;
 extern float* dev_array_random_floats;
 extern curandGenerator_t random_float_generator;
 
-extern unsigned int num_blocks_sequential;
+extern unsigned int num_blocks;
 
 }
 

@@ -5,23 +5,24 @@
 
 /*
  * current memory allocation strategy:
- * only grow larger (by factor 2)
+ * only grow larger (new_size = old_size*2 + 1) ~= 2^n
  */
 
-#define INITIAL_SIZE 1
+#define INITIAL_SIZE 0
 
 template <class scalar>
 class cudaVector
 {
 private:
-	scalar* data;
-	int size_allocated;
-	int size_used;
+	scalar* data;		//pointer to allocated memory
+	int size_allocated;	//how much memory is allocated, should ALWAYS >= size_used
+	int size_used;		//how many elements are stored in this vector
 
 	__device__ void resize(int new_capacity)
 	{
 		if(new_capacity > size_allocated)
 		{
+			//realloc larger memory (deviceside realloc doesn't exist, so we write our own)
 			scalar* new_data = (scalar*)malloc(sizeof(scalar) * new_capacity);
 			if (new_data)
 			{
@@ -67,24 +68,25 @@ public:
 		}
 		else
 		{
-			return -1;
+			return 0;
 		}
-	}
+	};
 
 	__device__ void push(scalar elem)
 	{
 		if(size_allocated == size_used)
 		{
+			//resize larger
 			resize(size_allocated*2 + 1);
 		}
-		else{}
-		if(size() + 1 <= size_allocated)
+		if(size_used < size_allocated)
 		{
 			data[size_used] = elem;
 			size_used++;
 		}
 	};
 
+	//does not overwrite old data, just resets number of elements stored to 0
 	__device__ void reset()
 	{
 		size_used = 0;

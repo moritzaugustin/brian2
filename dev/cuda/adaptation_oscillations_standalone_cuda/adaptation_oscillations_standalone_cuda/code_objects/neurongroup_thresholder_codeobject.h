@@ -5,5 +5,4 @@
 
 void _run_neurongroup_thresholder_codeobject();
 
-
 #endif

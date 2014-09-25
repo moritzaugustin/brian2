@@ -46,6 +46,7 @@ void _run_neurongroup_group_variable_set_conditional_codeobject()
 {
 	using namespace brian;
 
+	//genenerate an arry of random numbers on the device
 	float* dev_array_rands;
 	cudaMalloc((void**)&dev_array_rands, sizeof(float)*neuron_N);
 	curandGenerator_t gen;

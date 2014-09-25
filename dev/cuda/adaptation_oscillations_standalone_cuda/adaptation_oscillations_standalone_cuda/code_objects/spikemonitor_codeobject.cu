@@ -7,7 +7,7 @@
 #include<fstream>
 
 #define neuron_N 4000
-#define BLOCKS (num_blocks_sequential)
+#define BLOCKS (num_blocks)
 #define THREADS 1
 
 void _run_spikemonitor_codeobject()
@@ -16,6 +16,8 @@ void _run_spikemonitor_codeobject()
 
 	double t = defaultclock.t_();
 
+	//spikespace is already on CPU-side, so we just iterate over it
+	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
 	for(int i = 0; i < neuron_N;)
 	{
 		int32_t spiking_neuron = _array_neurongroup__spikespace[i];
@@ -27,8 +29,8 @@ void _run_spikemonitor_codeobject()
 		}
 		else
 		{
-			//round to nearest multiple of N/num_blocks
-			i += neuron_N/num_blocks_sequential - i % (neuron_N/num_blocks_sequential);
+			//round to nearest multiple of N/num_blocks = start of next block
+			i += neuron_N/BLOCKS - i % (neuron_N/BLOCKS);
 		}
 	}
 }

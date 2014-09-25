@@ -9,7 +9,7 @@
 #define neuron_N 4000
 #define MEM_PER_THREAD (sizeof(bool))
 #define THREADS (4000 + BLOCKS - 1)/(BLOCKS)
-#define BLOCKS (num_blocks_sequential)
+#define BLOCKS (num_blocks)
 
 __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 	int par_num_thread_per_block,
@@ -21,6 +21,8 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 {
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
+	extern __shared__ bool spike_cache[];	//format: id[x] = true <=> neuron[x] has spiked
+
 	int num_threads_per_block = par_num_thread_per_block;
 
 	int neuron_id = bid*num_threads_per_block + tid;
@@ -29,7 +31,6 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 		return;
 	}
 
-	extern __shared__ bool spike_cache[];
 	double t = par_t;
 	int32_t* _ptr_array_neurongroup__spikespace = par_array_neurongroup__spikespace;
 	double* _ptr_array_neurongroup_v = par_array_neurongroup_v;
@@ -53,20 +54,21 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 		return;
 	}
 
+	int first_neuron_in_block = neuron_id;	//tid = 0, so neuron_id = bid*num_threads_per_block = start of block no. bid
 	int num_spikes_in_block = 0;
-	for(int i = 0; (i < num_threads_per_block) && (neuron_id + i < neuron_N); i++)
+	for(int i = 0; (i < num_threads_per_block) && (first_neuron_in_block + i < neuron_N); i++)
 	{
 		if(spike_cache[i])
 		{
-		    // note that neuron_id here refers to the id of the first neuron
-		    // in this block (mapped from thread id 0)
-			int spiking_neuron = neuron_id + i;
-			_ptr_array_neurongroup__spikespace[neuron_id + num_spikes_in_block] = spiking_neuron;
+			//spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
+			int spiking_neuron = first_neuron_in_block + i;
+			_ptr_array_neurongroup__spikespace[first_neuron_in_block + num_spikes_in_block] = spiking_neuron;
 			_ptr_array_neurongroup_not_refractory[spiking_neuron] = false;
 			_ptr_array_neurongroup_lastspike[spiking_neuron] = t;
 			num_spikes_in_block++;
 		}
-		//add all blocks together
+		//add number of spikes of all blocks together
+		//last element of spikespace holds total number of spikes
 		atomicAdd(&_ptr_array_neurongroup__spikespace[neuron_N], num_spikes_in_block);
 	}
 }

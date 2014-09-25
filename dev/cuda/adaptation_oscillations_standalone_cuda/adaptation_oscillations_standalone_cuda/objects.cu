@@ -62,8 +62,8 @@ int32_t * brian::_array_synapses_N_outgoing;
 const int brian::_num__array_synapses_N_outgoing = 4000;
 
 //////////////// dynamic arrays 1d /////////
-thrust::device_vector<double> brian::_dynamic_array_ratemonitor_rate;
-thrust::device_vector<double> brian::_dynamic_array_ratemonitor_t;
+std::vector<double> brian::_dynamic_array_ratemonitor_rate;
+std::vector<double> brian::_dynamic_array_ratemonitor_t;
 thrust::device_vector<double> brian::_dynamic_array_synapses_c;
 thrust::device_vector<double> brian::_dynamic_array_synapses_lastupdate;
 thrust::device_vector<double> brian::_dynamic_array_synapses_pre_delay;
@@ -88,7 +88,7 @@ const int brian::_num__static_array__array_neurongroup_not_refractory = 4000;
 int32_t * brian::_static_array__array_statemonitor__indices;
 const int brian::_num__static_array__array_statemonitor__indices = 1;
 
-unsigned int brian::num_blocks_sequential;
+unsigned int brian::num_blocks;
 
 //////////////// synapses /////////////////
 // synapses
@@ -111,10 +111,10 @@ void _init_arrays()
 {
 	using namespace brian;
 
-	num_blocks_sequential = 8;
+	num_blocks = 10;
 
 	deviceside_init<<<1,1>>>(
-		num_blocks_sequential);
+		num_blocks);
 
 	cudaMalloc((void**)&dev_array_random_floats, sizeof(float)*neuron_N);
 	curandCreateGenerator(&random_float_generator, CURAND_RNG_PSEUDO_DEFAULT);
@@ -461,12 +461,6 @@ void _dealloc_arrays()
 
 	curandDestroyGenerator(random_float_generator);
 	cudaFree(dev_array_random_floats);
-
-	_dynamic_array_ratemonitor_rate.clear();
-	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_rate);
-
-	_dynamic_array_ratemonitor_t.clear();
-	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_t);
 
 	synapses_by_pre_neuron.clear();
 	thrust::device_vector<int32_t>().swap(synapses_by_pre_neuron);
