@@ -7,51 +7,49 @@
 #include<fstream>
 
 
-////// SUPPORT CODE ///////
-namespace {
-	
+__global__ void _run_statemonitor_codeobject_kernel(
+	int par_neuron_id,
+	int par_index_last_element,
+	double* par_statemonitor_v,
+	double* par_statemonitor_w,
+	double* par_array_neurongroup_v,
+	double* par_array_neurongroup_w
+	)
+{
+	int neuron_id = par_neuron_id;
+	int index_last_element = par_index_last_element;
+	double* statemonitor_v = par_statemonitor_v;
+	double* statemonitor_w = par_statemonitor_w;
+	double* array_neurongroup_v = par_array_neurongroup_v;
+	double* array_neurongroup_w = par_array_neurongroup_w;
+
+	statemonitor_v[index_last_element] = array_neurongroup_v[neuron_id];
+	statemonitor_w[index_last_element] = array_neurongroup_w[neuron_id];
 }
-
-////// HASH DEFINES ///////
-
 
 void _run_statemonitor_codeobject()
 {
-/*
 	using namespace brian;
-	///// CONSTANTS ///////////
-	const double _clock_t = defaultclock.t_();
-	const int _num_indices = 1;
-	double* const _array_statemonitor_t = &_dynamic_array_statemonitor_t[0];
-	const int _numt = _dynamic_array_statemonitor_t.size();
-	const int _numw = 4000;
-	const int _numv = 4000;
-	const int _numnot_refractory = 4000;
-	///// POINTERS ////////////
-	int32_t * __restrict__ _ptr_array_statemonitor__indices = _array_statemonitor__indices;
-	double * __restrict__ _ptr_array_statemonitor_t = _array_statemonitor_t;
-	double * __restrict__ _ptr_array_neurongroup_w = _array_neurongroup_w;
-	double * __restrict__ _ptr_array_neurongroup_v = _array_neurongroup_v;
-	bool * __restrict__ _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
-	_dynamic_array_statemonitor_t.push_back(_clock_t);
-	const int _new_size = _dynamic_array_statemonitor_t.size();
-	// Resize the dynamic arrays
-	_dynamic_array_statemonitor__recorded_v.resize(_new_size, _num_indices);
-	_dynamic_array_statemonitor__recorded_w.resize(_new_size, _num_indices);
 
-	for (int _i = 0; _i < _num_indices; _i++)
+	double t = defaultclock.t_();
+	int num_indices = _num__array_statemonitor__indices;
+	_dynamic_array_statemonitor_t.push_back(t);
+
+	for(int i = 0; i < num_indices; i++)
 	{
-		const int _idx = _ptr_array_statemonitor__indices[_i];
-		const int _vectorisation_idx = _idx;
-		const bool not_refractory = _ptr_array_neurongroup_not_refractory[_idx];
-		const double w = _ptr_array_neurongroup_w[_idx];
-		const double v = _ptr_array_neurongroup_v[_idx];
-		const double _to_record_v = v;
-		const double _to_record_w = w;
-		_dynamic_array_statemonitor__recorded_v(_new_size-1, _i) = _to_record_v;
-		_dynamic_array_statemonitor__recorded_w(_new_size-1, _i) = _to_record_w;
+		unsigned int neuron_id = _static_array__array_statemonitor__indices[i];
+		_dynamic_array_statemonitor__recorded_v[i].push_back(0.0);	//push dummy value
+		_dynamic_array_statemonitor__recorded_w[i].push_back(0.0);	//push dummy value
+		double* dev_dynamic_array_statemonitor__recorded_v = thrust::raw_pointer_cast(&(_dynamic_array_statemonitor__recorded_v[i][0]));
+		double* dev_dynamic_array_statemonitor__recorded_w = thrust::raw_pointer_cast(&(_dynamic_array_statemonitor__recorded_w[i][0]));
+		int index_last_element = _dynamic_array_statemonitor__recorded_v[i].size() - 1;
+		_run_statemonitor_codeobject_kernel<<<1, 1>>>(
+			neuron_id,
+			index_last_element,
+			dev_dynamic_array_statemonitor__recorded_v,
+			dev_dynamic_array_statemonitor__recorded_w,
+			dev_array_neurongroup_v,
+			dev_array_neurongroup_w);
 	}
-*/
 }
-
 

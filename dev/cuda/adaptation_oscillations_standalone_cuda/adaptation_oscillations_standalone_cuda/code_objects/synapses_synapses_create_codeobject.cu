@@ -83,6 +83,7 @@ void _run_synapses_synapses_create_codeobject()
 	//Also update the total number of synapses
 	synapses._N_value = newsize;
 
+
 	curandDestroyGenerator(gen);
 	free(_array_random_float_numbers);
 }

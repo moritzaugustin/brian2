@@ -43,10 +43,13 @@ public:
 	__device__ cudaVector()
 	{
 		size_used = 0;
-		data = (scalar*)malloc(sizeof(scalar) * INITIAL_SIZE);
-		if(data)
+		if(INITIAL_SIZE > 0)
 		{
-			size_allocated = INITIAL_SIZE;
+			data = (scalar*)malloc(sizeof(scalar) * INITIAL_SIZE);
+			if(data)
+			{
+				size_allocated = INITIAL_SIZE;
+			}
 		}
 	};
 

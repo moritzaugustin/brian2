@@ -23,12 +23,11 @@ public:
 	cudaVector<DTYPE_int>** synapses_queue;
 
 	//our connectivity matrix with dimensions (num_blocks) * neuron_N
-	cudaVector<DTYPE_int>** synapses_id_by_pre;
-	cudaVector<DTYPE_int>** post_id_by_pre;
-	cudaVector<unsigned int>** delay_by_pre;
-	DTYPE_int* pre_id_by_syn;
-	DTYPE_int* post_id_by_syn;
-	unsigned int* synapses_delays;
+	//each element
+	unsigned int* size_by_pre;
+	DTYPE_int** synapses_id_by_pre;
+	DTYPE_int** post_id_by_pre;
+	unsigned int** delay_by_pre;
 
 	unsigned int current_offset;
 	unsigned int max_delay;
@@ -67,26 +66,25 @@ public:
 		scalar _dt,
 		unsigned int _neuron_N,
 		unsigned int _syn_N,
-		scalar* real_delays)
+		unsigned int max_delay,
+		unsigned int* _size_by_pre,
+		DTYPE_int** _synapses_by_pre,
+		DTYPE_int** _post_id_by_pre,
+		unsigned int** _delay_by_pre)
 	{
+		__shared__ unsigned int* synapses_delays;
 		if(tid == 0)
 		{
 			current_offset = 0;
 			num_blocks = _num_blocks;
 			neuron_N = _neuron_N;
 			syn_N = _syn_N;
+
+			size_by_pre = _size_by_pre;
+			synapses_id_by_pre = _synapses_by_pre;
+			post_id_by_pre = _post_id_by_pre;
+			delay_by_pre = _delay_by_pre;
 			synapses_delays = new unsigned int[syn_N];
-
-			synapses_id_by_pre = new cudaVector<DTYPE_int>*[num_blocks];
-			post_id_by_pre = new cudaVector<DTYPE_int>*[num_blocks];
-			delay_by_pre = new cudaVector<unsigned int>*[num_blocks];
-
-			for(int i = 0; i < num_blocks; i++)
-			{
-				synapses_id_by_pre[i] = new cudaVector<DTYPE_int>[neuron_N];
-				post_id_by_pre[i] = new cudaVector<DTYPE_int>[neuron_N];
-				delay_by_pre[i] = new cudaVector<unsigned int>[neuron_N];
-			}
 		}
 		__syncthreads();
 
@@ -96,15 +94,8 @@ public:
 			return;
 		}
 
-		for(int i = tid; i < syn_N; i += num_threads)
-		{
-			synapses_delays[i] =  (int)(real_delays[i] / _dt + 0.5); //round to nearest int
-		}
-		__syncthreads();
-		
 		if(tid == 0)
 		{
-			max_delay = get_max_delay(synapses_delays, syn_N);
 			pre_neuron_queue = new cudaVector<DTYPE_int>*[max_delay];
 			synapses_queue = new cudaVector<DTYPE_int>*[max_delay];
 			post_neuron_queue = new cudaVector<DTYPE_int>*[max_delay];
@@ -120,35 +111,10 @@ public:
 		pre_neuron_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
 		synapses_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
 		post_neuron_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-	};
 
-	//second part of init
-	//needs to be a different kernel, since the launch grid is different
-	__device__ void prepare_connect_matrix(
-		unsigned int bid,
-		unsigned int syn_N,
-		DTYPE_int* _synapses_id_by_pre,
-		DTYPE_int* _pre_id_by_syn,
-		DTYPE_int* _post_id_by_syn)
-	{
-		//ignore invalid tids (should not happen, but still...)
-		if(bid >= num_blocks)
+		if(tid == 0)
 		{
-			return;
-		}
-
-		for(int syn_id = 0; syn_id < syn_N; syn_id++)
-		{
-			int32_t post_neuron_id = _post_id_by_syn[syn_id];
-			//push only neurons belonging into our queue
-			if((post_neuron_id*num_blocks)/neuron_N == bid)
-			{
-				int32_t pre_neuron_id = _pre_id_by_syn[syn_id];
-				unsigned int delay = synapses_delays[syn_id];
-				synapses_id_by_pre[bid][pre_neuron_id].push(syn_id);
-				post_id_by_pre[bid][pre_neuron_id].push(post_neuron_id);
-				delay_by_pre[bid][pre_neuron_id].push(delay);
-			}
+			delete [] synapses_delays;
 		}
 	};
 
@@ -165,7 +131,8 @@ public:
 	{
 		int32_t* shared_mem = _shared_mem;	//allocated in push_spikes_kernel
 		unsigned int neuron_pre_id = _pre_id;
-		unsigned int num_connected_synapses = synapses_id_by_pre[neuron_pre_id][bid].size();
+		int position = neuron_pre_id*neuron_N + bid;
+		unsigned int num_connected_synapses = size_by_pre[position];
 
 		//ignore invalid pre_ids
 		if(neuron_pre_id >= neuron_N || tid > num_connected_synapses)
@@ -173,11 +140,11 @@ public:
 			return;
 		}
 
-		int32_t syn_id = synapses_id_by_pre[neuron_pre_id][bid].getDataByIndex(tid);
+		int32_t syn_id = synapses_id_by_pre[position][tid];
 		shared_mem[SYN_ID_OFFSET(tid)] = syn_id;
-		unsigned int delay = delay_by_pre[neuron_pre_id][bid].getDataByIndex(tid);
+		unsigned int delay = delay_by_pre[position][tid];
 		shared_mem[DELAY_OFFSET(tid)] = delay;
-		unsigned int post_id = post_id_by_pre[neuron_pre_id][bid].getDataByIndex(tid);
+		unsigned int post_id = post_id_by_pre[position][tid];
 		shared_mem[POST_ID_OFFSET(tid)] = post_id;
 
 		//only one thread per block inserts into queues

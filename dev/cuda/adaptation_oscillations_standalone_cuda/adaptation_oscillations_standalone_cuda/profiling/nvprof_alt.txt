@@ -1,0 +1,30 @@
+==4706== NVPROF is profiling process 4706, command: ./main
+==4706== Profiling application: ./main
+==4706== Warning: Found 78 invalid records in the result.
+==4706== Warning: This could be because device ran out of memory when profiling.
+==4706== Profiling result:
+Time(%)      Time     Calls       Avg       Min       Max  Name
+ 93.79%  110.647s    149853  738.37us  450.10us  132.04ms  _run_synapses_pre_push_spikes_push_kernel(unsigned int, unsigned int)
+  3.42%  4.03159s      9997  403.28us  1.5360us  1.9560ms  _run_synapses_pre_codeobject_post_kernel(double*, bool*, double*)
+  1.85%  2.18299s      9997  218.36us  1.9200us  1.2021ms  _run_synapses_pre_codeobject_syn_kernel(double, double*)
+  0.50%  587.94ms      9998  58.805us  58.430us  60.094us  _run_neurongroup_thresholder_codeobject_kernel(int, double, int*, double*, double*, bool*)
+  0.18%  210.58ms      9996  21.066us  16.928us  21.727us  _run_neurongroup_stateupdater_codeobject_kernel(double, double, float*, double*, double*, double*, bool*)
+  0.06%  71.278ms         1  71.278ms  71.278ms  71.278ms  _run_synapses_pre_initialise_queue_kernel(unsigned int, double, unsigned int, double*, int*, int*, int*)
+  0.06%  66.136ms      9996  6.6160us  6.2400us  7.2960us  void gen_sequenced<curandStateXORWOW, float2, normal_args_st, __operator_&__(float2 curand_normal_scaled2<curandStateXORWOW>(curandStateXORWOW*, normal_args_st))>(curandStateXORWOW*, float2*, unsigned long, unsigned long, normal_args_st)
+  0.03%  41.091ms     10000  4.1090us  3.2320us  15.520us  [CUDA memcpy DtoH]
+  0.03%  29.647ms      9998  2.9650us  2.5920us  3.7120us  _run_synapses_pre_push_spikes_advance_kernel(void)
+  0.03%  29.621ms         3  9.8736ms  9.7537ms  10.066ms  generate_seed_pseudo(__int64, __int64, __int64, curandOrdering, curandStateXORWOW*, unsigned int*)
+  0.02%  24.363ms      9996  2.4370us  2.2390us  3.4560us  _run_ratemonitor_codeobject_kernel(double, int*, double*)
+  0.02%  20.107ms     19992  1.0050us     895ns  27.872us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
+  0.02%  17.710ms      9997  1.7710us  1.3440us  2.8470us  _run_neurongroup_resetter_codeobject_kernel(int*, double*, double*)
+  0.01%  12.402ms         1  12.402ms  12.402ms  12.402ms  deviceside_destroy(void)
+  0.00%  3.7880ms      4001     946ns     864ns  1.4080us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<int>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<int>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(int)
+  0.00%  1.7324ms         9  192.49us  4.5440us  862.69us  [CUDA memcpy HtoD]
+  0.00%  99.455us        40  2.4860us  2.1750us  3.3600us  [CUDA memcpy DtoD]
+  0.00%  37.568us         1  37.568us  37.568us  37.568us  _run_synapses_group_variable_set_conditional_codeobject_kernel(int, double*)
+  0.00%  37.088us         1  37.088us  37.088us  37.088us  _run_synapses_group_variable_set_conditional_codeobject_1_kernel(int, double*)
+  0.00%  37.088us         1  37.088us  37.088us  37.088us  _run_synapses_group_variable_set_conditional_codeobject_2_kernel(int, double*)
+  0.00%  14.816us         2  7.4080us  7.3600us  7.4560us  void gen_sequenced<curandStateXORWOW, float, int, __operator_&__(float curand_uniform_noargs<curandStateXORWOW>(curandStateXORWOW*, int))>(curandStateXORWOW*, float*, unsigned long, unsigned long, int)
+  0.00%  12.928us         1  12.928us  12.928us  12.928us  deviceside_init(unsigned int)
+  0.00%  1.9200us         1  1.9200us  1.9200us  1.9200us  _run_neurongroup_group_variable_set_conditional_codeobject_1_kernel(float*, double*, bool*)
+  0.00%  1.9200us         1  1.9200us  1.9200us  1.9200us  _run_neurongroup_group_variable_set_conditional_codeobject_kernel(float*, double*, bool*)

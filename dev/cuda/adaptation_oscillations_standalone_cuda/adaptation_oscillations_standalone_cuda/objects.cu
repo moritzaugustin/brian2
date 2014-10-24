@@ -49,17 +49,16 @@ const int brian::_num__array_spikemonitor__count = 4000;
 int32_t * brian::_array_statemonitor__indices;
 const int brian::_num__array_statemonitor__indices = 1;
 
-double * brian::_array_statemonitor__recorded_v;
-const int brian::_num__array_statemonitor__recorded_v = (0, 1);
-
-double * brian::_array_statemonitor__recorded_w;
-const int brian::_num__array_statemonitor__recorded_w = (0, 1);
-
 int32_t * brian::_array_synapses_N_incoming;
 const int brian::_num__array_synapses_N_incoming = 4000;
 
 int32_t * brian::_array_synapses_N_outgoing;
 const int brian::_num__array_synapses_N_outgoing = 4000;
+
+unsigned* brian::size_by_pre;
+int32_t** brian::synapses_id_by_pre;
+int32_t** brian::post_neuron_by_pre;
+unsigned int** brian::delay_by_pre;
 
 //////////////// dynamic arrays 1d /////////
 std::vector<double> brian::_dynamic_array_ratemonitor_rate;
@@ -73,10 +72,8 @@ thrust::device_vector<int32_t> brian::synapses_by_pre_neuron;
 std::vector<int32_t> brian::_dynamic_array_spikemonitor_i;
 std::vector<double> brian::_dynamic_array_spikemonitor_t;
 std::vector<double> brian::_dynamic_array_statemonitor_t;
-
-//////////////// dynamic arrays 2d /////////
-DynamicArray2D<double> brian::_dynamic_array_statemonitor__recorded_v;
-DynamicArray2D<double> brian::_dynamic_array_statemonitor__recorded_w;
+thrust::device_vector<double>* brian::_dynamic_array_statemonitor__recorded_v;
+thrust::device_vector<double>* brian::_dynamic_array_statemonitor__recorded_w;
 
 /////////////// static arrays /////////////
 double * brian::_static_array__array_neurongroup_lastspike;
@@ -119,6 +116,11 @@ void _init_arrays()
 	cudaMalloc((void**)&dev_array_random_floats, sizeof(float)*neuron_N);
 	curandCreateGenerator(&random_float_generator, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(random_float_generator, time(0));
+
+	cudaMalloc((void**)&size_by_pre, sizeof(unsigned int)*neuron_N*num_blocks);
+	cudaMalloc((void**)&synapses_id_by_pre, sizeof(int32_t)*neuron_N*num_blocks);
+	cudaMalloc((void**)&post_neuron_by_pre, sizeof(int32_t)*neuron_N*num_blocks);
+	cudaMalloc((void**)&delay_by_pre, sizeof(unsigned int)*neuron_N*num_blocks);
 
     	// Arrays initialized to 0
 	_array_spikemonitor__count = new int32_t[4000];
@@ -164,6 +166,9 @@ void _init_arrays()
 	// Arrays initialized to an "arange"
 	_array_neurongroup_i = new int32_t[4000];
 	for(int i=0; i<4000; i++) _array_neurongroup_i[i] = 0 + i;
+
+	_dynamic_array_statemonitor__recorded_v = new thrust::device_vector<double>[_num__array_statemonitor__indices];
+	_dynamic_array_statemonitor__recorded_w = new thrust::device_vector<double>[_num__array_statemonitor__indices];
 
 	// static arrays
 	_static_array__array_neurongroup_lastspike = new double[4000];
@@ -538,18 +543,6 @@ void _dealloc_arrays()
 		_array_statemonitor__indices = 0;
 	}
 
-	if(_array_statemonitor__recorded_v!=0)
-	{
-		delete [] _array_statemonitor__recorded_v;
-		_array_statemonitor__recorded_v = 0;
-	}
-
-	if(_array_statemonitor__recorded_w!=0)
-	{
-		delete [] _array_statemonitor__recorded_w;
-		_array_statemonitor__recorded_w = 0;
-	}
-
 	if(_array_synapses_N_incoming!=0)
 	{
 		delete [] _array_synapses_N_incoming;
@@ -561,6 +554,19 @@ void _dealloc_arrays()
 		delete [] _array_synapses_N_outgoing;
 		_array_synapses_N_outgoing = 0;
 	}
+
+	if(_dynamic_array_statemonitor__recorded_v)
+	{
+		delete [] _dynamic_array_statemonitor__recorded_v;
+		_dynamic_array_statemonitor__recorded_v = 0;
+	}
+
+	if(_dynamic_array_statemonitor__recorded_w)
+	{
+		delete [] _dynamic_array_statemonitor__recorded_w;
+		_dynamic_array_statemonitor__recorded_w = 0;
+	}
+
 
 	// static arrays
 	if(_static_array__array_neurongroup_lastspike!=0)

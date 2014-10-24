@@ -33,8 +33,9 @@ extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_pre;
 extern thrust::device_vector<int32_t> synapses_by_pre_neuron;	//neuron 0 has syns arr[0] to (arr[1] - 1), etc...
 extern std::vector<int32_t> _dynamic_array_spikemonitor_i;
 extern std::vector<double> _dynamic_array_spikemonitor_t;
-
 extern std::vector<double> _dynamic_array_statemonitor_t;
+extern thrust::device_vector<double>* _dynamic_array_statemonitor__recorded_v;
+extern thrust::device_vector<double>* _dynamic_array_statemonitor__recorded_w;
 
 //////////////// arrays ///////////////////
 extern int32_t *_array_neurongroup__spikespace;
@@ -66,21 +67,16 @@ extern const int _num__array_spikemonitor__count;
 extern int32_t *_array_statemonitor__indices;
 extern const int _num__array_statemonitor__indices;
 
-extern double *_array_statemonitor__recorded_v;
-extern const int _num__array_statemonitor__recorded_v;
-
-extern double *_array_statemonitor__recorded_w;
-extern const int _num__array_statemonitor__recorded_w;
-
 extern int32_t *_array_synapses_N_incoming;
 extern const int _num__array_synapses_N_incoming;
 
 extern int32_t *_array_synapses_N_outgoing;
 extern const int _num__array_synapses_N_outgoing;
 
-//////////////// dynamic arrays 2d /////////
-extern DynamicArray2D<double> _dynamic_array_statemonitor__recorded_v;
-extern DynamicArray2D<double> _dynamic_array_statemonitor__recorded_w;
+extern unsigned int* size_by_pre;
+extern int32_t** synapses_id_by_pre;
+extern int32_t** post_neuron_by_pre;
+extern unsigned int** delay_by_pre;
 
 /////////////// static arrays /////////////
 extern double *_static_array__array_neurongroup_lastspike;

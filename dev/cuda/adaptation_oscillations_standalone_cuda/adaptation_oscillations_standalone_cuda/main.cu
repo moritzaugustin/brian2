@@ -27,12 +27,13 @@
  * original cpu version
  * sim_time = 1s, sparsity = 0.05
  * 150k spikes, 800k synapses
- * 3,2s run_time
+ * 3.2s run_time
  */
 
 int main(int argc, char **argv)
 {
-	size_t limit = 200*1024*1024;
+	cudaSetDevice(0);
+	size_t limit = 500*1024*1024;	//500MB should be enough for now
 	cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
 	cudaDeviceSynchronize();
 
@@ -62,7 +63,6 @@ int main(int argc, char **argv)
 		{
 			_array_statemonitor__indices[i] = _static_array__array_statemonitor__indices[i];
 		}
-		_run_synapses_group_variable_set_conditional_codeobject_2();
 		_run_synapses_pre_initialise_queue();
 
 		/*
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 		magicnetwork.add(&defaultclock, _run_spikemonitor_codeobject);
 		magicnetwork.add(&defaultclock, _run_ratemonitor_codeobject);
 		magicnetwork.add(&defaultclock, _run_neurongroup_resetter_codeobject);
-		//magicnetwork.add(&defaultclock, _run_statemonitor_codeobject);			//TODO, prio 5
+		magicnetwork.add(&defaultclock, _run_statemonitor_codeobject);
 		magicnetwork.run(1.0);
 		_debugmsg_spikemonitor_codeobject();
 		_debugmsg_synapses_pre_codeobject();
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 	double _run_duration = (std::clock()-start)/(double)CLOCKS_PER_SEC;
 	std::cout << "Simulation time: " << _run_duration << endl;
 
-	brian_end();										//TODO, prio 6
+	brian_end();
 	cudaDeviceReset();
 	return 0;
 }
