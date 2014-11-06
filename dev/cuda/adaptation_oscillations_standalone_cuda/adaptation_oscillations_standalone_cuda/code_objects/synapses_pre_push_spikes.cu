@@ -37,7 +37,6 @@ __global__ void _run_synapses_pre_push_spikes_push_kernel(
 void _run_synapses_pre_push_spikes()
 {
 	using namespace brian;
-
 	cudaMemcpy(_array_neurongroup__spikespace, dev_array_neurongroup__spikespace, sizeof(int32_t)*_num__array_neurongroup__spikespace, cudaMemcpyDeviceToHost);
 
 	_run_synapses_pre_push_spikes_advance_kernel<<<1, BLOCKS>>>();

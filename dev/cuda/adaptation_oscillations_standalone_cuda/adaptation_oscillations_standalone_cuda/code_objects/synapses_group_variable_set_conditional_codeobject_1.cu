@@ -41,7 +41,7 @@ void _run_synapses_group_variable_set_conditional_codeobject_1()
 {
 	using namespace brian;
 
-	const int64_t syn_N = synapses._N();
+	const int syn_N = synapses._N();
 	double* const dev_array_synapses_pre_delay = thrust::raw_pointer_cast(&_dynamic_array_synapses_pre_delay[0]);
 
 	//genenerate an arry of random numbers on the device
@@ -56,5 +56,8 @@ void _run_synapses_group_variable_set_conditional_codeobject_1()
 		syn_N,
 		dev_array_synapses_pre_delay,
 		dev_array_rands);
+
+	curandDestroyGenerator(gen);
+	cudaFree(dev_array_rands);
 }
 

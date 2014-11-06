@@ -32,7 +32,6 @@
 
 int main(int argc, char **argv)
 {
-	cudaSetDevice(0);
 	size_t limit = 500*1024*1024;	//500MB should be enough for now
 	cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
 	cudaDeviceSynchronize();
@@ -42,7 +41,6 @@ int main(int argc, char **argv)
 
 	{
 		using namespace brian;
-
 		for(int i=0; i<_num__static_array__array_neurongroup_lastspike; i++)
 		{
                 	_array_neurongroup_lastspike[i] = _static_array__array_neurongroup_lastspike[i];
@@ -63,6 +61,7 @@ int main(int argc, char **argv)
 		{
 			_array_statemonitor__indices[i] = _static_array__array_statemonitor__indices[i];
 		}
+		_run_synapses_group_variable_set_conditional_codeobject_2();
 		_run_synapses_pre_initialise_queue();
 
 		/*
@@ -82,6 +81,7 @@ int main(int argc, char **argv)
 		magicnetwork.add(&defaultclock, _run_neurongroup_resetter_codeobject);
 		magicnetwork.add(&defaultclock, _run_statemonitor_codeobject);
 		magicnetwork.run(1.0);
+		magicnetwork.run(0.001);
 		_debugmsg_spikemonitor_codeobject();
 		_debugmsg_synapses_pre_codeobject();
 	}

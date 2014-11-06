@@ -66,7 +66,7 @@ public:
 		scalar _dt,
 		unsigned int _neuron_N,
 		unsigned int _syn_N,
-		unsigned int max_delay,
+		unsigned int _max_delay,
 		unsigned int* _size_by_pre,
 		DTYPE_int** _synapses_by_pre,
 		DTYPE_int** _post_id_by_pre,
@@ -79,6 +79,7 @@ public:
 			num_blocks = _num_blocks;
 			neuron_N = _neuron_N;
 			syn_N = _syn_N;
+			max_delay = _max_delay;
 
 			size_by_pre = _size_by_pre;
 			synapses_id_by_pre = _synapses_by_pre;
@@ -131,8 +132,7 @@ public:
 	{
 		int32_t* shared_mem = _shared_mem;	//allocated in push_spikes_kernel
 		unsigned int neuron_pre_id = _pre_id;
-		int position = neuron_pre_id*neuron_N + bid;
-		unsigned int num_connected_synapses = size_by_pre[position];
+		unsigned int num_connected_synapses = size_by_pre[neuron_pre_id];
 
 		//ignore invalid pre_ids
 		if(neuron_pre_id >= neuron_N || tid > num_connected_synapses)
@@ -140,11 +140,11 @@ public:
 			return;
 		}
 
-		int32_t syn_id = synapses_id_by_pre[position][tid];
+		int32_t syn_id = synapses_id_by_pre[neuron_pre_id][tid];
 		shared_mem[SYN_ID_OFFSET(tid)] = syn_id;
-		unsigned int delay = delay_by_pre[position][tid];
+		unsigned int delay = delay_by_pre[neuron_pre_id][tid];
 		shared_mem[DELAY_OFFSET(tid)] = delay;
-		unsigned int post_id = post_id_by_pre[position][tid];
+		unsigned int post_id = post_id_by_pre[neuron_pre_id][tid];
 		shared_mem[POST_ID_OFFSET(tid)] = post_id;
 
 		//only one thread per block inserts into queues

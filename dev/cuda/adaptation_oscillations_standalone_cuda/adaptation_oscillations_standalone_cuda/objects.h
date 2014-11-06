@@ -73,10 +73,10 @@ extern const int _num__array_synapses_N_incoming;
 extern int32_t *_array_synapses_N_outgoing;
 extern const int _num__array_synapses_N_outgoing;
 
-extern unsigned int* size_by_pre;
-extern int32_t** synapses_id_by_pre;
-extern int32_t** post_neuron_by_pre;
-extern unsigned int** delay_by_pre;
+extern unsigned int* dev_size_by_pre;
+extern int32_t** dev_synapses_id_by_pre;
+extern int32_t** dev_post_neuron_by_pre;
+extern unsigned int** dev_delay_by_pre;
 
 /////////////// static arrays /////////////
 extern double *_static_array__array_neurongroup_lastspike;

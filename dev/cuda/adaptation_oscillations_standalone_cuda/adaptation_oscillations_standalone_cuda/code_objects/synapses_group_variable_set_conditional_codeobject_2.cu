@@ -38,7 +38,7 @@ void _run_synapses_group_variable_set_conditional_codeobject_2()
 {
 	using namespace brian;
 
-	const int64_t syn_N = synapses._N();
+	const int syn_N = synapses._N();
 	double* const dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
 
 	_run_synapses_group_variable_set_conditional_codeobject_2_kernel<<<BLOCKS(syn_N), THREADS>>>(

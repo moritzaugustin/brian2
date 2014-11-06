@@ -69,6 +69,7 @@ void _run_synapses_synapses_create_codeobject()
 		}
 	}
 	synapses_by_pre_neuron.push_back(syn_id);
+
 	//copy data to GPU
 	_dynamic_array_synapses__synaptic_post = temp_synaptic_post;
 	_dynamic_array_synapses__synaptic_pre = temp_synaptic_pre;
@@ -82,7 +83,6 @@ void _run_synapses_synapses_create_codeobject()
 	_dynamic_array_synapses_lastupdate.resize(newsize);
 	//Also update the total number of synapses
 	synapses._N_value = newsize;
-
 
 	curandDestroyGenerator(gen);
 	free(_array_random_float_numbers);

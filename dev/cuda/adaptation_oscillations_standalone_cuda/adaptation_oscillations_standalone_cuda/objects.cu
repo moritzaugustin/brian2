@@ -55,10 +55,10 @@ const int brian::_num__array_synapses_N_incoming = 4000;
 int32_t * brian::_array_synapses_N_outgoing;
 const int brian::_num__array_synapses_N_outgoing = 4000;
 
-unsigned* brian::size_by_pre;
-int32_t** brian::synapses_id_by_pre;
-int32_t** brian::post_neuron_by_pre;
-unsigned int** brian::delay_by_pre;
+unsigned* brian::dev_size_by_pre;
+int32_t** brian::dev_synapses_id_by_pre;
+int32_t** brian::dev_post_neuron_by_pre;
+unsigned int** brian::dev_delay_by_pre;
 
 //////////////// dynamic arrays 1d /////////
 std::vector<double> brian::_dynamic_array_ratemonitor_rate;
@@ -117,10 +117,10 @@ void _init_arrays()
 	curandCreateGenerator(&random_float_generator, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(random_float_generator, time(0));
 
-	cudaMalloc((void**)&size_by_pre, sizeof(unsigned int)*neuron_N*num_blocks);
-	cudaMalloc((void**)&synapses_id_by_pre, sizeof(int32_t)*neuron_N*num_blocks);
-	cudaMalloc((void**)&post_neuron_by_pre, sizeof(int32_t)*neuron_N*num_blocks);
-	cudaMalloc((void**)&delay_by_pre, sizeof(unsigned int)*neuron_N*num_blocks);
+	cudaMalloc((void**)&dev_size_by_pre, sizeof(unsigned int)*neuron_N*num_blocks);
+	cudaMalloc((void**)&dev_synapses_id_by_pre, sizeof(int32_t*)*neuron_N*num_blocks);
+	cudaMalloc((void**)&dev_post_neuron_by_pre, sizeof(int32_t*)*neuron_N*num_blocks);
+	cudaMalloc((void**)&dev_delay_by_pre, sizeof(unsigned int*)*neuron_N*num_blocks);
 
     	// Arrays initialized to 0
 	_array_spikemonitor__count = new int32_t[4000];
@@ -463,6 +463,31 @@ void _dealloc_arrays()
 	using namespace brian;
 
 	deviceside_destroy<<<1,1>>>();
+
+	//temp array of device pointers
+	int32_t** temp_synapses_by_pre_id = new int32_t*[num_blocks*neuron_N];
+	int32_t** temp_post_neuron_by_pre_id = new int32_t*[num_blocks*neuron_N];
+	unsigned int** temp_delay_by_pre_id = new unsigned int*[num_blocks*neuron_N];
+
+	cudaMemcpy(temp_synapses_by_pre_id, dev_synapses_id_by_pre, sizeof(int32_t*)*neuron_N*num_blocks, cudaMemcpyDeviceToHost);
+	cudaMemcpy(temp_post_neuron_by_pre_id, dev_post_neuron_by_pre, sizeof(int32_t*)*neuron_N*num_blocks, cudaMemcpyDeviceToHost);
+	cudaMemcpy(temp_delay_by_pre_id, dev_delay_by_pre, sizeof(unsigned int*)*neuron_N*num_blocks, cudaMemcpyDeviceToHost);
+
+	for(int i = 0; i < num_blocks*neuron_N; i++)
+	{
+		cudaFree(temp_synapses_by_pre_id[i]);
+		cudaFree(temp_post_neuron_by_pre_id[i]);
+		cudaFree(temp_delay_by_pre_id[i]);
+	}
+
+	delete [] temp_synapses_by_pre_id;
+	delete [] temp_post_neuron_by_pre_id;
+	delete [] temp_delay_by_pre_id;
+
+	cudaFree(dev_size_by_pre);
+	cudaFree(dev_synapses_id_by_pre);
+	cudaFree(dev_post_neuron_by_pre);
+	cudaFree(dev_delay_by_pre);
 
 	curandDestroyGenerator(random_float_generator);
 	cudaFree(dev_array_random_floats);
