@@ -9,10 +9,12 @@
 
 ////// SUPPORT CODE ///////
 namespace {
-	
+ 	
+
 }
 
 ////// HASH DEFINES ///////
+
 
 
 void _run_neurongroup_resetter_codeobject()
@@ -24,26 +26,36 @@ const int _numw = 4000;
 const int _numv = 4000;
 const int _numnot_refractory = 4000;
 	///// POINTERS ////////////
-	int32_t * __restrict__ _ptr_array_neurongroup__spikespace = _array_neurongroup__spikespace;
-	double * __restrict__ _ptr_array_neurongroup_w = _array_neurongroup_w;
-	double * __restrict__ _ptr_array_neurongroup_v = _array_neurongroup_v;
-	bool * __restrict__ _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
+ 	
+ int32_t * __restrict__ _ptr_array_neurongroup__spikespace = _array_neurongroup__spikespace;
+ double * __restrict__ _ptr_array_neurongroup_w = _array_neurongroup_w;
+ double * __restrict__ _ptr_array_neurongroup_v = _array_neurongroup_v;
+ bool * __restrict__ _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
+
 
 
 	const int *_spikes = _ptr_array_neurongroup__spikespace;
 	const int _num_spikes = _ptr_array_neurongroup__spikespace[4000];
 
 	//// MAIN CODE ////////////
+	// scalar code
+	const int _vectorisation_idx = -1;
+ 	
+
+
 	for(int _index_spikes=0; _index_spikes<_num_spikes; _index_spikes++)
 	{
+	    // vector code
 		const int _idx = _spikes[_index_spikes];
 		const int _vectorisation_idx = _idx;
-		double w = _ptr_array_neurongroup_w[_idx];
-		double v;
-		v = 0.0;
-		w = w + 0.0001;
-		_ptr_array_neurongroup_w[_idx] = w;
-		_ptr_array_neurongroup_v[_idx] = v;
+                
+        double w = _ptr_array_neurongroup_w[_idx];
+        double v;
+        v = 0.0;
+        w = w + 0.0001;
+        _ptr_array_neurongroup_w[_idx] = w;
+        _ptr_array_neurongroup_v[_idx] = v;
+
 	}
 }
 

@@ -9,10 +9,12 @@
 
 ////// SUPPORT CODE ///////
 namespace {
-	
+ 	
+
 }
 
 ////// HASH DEFINES ///////
+
 
 
 void _run_neurongroup_thresholder_codeobject()
@@ -25,23 +27,33 @@ const int _numv = 4000;
 const int _numlastspike = 4000;
 const int _numnot_refractory = 4000;
 	///// POINTERS ////////////
-	int32_t * __restrict__ _ptr_array_neurongroup__spikespace = _array_neurongroup__spikespace;
-	double * __restrict__ _ptr_array_neurongroup_v = _array_neurongroup_v;
-	double * __restrict__ _ptr_array_neurongroup_lastspike = _array_neurongroup_lastspike;
-	bool * __restrict__ _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
+ 	
+ int32_t * __restrict__ _ptr_array_neurongroup__spikespace = _array_neurongroup__spikespace;
+ double * __restrict__ _ptr_array_neurongroup_v = _array_neurongroup_v;
+ double * __restrict__ _ptr_array_neurongroup_lastspike = _array_neurongroup_lastspike;
+ bool * __restrict__ _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
+
 
 	// not_refractory and lastspike are added as needed_variables in the
 	// Thresholder class, we cannot use the USES_VARIABLE mechanism
 	// conditionally
 
 	//// MAIN CODE ////////////
+	// scalar code
+	const int _vectorisation_idx = -1;
+ 	
+
+
 	long _cpp_numspikes = 0;
 	for(int _idx=0; _idx<4000; _idx++)
 	{
+	    // vector code
 	    const int _vectorisation_idx = _idx;
-		const double v = _ptr_array_neurongroup_v[_idx];
-		const bool not_refractory = _ptr_array_neurongroup_not_refractory[_idx];
-		const double _cond = (v > 0.001) && (not_refractory);
+                
+        const double v = _ptr_array_neurongroup_v[_idx];
+        const bool not_refractory = _ptr_array_neurongroup_not_refractory[_idx];
+        const double _cond = (v > 0.001) && not_refractory;
+
 		if(_cond) {
 			_ptr_array_neurongroup__spikespace[_cpp_numspikes++] = _idx;
 			// We have to use the pointer names directly here: The condition

@@ -83,28 +83,28 @@ run(runtime)
 print('run() took {s}s'.format(s=time.time()-t_start))
 
 if standalone:
-    #print('starting standalone build and simulation')
-    #device.build(project_dir=build_dir, 
-    #             compile_project=True, run_project=True, debug=True)
+    print('starting standalone build and simulation')
+    device.build(project_dir=build_dir, 
+                compile_project=True, run_project=True, debug=True)
     
-    def result_array(arrname, dtype='float64'):
-        result_dir = build_dir + '/results'
-        return fromfile(result_dir+'/'+arrname, dtype=dtype)
+    #def result_array(arrname, dtype='float64'):
+        #result_dir = build_dir + '/results'
+        #return fromfile(result_dir+'/'+arrname, dtype=dtype)
 
-    rateMon_t = result_array('_dynamic_array_ratemonitor_t') * second
-    rateMon_rate = result_array('_dynamic_array_ratemonitor_rate') * Hz
-    spikeMon_i = result_array('_dynamic_array_spikemonitor_i', dtype='int32')
-    spikeMon_t = result_array('_dynamic_array_spikemonitor_t') * second
-    stateMon_t = result_array('_dynamic_array_statemonitor_t') * second
-    stateMon_v = result_array('_dynamic_array_statemonitor__recorded_v') * volt
-    stateMon_w = result_array('_dynamic_array_statemonitor__recorded_w') * volt   
-else:
-    rateMon_t = rateMon.t
-    rateMon_rate = rateMon.rate
-    spikeMon_i, spikeMon_t = spikeMon.it
-    stateMon_t = stateMon.t
-    stateMon_v = stateMon[0].v.T
-    stateMon_w = stateMon[0].w.T
+    #rateMon_t = result_array('_dynamic_array_ratemonitor_t') * second
+    #rateMon_rate = result_array('_dynamic_array_ratemonitor_rate') * Hz
+    #spikeMon_i = result_array('_dynamic_array_spikemonitor_i', dtype='int32')
+    #spikeMon_t = result_array('_dynamic_array_spikemonitor_t') * second
+    #stateMon_t = result_array('_dynamic_array_statemonitor_t') * second
+    #stateMon_v = result_array('_dynamic_array_statemonitor__recorded_v') * volt
+    #stateMon_w = result_array('_dynamic_array_statemonitor__recorded_w') * volt   
+#else:
+rateMon_t = rateMon.t
+rateMon_rate = rateMon.rate
+spikeMon_i, spikeMon_t = spikeMon.it
+stateMon_t = stateMon.t
+stateMon_v = stateMon[0].v.T
+stateMon_w = stateMon[0].w.T
 
 # plotting
 

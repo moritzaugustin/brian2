@@ -1,3 +1,74 @@
+# gitignore from moritz augustin
+
+# NON-extension files - http://stackoverflow.com/questions/19023550/how-do-i-add-files-without-dots-in-them-all-extension-less-files-to-the-gitign
+# DID NOT WORK (FOLDERS WERE ALSO IGNORED...)
+#*
+#!*.*
+
+# version control
+.svn
+CVS
+.git
+
+# latex intermediate
+*.aux
+*.log
+*.out
+*.toc
+*.nav
+*.snm
+*.bbl
+*.blg
+*.apn
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.pnt
+*.stc*
+*.mtc
+*.mtc*
+*.maf
+auto
+
+# backup files
+*~
+*#
+*.bak
+*.backup
+*.tmp
+*.kate-swp
+
+# object intermediate
+*.a
+*.o
+*.class
+*.pyc
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+
+
+
+
+
+
+
+# gitignore from brian team
+
 # Compiled Python files
 *.py[cod]
 
