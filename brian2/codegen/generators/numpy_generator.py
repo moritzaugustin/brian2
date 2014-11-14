@@ -32,10 +32,14 @@ class NumpyCodeGenerator(CodeGenerator):
     def translate_statement(self, statement):
         # TODO: optimisation, translate arithmetic to a sequence of inplace
         # operations like a=b+c -> add(b, c, a)
-        var, op, expr = statement.var, statement.op, statement.expr
+        var, op, expr, comment = (statement.var, statement.op,
+                                  statement.expr, statement.comment)
         if op == ':=':
             op = '='
-        return var + ' ' + op + ' ' + self.translate_expression(expr)
+        code = var + ' ' + op + ' ' + self.translate_expression(expr)
+        if len(comment):
+            code += ' # ' + comment
+        return code
         
     def translate_one_statement_sequence(self, statements):
         variables = self.variables
@@ -53,7 +57,10 @@ class NumpyCodeGenerator(CodeGenerator):
 #            line = line.format(varname=varname, array_name=self.get_array_name(var), index=index)
             line = varname + ' = ' + self.get_array_name(var)
             if not index in self.iterate_all:
-                line = line + '[' + index + ']'
+                line += '[' + index + ']'
+            elif varname in write:
+                # avoid potential issues with aliased variables, see github #259
+                line += '.copy()'
             lines.append(line)
         # the actual code
         created_vars = set([])
@@ -151,17 +158,17 @@ for func_name, func in [('sin', np.sin), ('cos', np.cos), ('tan', np.tan),
 # Functions that are implemented in a somewhat special way
 def randn_func(vectorisation_idx):
     try:
-        N = int(vectorisation_idx)
-    except (TypeError, ValueError):
         N = len(vectorisation_idx)
+    except TypeError:
+        N = int(vectorisation_idx)
 
     return np.random.randn(N)
 
 def rand_func(vectorisation_idx):
     try:
-        N = int(vectorisation_idx)
-    except (TypeError, ValueError):
         N = len(vectorisation_idx)
+    except TypeError:
+        N = int(vectorisation_idx)
 
     return np.random.rand(N)
 DEFAULT_FUNCTIONS['randn'].implementations.add_implementation(NumpyCodeGenerator,

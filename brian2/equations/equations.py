@@ -243,6 +243,9 @@ def unit_and_type_from_string(unit_string):
     # Another special case: boolean variable
     if unit_string == 'boolean':
         return Unit(1, dim=DIMENSIONLESS), BOOLEAN
+    if unit_string == 'bool':
+        raise TypeError("Use 'boolean' not 'bool' as the unit for a boolean "
+                        "variable.")
 
     # Yet another special case: integer variable
     if unit_string == 'integer':
@@ -378,6 +381,10 @@ class SingleEquation(object):
     identifiers = property(lambda self: self.expr.identifiers
                            if not self.expr is None else set([]),
                            doc='All identifiers in the RHS of this equation.')
+
+    stochastic_variables = property(lambda self: set([variable for variable in self.identifiers
+                                                      if variable =='xi' or variable.startswith('xi_')]),
+                                    doc='Stochastic variables in the RHS of this equation')
 
     def _latex(self, *args):
         if self.type == DIFFERENTIAL_EQUATION:
@@ -828,6 +835,7 @@ class Equations(collections.Mapping):
         external -= set(all_variables.keys())
 
         resolved_namespace = group.resolve_all(external,
+                                               external,  # all variables are user defined
                                                run_namespace=run_namespace,
                                                level=level+1)
         all_variables.update(resolved_namespace)

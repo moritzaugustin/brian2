@@ -1,5 +1,8 @@
-import weakref
+import sys
+import gc
 import time
+
+import numpy as np
 
 from brian2.utils.logger import get_logger
 from brian2.core.names import Nameable
@@ -7,15 +10,85 @@ from brian2.core.base import BrianObject
 from brian2.core.clocks import Clock
 from brian2.units.fundamentalunits import check_units
 from brian2.units.allunits import second 
-from brian2.core.preferences import brian_prefs
-from brian2.core.namespace import get_local_namespace
-from brian2.devices.device import device_override
+from brian2.core.preferences import prefs
+
+from .base import device_override
 
 __all__ = ['Network']
 
 
 logger = get_logger(__name__)
 
+
+def _format_time(time_in_s):
+    '''
+    Helper function to format time in seconds, minutes, hours, days, depending
+    on the magnitude.
+
+    Examples
+    --------
+    >>> from brian2.core.network import _format_time
+    >>> _format_time(12345)
+    '3h 25m 45s'
+    >>> _format_time(123)
+    '2m 3s'
+    >>> _format_time(12.5)
+    '12s'
+    >>> _format_time(.5)
+    '< 1s'
+
+    '''
+    divisors = [24*60*60, 60*60, 60, 1]
+    letters = ['d', 'h', 'm', 's']
+    remaining = time_in_s
+    text = ''
+    for divisor, letter in zip(divisors, letters):
+        time_to_represent = int(remaining / divisor)
+        remaining -= time_to_represent * divisor
+        if time_to_represent > 0 or len(text):
+            if len(text):
+                text += ' '
+            text += '%d%s' % (time_to_represent, letter)
+
+    # less than one second
+    if len(text) == 0:
+        text = '< 1s'
+
+    return text
+
+
+class TextReport(object):
+    '''
+    Helper object to report simulation progress in `Network.run`.
+
+    Parameters
+    ----------
+    stream : file
+        The stream to write to, commonly `sys.stdout` or `sys.stderr`.
+    '''
+    def __init__(self, stream):
+        self.stream = stream
+
+    def __call__(self, elapsed, completed, duration):
+        if completed == 0.0:
+            self.stream.write(('Starting simulation for duration '
+                               '%s\n') % duration)
+        else:
+            report_msg = ('{t} ({percent}%) simulated in '
+                          '{real_t}').format(t=completed*duration,
+                                             percent=int(completed*100.),
+                                             real_t=_format_time(float(elapsed)))
+            if completed < 1.0:
+                remaining = int(round((1-completed)/completed*float(elapsed)))
+                remaining_msg = (', estimated {remaining} '
+                                 'remaining.\n').format(remaining=_format_time(remaining))
+            else:
+                remaining_msg = '\n'
+
+            self.stream.write(report_msg + remaining_msg)
+
+        # Flush the stream, this is useful if stream is a file
+        self.stream.flush()
 
 class Network(Nameable):
     '''
@@ -37,11 +110,6 @@ class Network(Nameable):
         `~Network.add`.
     name : str, optional
         An explicit name, if not specified gives an automatically generated name
-    weak_references : bool, optional
-        Whether to only store weak references to the objects (defaults to
-        ``False``), i.e. other references to the objects need to exist to keep
-        them alive. This is used by the magic system, otherwise it would keep
-        all objects alive all the time.
 
     Notes
     -----
@@ -85,30 +153,29 @@ class Network(Nameable):
 
     def __init__(self, *objs, **kwds):
         #: The list of objects in the Network, should not normally be modified
-        #: directly
-        #:
-        #: Stores references or `weakref.proxy` references to the objects
-        #: (depending on `weak_references`)
+        #: directly.
+        #: Note that in a `MagicNetwork`, this attribute only contains the
+        #: objects during a run: it is filled in `before_run` and emptied in
+        #: `after_run`
         self.objects = []
         
         name = kwds.pop('name', 'network*')
 
-        #: Whether the network only stores weak references to the objects
-        self.weak_references = kwds.pop('weak_references', False)
         if kwds:
-            raise TypeError("Only keyword arguments to Network are name "
-                            "and weak_references")
+            raise TypeError("Only keyword argument to Network is 'name'.")
 
         Nameable.__init__(self, name=name)
 
+        #: Current time as a float
+        self.t_ = 0.0
+
         for obj in objs:
             self.add(obj)
-            
-        #: Current time as a float
-        self.t_ = 0.0   
+
+        #: Stored time for the store/restore mechanism
+        self._stored_t = {}
      
     t = property(fget=lambda self: self.t_*second,
-                 fset=lambda self, val: setattr(self, 't_', float(val)),
                  doc='''
                      Current simulation time in seconds (`Quantity`)
                      ''')
@@ -137,6 +204,12 @@ class Network(Nameable):
 
         raise KeyError('No object with name "%s" found' % key)
 
+    def __contains__(self, item):
+        for obj in self.objects:
+            if obj.name == item:
+                return True
+        return False
+
     def __len__(self):
         return len(self.objects)
 
@@ -157,15 +230,22 @@ class Network(Nameable):
         """
         for obj in objs:
             if isinstance(obj, BrianObject):
-                if self.weak_references and not isinstance(obj,
-                                                           (weakref.ProxyType,
-                                                            weakref.CallableProxyType)):
-                    obj = weakref.proxy(obj)
+                if obj._network is not None:
+                    raise RuntimeError('%s has already been simulated, cannot '
+                                       'add it to the network. If you were '
+                                       'trying to remove and add an object to '
+                                       'temporarily stop it from being run, '
+                                       'set its active flag to False instead.')
                 self.objects.append(obj)
                 self.add(obj.contained_objects)
             else:
                 try:
                     for o in obj:
+                        # The following "if" looks silly but avoids an infinite
+                        # recursion if a string is provided as an argument
+                        # (which might occur during testing)
+                        if o is obj:
+                            raise TypeError()
                         self.add(o)
                 except TypeError:
                     raise TypeError("Can only add objects of type BrianObject, "
@@ -185,11 +265,6 @@ class Network(Nameable):
         '''
         for obj in objs:
             if isinstance(obj, BrianObject):
-                if self.weak_references and not isinstance(obj,
-                                                           (weakref.ProxyType,
-                                                            weakref.CallableProxyType)):
-                    obj = weakref.proxy(obj)
-                # note that weakref.proxy(obj) is weakref.proxy(obj) is True
                 self.objects.remove(obj)
                 self.remove(obj.contained_objects)
             else:
@@ -201,18 +276,48 @@ class Network(Nameable):
                                     "BrianObject, or containers of such "
                                     "objects from Network")
 
-    @device_override('network_reinit')
-    def reinit(self):
+    @device_override('network_store')
+    def store(self, name='default'):
         '''
-        reinit()
+        store(name='default')
 
-        Reinitialises all contained objects.
-        
-        Calls `BrianObject.reinit` on each object.
+        Store the state of the network and all included objects.
+
+        Parameters
+        ----------
+        name : str, optional
+            A name for the snapshot, if not specified uses ``'default'``.
+
+        '''
+        self._stored_t[name] = self.t_
+        clocks = [obj.clock for obj in self.objects]
+        # Make sure that all clocks are up to date
+        for clock in clocks:
+            clock._set_t_update_dt(t=self.t)
+
+        for obj in self.objects:
+            if hasattr(obj, '_store'):
+                obj._store(name=name)
+
+    @device_override('network_restore')
+    def restore(self, name='default'):
+        '''
+        restore(name='default')
+
+        Retore the state of the network and all included objects.
+
+        Parameters
+        ----------
+        name : str, optional
+            The name of the snapshot to restore, if not specified uses
+            ``'default'``.
+
         '''
         for obj in self.objects:
-            obj.reinit()
-    
+            if hasattr(obj, '_restore'):
+                obj._restore(name=name)
+        self.t_ = self._stored_t[name]
+
     def _get_schedule(self):
         if not hasattr(self, '_schedule'):
             self._schedule = ['start',
@@ -240,18 +345,30 @@ class Network(Nameable):
         names in the default schedule:
         ``['start', 'groups', 'thresholds', 'synapses', 'resets', 'end']``.
         ''')
-    
+
     def _sort_objects(self):
         '''
         Sorts the objects in the order defined by the schedule.
         
         Objects are sorted first by their ``when`` attribute, and secondly
         by the ``order`` attribute. The order of the ``when`` attribute is
-        defined by the ``schedule``.
+        defined by the ``schedule``. Final ties are resolved using the objects'
+        names, leading to an arbitrary but deterministic sorting.
         '''
         when_to_int = dict((when, i) for i, when in enumerate(self.schedule))
-        self.objects.sort(key=lambda obj: (when_to_int[obj.when], obj.order))
-    
+        self.objects.sort(key=lambda obj: (when_to_int[obj.when],
+                                           obj.order,
+                                           obj.name))
+
+    def check_dependencies(self):
+        all_ids = [obj.id for obj in self.objects]
+        for obj in self.objects:
+            for dependency in obj._dependencies:
+                if not dependency in all_ids:
+                    raise ValueError(('"%s" has been included in the network '
+                                      'but not the object on which it '
+                                      'depends.') % obj.name)
+
     @device_override('network_before_run')
     def before_run(self, run_namespace=None, level=0):
         '''
@@ -267,10 +384,12 @@ class Network(Nameable):
         namespace : dict-like, optional
             A namespace in which objects which do not define their own
             namespace will be run.
-        '''                
-        brian_prefs.check_all_validated()
+        '''
+        # A garbage collection here can be useful to free memory if we have
+        # multiple runs
+        gc.collect()
 
-        self._clocks = set(obj.clock for obj in self.objects)
+        prefs.check_all_validated()
         
         self._stopped = False
         Network._globally_stopped = False
@@ -282,9 +401,23 @@ class Network(Nameable):
                         numobj=len(self.objects),
                         objnames=', '.join(obj.name for obj in self.objects)),
                      "before_run")
-        
+
+        self.check_dependencies()
+
         for obj in self.objects:
-            obj.before_run(run_namespace, level=level+2)
+            if obj.active:
+                obj.before_run(run_namespace, level=level+2)
+
+        # Check that no object has been run as part of another network before
+        for obj in self.objects:
+            if obj._network is None:
+                obj._network = self.id
+            elif obj._network != self.id:
+                raise RuntimeError(('%s has already been run in the '
+                                    'context of another network. Use '
+                                    'add/remove to change the objects '
+                                    'in a simulated network instead of '
+                                    'creating a new one.') % obj.name)
 
         logger.debug("Network {self.name} has {num} "
                      "clocks: {clocknames}".format(self=self,
@@ -298,7 +431,8 @@ class Network(Nameable):
         after_run()
         '''
         for obj in self.objects:
-            obj.after_run()
+            if obj.active:
+                obj.after_run()
         
     def _nextclocks(self):
         minclock = min(self._clocks, key=lambda c: c.t_)
@@ -306,10 +440,10 @@ class Network(Nameable):
                         (clock.t_ == minclock.t_ or
                          abs(clock.t_ - minclock.t_)<Clock.epsilon))
         return minclock, curclocks
-    
+
     @device_override('network_run')
     @check_units(duration=second, report_period=second)
-    def run(self, duration, report=None, report_period=60*second,
+    def run(self, duration, report=None, report_period=10*second,
             namespace=None, level=0):
         '''
         run(duration, report=None, report_period=60*second, namespace=None, level=0)
@@ -320,14 +454,17 @@ class Network(Nameable):
         ----------
         duration : `Quantity`
             The amount of simulation time to run for.
-        report : {None, 'stdout', 'stderr', 'graphical', function}, optional
-            How to report the progress of the simulation. If None, do not
-            report progress. If stdout or stderr is specified, print the
-            progress to stdout or stderr. If graphical, Tkinter is used to
-            show a graphical progress bar. Alternatively, you can specify
-            a callback ``function(elapsed, complete)`` which will be passed
-            the amount of time elapsed (in seconds) and the fraction complete
-            from 0 to 1.
+        report : {None, 'text', 'stdout', 'stderr', function}, optional
+            How to report the progress of the simulation. If ``None``, do not
+            report progress. If ``'text'`` or ``'stdout'`` is specified, print
+            the progress to stdout. If ``'stderr'`` is specified, print the
+            progress to stderr. Alternatively, you can specify a callback
+            ``callable(elapsed, complete, duration)`` which will be passed
+            the amount of time elapsed as a `Quantity`, the
+            fraction complete from 0.0 to 1.0 and the total duration of the
+            simulation (in biological time).
+            The function will always be called at the beginning and the end
+            (i.e. for fractions 0.0 and 1.0), regardless of the `report_period`.
         report_period : `Quantity`
             How frequently (in real time) to report progress.
         namespace : dict-like, optional
@@ -345,23 +482,37 @@ class Network(Nameable):
         The simulation can be stopped by calling `Network.stop` or the
         global `stop` function.
         '''
-        
-        self.before_run(namespace, level=level+3)
-
         if len(self.objects)==0:
             return # TODO: raise an error? warning?
 
+        self._clocks = [obj.clock for obj in self.objects]
+        t_start = self.t
         t_end = self.t+duration
         for clock in self._clocks:
             clock.set_interval(self.t, t_end)
-            
-        # TODO: progress reporting stuff
-        
+
+        self.before_run(namespace, level=level+3)
         # Find the first clock to be updated (see note below)
         clock, curclocks = self._nextclocks()
         if report is not None:
+            report_period = float(report_period)
             start = current = time.time()
-            next_report_time = start + 10
+            next_report_time = start + report_period
+            if report == 'text' or report == 'stdout':
+                report_callback = TextReport(sys.stdout)
+            elif report == 'stderr':
+                report_callback = TextReport(sys.stderr)
+            elif isinstance(report, basestring):
+                raise ValueError(('Do not know how to handle report argument '
+                                  '"%s".' % report))
+            elif callable(report):
+                report_callback = report
+            else:
+                raise TypeError(('Do not know how to handle report argument, '
+                                 'it has to be one of "text", "stdout", '
+                                 '"stderr", or a callable function/object, '
+                                 'but it is of type %s') % type(report))
+            report_callback(0*second, 0.0, duration)
 
         while clock.running and not self._stopped and not Network._globally_stopped:
             # update the network time to this clocks time
@@ -369,14 +520,13 @@ class Network(Nameable):
             if report is not None:
                 current = time.time()
                 if current > next_report_time:
-                    report_msg = '{t} simulated ({percent}%), estimated {remaining} s remaining.'
-                    remaining = int(round((current - start)/self.t*(duration-self.t)))
-                    print report_msg.format(t=self.t, percent=int(round(100*self.t/duration)),
-                                            remaining=remaining)
-                    next_report_time = current + 10
+                    report_callback((current-start)*second,
+                                    (self.t_ - float(t_start))/float(t_end),
+                                    duration)
+                    next_report_time = current + report_period
                 # update the objects with this clock
             for obj in self.objects:
-                if obj.clock in curclocks and obj.active:
+                if obj._clock in curclocks and obj.active:
                     obj.run()
             # tick the clock forward one time step
             for c in curclocks:
@@ -387,10 +537,13 @@ class Network(Nameable):
             # same t value in which case we update all of them
             clock, curclocks = self._nextclocks()
 
-        self.t = t_end
+        if self._stopped or Network._globally_stopped:
+            self.t_ = clock.t_
+        else:
+            self.t_ = float(t_end)
 
         if report is not None:
-            print 'Took ', current-start, 's in total.'
+            report_callback((current-start)*second, 1.0, duration)
         self.after_run()
         
     @device_override('network_stop')

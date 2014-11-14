@@ -7,7 +7,7 @@ from brian2.utils.stringtools import (deindent, stripped_deindented_lines,
 from brian2.utils.logger import get_logger
 from brian2.parsing.rendering import CPPNodeRenderer
 from brian2.core.functions import Function, DEFAULT_FUNCTIONS
-from brian2.core.preferences import brian_prefs, BrianPreference
+from brian2.core.preferences import prefs, BrianPreference
 from brian2.core.variables import ArrayVariable
 
 from .base import CodeGenerator
@@ -15,7 +15,7 @@ from .base import CodeGenerator
 logger = get_logger(__name__)
 
 __all__ = ['CPPCodeGenerator',
-           'c_data_type',
+           'c_data_type'
            ]
 
 
@@ -48,22 +48,23 @@ def c_data_type(dtype):
     elif dtype == numpy.uint32:
         dtype = 'uint32_t'
     elif dtype == numpy.bool_ or dtype is bool:
-        dtype = 'bool'
+        dtype = 'char'
     else:
         raise ValueError("dtype " + str(dtype) + " not known.")
     return dtype
 
 
 # Preferences
-brian_prefs.register_preferences(
+prefs.register_preferences(
     'codegen.generators.cpp',
     'C++ codegen preferences',
     restrict_keyword = BrianPreference(
-        default='__restrict__',
+        default='__restrict',
         docs='''
         The keyword used for the given compiler to declare pointers as restricted.
         
-        This keyword is different on different compilers, the default is for gcc.
+        This keyword is different on different compilers, the default works for
+        gcc and MSVS.
         ''',
         ),
     flush_denormals = BrianPreference(
@@ -111,8 +112,8 @@ class CPPCodeGenerator(CodeGenerator):
 
     def __init__(self, *args, **kwds):
         super(CPPCodeGenerator, self).__init__(*args, **kwds)
-        self.restrict = brian_prefs['codegen.generators.cpp.restrict_keyword'] + ' '
-        self.flush_denormals = brian_prefs['codegen.generators.cpp.flush_denormals']
+        self.restrict = prefs['codegen.generators.cpp.restrict_keyword'] + ' '
+        self.flush_denormals = prefs['codegen.generators.cpp.flush_denormals']
         self.c_data_type = c_data_type
 
     @staticmethod
@@ -134,7 +135,8 @@ class CPPCodeGenerator(CodeGenerator):
         return CPPNodeRenderer().render_expr(expr).strip()
 
     def translate_statement(self, statement):
-        var, op, expr = statement.var, statement.op, statement.expr
+        var, op, expr, comment = (statement.var, statement.op,
+                                  statement.expr, statement.comment)
         if op == ':=':
             decl = self.c_data_type(statement.dtype) + ' '
             op = '='
@@ -142,7 +144,10 @@ class CPPCodeGenerator(CodeGenerator):
                 decl = 'const ' + decl
         else:
             decl = ''
-        return decl + var + ' ' + op + ' ' + self.translate_expression(expr) + ';'
+        code = decl + var + ' ' + op + ' ' + self.translate_expression(expr) + ';'
+        if len(comment):
+            code += ' // ' + comment
+        return code
     
     def translate_to_read_arrays(self, statements):
         read, write, indices, conditional_write_vars = self.arrays_helper(statements)
@@ -165,7 +170,7 @@ class CPPCodeGenerator(CodeGenerator):
         lines = []
         # simply declare variables that will be written but not read
         for varname in write:
-            if varname not in read:
+            if varname not in read and varname not in indices:
                 var = self.variables[varname]
                 line = self.c_data_type(var.dtype) + ' ' + varname + ';'
                 lines.append(line)
@@ -259,9 +264,11 @@ class CPPCodeGenerator(CodeGenerator):
             if isinstance(variable, Function):
                 user_functions.append((varname, variable))
                 funccode = variable.implementations[self.codeobj_class].get_code(self.owner)
+                if isinstance(funccode, basestring):
+                    funccode = {'support_code': funccode}
                 if funccode is not None:
                     support_code += '\n' + deindent(funccode.get('support_code', ''))
-                    hash_defines += deindent(funccode.get('hashdefine_code', ''))
+                    hash_defines += '\n' + deindent(funccode.get('hashdefine_code', ''))
                 # add the Python function with a leading '_python', if it
                 # exists. This allows the function to make use of the Python
                 # function via weave if necessary (e.g. in the case of randn)
@@ -321,7 +328,7 @@ for func, func_cpp in [('arcsin', 'asin'), ('arccos', 'acos'), ('arctan', 'atan'
                                                                name=func_cpp)
 
 # Functions that need to be implemented specifically
-randn_code = {'support_code': '''
+randn_code = '''
 
     inline double _ranf()
     {
@@ -353,22 +360,22 @@ randn_code = {'support_code': '''
             return y2;
          }
     }
-        '''}
+        '''
 DEFAULT_FUNCTIONS['randn'].implementations.add_implementation(CPPCodeGenerator,
                                                               code=randn_code,
                                                               name='_randn')
 
-rand_code = {'support_code': '''
+rand_code = '''
         double _rand(int vectorisation_idx)
         {
 	        return (double)rand()/RAND_MAX;
         }
-        '''}
+        '''
 DEFAULT_FUNCTIONS['rand'].implementations.add_implementation(CPPCodeGenerator,
                                                              code=rand_code,
                                                              name='_rand')
 
-clip_code = {'support_code': '''
+clip_code = '''
         double _clip(const float value, const float a_min, const float a_max)
         {
 	        if (value < a_min)
@@ -377,18 +384,17 @@ clip_code = {'support_code': '''
 	            return a_max;
 	        return value;
 	    }
-        '''}
+        '''
 DEFAULT_FUNCTIONS['clip'].implementations.add_implementation(CPPCodeGenerator,
                                                              code=clip_code,
                                                              name='_clip')
 
-int_code = {'support_code':
-        '''
+int_code = '''
         int int_(const bool value)
         {
 	        return value ? 1 : 0;
         }
-        '''}
+        '''
 DEFAULT_FUNCTIONS['int'].implementations.add_implementation(CPPCodeGenerator,
                                                             code=int_code,
                                                             name='int_')
