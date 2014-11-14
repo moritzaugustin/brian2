@@ -1,0 +1,39 @@
+PROGRAM = main
+SRCS = objects.cpp code_objects/feedforward_group_variable_set_conditional_codeobject_1.cpp code_objects/feedforward_group_variable_set_conditional_codeobject.cpp code_objects/layer4_thresholder_codeobject.cpp code_objects/layer23_group_variable_set_conditional_codeobject.cpp code_objects/recurrent_inh_synapses_create_codeobject.cpp code_objects/recurrent_exc_pre_push_spikes.cpp code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject.cpp code_objects/layer4_group_variable_set_conditional_codeobject_2.cpp code_objects/layer4_group_variable_set_conditional_codeobject_1.cpp code_objects/recurrent_exc_synapses_create_codeobject.cpp code_objects/layer4_group_variable_set_conditional_codeobject.cpp code_objects/feedforward_post_codeobject.cpp code_objects/layer23_subgroup_group_variable_set_conditional_codeobject.cpp code_objects/feedforward_pre_push_spikes.cpp code_objects/feedforward_pre_codeobject.cpp code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_2.cpp code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_1.cpp code_objects/recurrent_inh_pre_codeobject.cpp code_objects/recurrent_exc_pre_initialise_queue.cpp code_objects/feedforward_post_initialise_queue.cpp code_objects/layer4_stateupdater_codeobject.cpp code_objects/layer4_custom_operation_codeobject.cpp code_objects/recurrent_inh_group_variable_set_conditional_codeobject.cpp code_objects/feedforward_synapses_create_codeobject.cpp code_objects/recurrent_exc_group_variable_set_conditional_codeobject.cpp code_objects/recurrent_inh_pre_push_spikes.cpp code_objects/layer23_stateupdater_codeobject.cpp code_objects/recurrent_exc_group_variable_set_conditional_codeobject_1.cpp code_objects/layer23_thresholder_codeobject.cpp code_objects/recurrent_exc_group_variable_set_conditional_codeobject_2.cpp code_objects/recurrent_exc_pre_codeobject.cpp code_objects/layer23_group_variable_set_conditional_codeobject_1.cpp code_objects/recurrent_inh_pre_initialise_queue.cpp code_objects/feedforward_post_push_spikes.cpp code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_1.cpp code_objects/feedforward_pre_initialise_queue.cpp code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_2.cpp code_objects/recurrent_exc_synapses_create_codeobject_1.cpp code_objects/layer23_resetter_codeobject.cpp main.cpp network.cpp synapses_classes.cpp run.cpp
+H_SRCS = objects.h code_objects/feedforward_group_variable_set_conditional_codeobject_1.h code_objects/feedforward_group_variable_set_conditional_codeobject.h code_objects/layer4_thresholder_codeobject.h code_objects/layer23_group_variable_set_conditional_codeobject.h code_objects/recurrent_inh_synapses_create_codeobject.h code_objects/recurrent_exc_pre_push_spikes.h code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject.h code_objects/layer4_group_variable_set_conditional_codeobject_2.h code_objects/layer4_group_variable_set_conditional_codeobject_1.h code_objects/recurrent_exc_synapses_create_codeobject.h code_objects/layer4_group_variable_set_conditional_codeobject.h code_objects/feedforward_post_codeobject.h code_objects/layer23_subgroup_group_variable_set_conditional_codeobject.h code_objects/feedforward_pre_push_spikes.h code_objects/feedforward_pre_codeobject.h code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_2.h code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_1.h code_objects/recurrent_inh_pre_codeobject.h code_objects/recurrent_exc_pre_initialise_queue.h code_objects/feedforward_post_initialise_queue.h code_objects/layer4_stateupdater_codeobject.h code_objects/layer4_custom_operation_codeobject.h code_objects/recurrent_inh_group_variable_set_conditional_codeobject.h code_objects/feedforward_synapses_create_codeobject.h code_objects/recurrent_exc_group_variable_set_conditional_codeobject.h code_objects/recurrent_inh_pre_push_spikes.h code_objects/layer23_stateupdater_codeobject.h code_objects/recurrent_exc_group_variable_set_conditional_codeobject_1.h code_objects/layer23_thresholder_codeobject.h code_objects/recurrent_exc_group_variable_set_conditional_codeobject_2.h code_objects/recurrent_exc_pre_codeobject.h code_objects/layer23_group_variable_set_conditional_codeobject_1.h code_objects/recurrent_inh_pre_initialise_queue.h code_objects/feedforward_post_push_spikes.h code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_1.h code_objects/feedforward_pre_initialise_queue.h code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_2.h code_objects/recurrent_exc_synapses_create_codeobject_1.h code_objects/layer23_resetter_codeobject.h network.h synapses_classes.h run.h brianlib/dynamic_array.h brianlib/common_math.h brianlib/clocks.h
+OBJS = ${SRCS:.cpp=.o}
+CC = @g++
+DEBUG = -g
+OPTIMISATIONS = -O3
+CFLAGS = -c -Wno-write-strings $(OPTIMISATIONS) -I. 
+LFLAGS = 
+DEPS = make.deps
+
+all: executable
+
+# Adds debug flags
+debug: CFLAGS += $(DEBUG)
+debug: LFLAGS += $(DEBUG)
+debug: executable
+
+# Adds -march=native to optimisations, which only works for recent gcc versions
+native: OPTIMISATIONS += -march=native
+native: executable
+
+.PHONY: all debug native executable clean
+
+executable: $(OBJS) $(DEPS)
+	$(CC) $(LFLAGS) $(OBJS) -o $(PROGRAM)
+
+clean:
+	rm $(OBJS) $(PROGRAM) $(DEPS)
+
+make.deps: $(SRCS) $(H_SRCS)
+	$(CC) $(CFLAGS) -MM $(SRCS) > make.deps
+	
+ifneq ($(wildcard $(DEPS)), )
+include $(DEPS)
+endif
+
+%.o : %.cpp
+	$(CC) $(CFLAGS) $< -o $@

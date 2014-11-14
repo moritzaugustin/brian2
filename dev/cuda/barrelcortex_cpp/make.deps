@@ -1,0 +1,307 @@
+objects.o: objects.cpp objects.h synapses_classes.h brianlib/spikequeue.h \
+ brianlib/clocks.h brianlib/dynamic_array.h network.h
+feedforward_group_variable_set_conditional_codeobject_1.o: \
+ code_objects/feedforward_group_variable_set_conditional_codeobject_1.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_group_variable_set_conditional_codeobject_1.h \
+ brianlib/common_math.h
+feedforward_group_variable_set_conditional_codeobject.o: \
+ code_objects/feedforward_group_variable_set_conditional_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_group_variable_set_conditional_codeobject.h \
+ brianlib/common_math.h
+layer4_thresholder_codeobject.o: \
+ code_objects/layer4_thresholder_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer4_thresholder_codeobject.h brianlib/common_math.h
+layer23_group_variable_set_conditional_codeobject.o: \
+ code_objects/layer23_group_variable_set_conditional_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_group_variable_set_conditional_codeobject.h \
+ brianlib/common_math.h
+recurrent_inh_synapses_create_codeobject.o: \
+ code_objects/recurrent_inh_synapses_create_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_inh_synapses_create_codeobject.h \
+ brianlib/common_math.h synapses_classes.h
+recurrent_exc_pre_push_spikes.o: \
+ code_objects/recurrent_exc_pre_push_spikes.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_pre_push_spikes.h brianlib/common_math.h
+layer23_subgroup_1_group_variable_set_conditional_codeobject.o: \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject.h \
+ brianlib/common_math.h
+layer4_group_variable_set_conditional_codeobject_2.o: \
+ code_objects/layer4_group_variable_set_conditional_codeobject_2.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject_2.h \
+ brianlib/common_math.h
+layer4_group_variable_set_conditional_codeobject_1.o: \
+ code_objects/layer4_group_variable_set_conditional_codeobject_1.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject_1.h \
+ brianlib/common_math.h
+recurrent_exc_synapses_create_codeobject.o: \
+ code_objects/recurrent_exc_synapses_create_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_synapses_create_codeobject.h \
+ brianlib/common_math.h synapses_classes.h
+layer4_group_variable_set_conditional_codeobject.o: \
+ code_objects/layer4_group_variable_set_conditional_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject.h \
+ brianlib/common_math.h
+feedforward_post_codeobject.o: \
+ code_objects/feedforward_post_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_post_codeobject.h brianlib/common_math.h \
+ synapses_classes.h
+layer23_subgroup_group_variable_set_conditional_codeobject.o: \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject.h \
+ brianlib/common_math.h
+feedforward_pre_push_spikes.o: \
+ code_objects/feedforward_pre_push_spikes.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_pre_push_spikes.h brianlib/common_math.h
+feedforward_pre_codeobject.o: code_objects/feedforward_pre_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_pre_codeobject.h brianlib/common_math.h \
+ synapses_classes.h
+layer23_subgroup_group_variable_set_conditional_codeobject_2.o: \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_2.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_2.h \
+ brianlib/common_math.h
+layer23_subgroup_group_variable_set_conditional_codeobject_1.o: \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_1.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_1.h \
+ brianlib/common_math.h
+recurrent_inh_pre_codeobject.o: \
+ code_objects/recurrent_inh_pre_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_inh_pre_codeobject.h brianlib/common_math.h \
+ synapses_classes.h
+recurrent_exc_pre_initialise_queue.o: \
+ code_objects/recurrent_exc_pre_initialise_queue.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_pre_initialise_queue.h
+feedforward_post_initialise_queue.o: \
+ code_objects/feedforward_post_initialise_queue.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_post_initialise_queue.h
+layer4_stateupdater_codeobject.o: \
+ code_objects/layer4_stateupdater_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer4_stateupdater_codeobject.h brianlib/common_math.h
+layer4_custom_operation_codeobject.o: \
+ code_objects/layer4_custom_operation_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer4_custom_operation_codeobject.h brianlib/common_math.h
+recurrent_inh_group_variable_set_conditional_codeobject.o: \
+ code_objects/recurrent_inh_group_variable_set_conditional_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_inh_group_variable_set_conditional_codeobject.h \
+ brianlib/common_math.h
+feedforward_synapses_create_codeobject.o: \
+ code_objects/feedforward_synapses_create_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_synapses_create_codeobject.h \
+ brianlib/common_math.h synapses_classes.h
+recurrent_exc_group_variable_set_conditional_codeobject.o: \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject.h \
+ brianlib/common_math.h
+recurrent_inh_pre_push_spikes.o: \
+ code_objects/recurrent_inh_pre_push_spikes.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_inh_pre_push_spikes.h brianlib/common_math.h
+layer23_stateupdater_codeobject.o: \
+ code_objects/layer23_stateupdater_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_stateupdater_codeobject.h brianlib/common_math.h
+recurrent_exc_group_variable_set_conditional_codeobject_1.o: \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_1.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_1.h \
+ brianlib/common_math.h
+layer23_thresholder_codeobject.o: \
+ code_objects/layer23_thresholder_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_thresholder_codeobject.h brianlib/common_math.h
+recurrent_exc_group_variable_set_conditional_codeobject_2.o: \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_2.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_2.h \
+ brianlib/common_math.h
+recurrent_exc_pre_codeobject.o: \
+ code_objects/recurrent_exc_pre_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_pre_codeobject.h brianlib/common_math.h \
+ synapses_classes.h
+layer23_group_variable_set_conditional_codeobject_1.o: \
+ code_objects/layer23_group_variable_set_conditional_codeobject_1.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_group_variable_set_conditional_codeobject_1.h \
+ brianlib/common_math.h
+recurrent_inh_pre_initialise_queue.o: \
+ code_objects/recurrent_inh_pre_initialise_queue.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_inh_pre_initialise_queue.h
+feedforward_post_push_spikes.o: \
+ code_objects/feedforward_post_push_spikes.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_post_push_spikes.h brianlib/common_math.h
+layer23_subgroup_1_group_variable_set_conditional_codeobject_1.o: \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_1.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_1.h \
+ brianlib/common_math.h
+feedforward_pre_initialise_queue.o: \
+ code_objects/feedforward_pre_initialise_queue.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_pre_initialise_queue.h
+layer23_subgroup_1_group_variable_set_conditional_codeobject_2.o: \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_2.cpp \
+ objects.h synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_2.h \
+ brianlib/common_math.h
+recurrent_exc_synapses_create_codeobject_1.o: \
+ code_objects/recurrent_exc_synapses_create_codeobject_1.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/recurrent_exc_synapses_create_codeobject_1.h \
+ brianlib/common_math.h synapses_classes.h
+layer23_resetter_codeobject.o: \
+ code_objects/layer23_resetter_codeobject.cpp objects.h \
+ synapses_classes.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h network.h \
+ code_objects/layer23_resetter_codeobject.h brianlib/common_math.h
+main.o: main.cpp objects.h synapses_classes.h brianlib/spikequeue.h \
+ brianlib/clocks.h brianlib/dynamic_array.h network.h run.h \
+ code_objects/feedforward_group_variable_set_conditional_codeobject_1.h \
+ objects.h \
+ code_objects/feedforward_group_variable_set_conditional_codeobject.h \
+ code_objects/layer4_thresholder_codeobject.h \
+ code_objects/layer23_group_variable_set_conditional_codeobject.h \
+ code_objects/recurrent_inh_synapses_create_codeobject.h \
+ code_objects/recurrent_exc_pre_push_spikes.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject_2.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject_1.h \
+ code_objects/recurrent_exc_synapses_create_codeobject.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject.h \
+ code_objects/feedforward_post_codeobject.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject.h \
+ code_objects/feedforward_pre_push_spikes.h \
+ code_objects/feedforward_pre_codeobject.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_2.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_1.h \
+ code_objects/recurrent_inh_pre_codeobject.h \
+ code_objects/recurrent_exc_pre_initialise_queue.h \
+ code_objects/feedforward_post_initialise_queue.h \
+ code_objects/layer4_stateupdater_codeobject.h \
+ code_objects/layer4_custom_operation_codeobject.h \
+ code_objects/recurrent_inh_group_variable_set_conditional_codeobject.h \
+ code_objects/feedforward_synapses_create_codeobject.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject.h \
+ code_objects/recurrent_inh_pre_push_spikes.h \
+ code_objects/layer23_stateupdater_codeobject.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_1.h \
+ code_objects/layer23_thresholder_codeobject.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_2.h \
+ code_objects/recurrent_exc_pre_codeobject.h \
+ code_objects/layer23_group_variable_set_conditional_codeobject_1.h \
+ code_objects/recurrent_inh_pre_initialise_queue.h \
+ code_objects/feedforward_post_push_spikes.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_1.h \
+ code_objects/feedforward_pre_initialise_queue.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_2.h \
+ code_objects/recurrent_exc_synapses_create_codeobject_1.h \
+ code_objects/layer23_resetter_codeobject.h
+network.o: network.cpp network.h brianlib/clocks.h
+synapses_classes.o: synapses_classes.cpp
+run.o: run.cpp objects.h synapses_classes.h brianlib/spikequeue.h \
+ brianlib/clocks.h brianlib/dynamic_array.h network.h \
+ code_objects/feedforward_group_variable_set_conditional_codeobject.h \
+ objects.h \
+ code_objects/feedforward_group_variable_set_conditional_codeobject_1.h \
+ code_objects/feedforward_post_codeobject.h \
+ code_objects/feedforward_post_initialise_queue.h \
+ code_objects/feedforward_post_push_spikes.h \
+ code_objects/feedforward_pre_codeobject.h \
+ code_objects/feedforward_pre_initialise_queue.h \
+ code_objects/feedforward_pre_push_spikes.h \
+ code_objects/feedforward_synapses_create_codeobject.h \
+ code_objects/layer23_group_variable_set_conditional_codeobject.h \
+ code_objects/layer23_group_variable_set_conditional_codeobject_1.h \
+ code_objects/layer23_resetter_codeobject.h \
+ code_objects/layer23_stateupdater_codeobject.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_1.h \
+ code_objects/layer23_subgroup_1_group_variable_set_conditional_codeobject_2.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_1.h \
+ code_objects/layer23_subgroup_group_variable_set_conditional_codeobject_2.h \
+ code_objects/layer23_thresholder_codeobject.h \
+ code_objects/layer4_custom_operation_codeobject.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject_1.h \
+ code_objects/layer4_group_variable_set_conditional_codeobject_2.h \
+ code_objects/layer4_stateupdater_codeobject.h \
+ code_objects/layer4_thresholder_codeobject.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_1.h \
+ code_objects/recurrent_exc_group_variable_set_conditional_codeobject_2.h \
+ code_objects/recurrent_exc_pre_codeobject.h \
+ code_objects/recurrent_exc_pre_initialise_queue.h \
+ code_objects/recurrent_exc_pre_push_spikes.h \
+ code_objects/recurrent_exc_synapses_create_codeobject.h \
+ code_objects/recurrent_exc_synapses_create_codeobject_1.h \
+ code_objects/recurrent_inh_group_variable_set_conditional_codeobject.h \
+ code_objects/recurrent_inh_pre_codeobject.h \
+ code_objects/recurrent_inh_pre_initialise_queue.h \
+ code_objects/recurrent_inh_pre_push_spikes.h \
+ code_objects/recurrent_inh_synapses_create_codeobject.h
