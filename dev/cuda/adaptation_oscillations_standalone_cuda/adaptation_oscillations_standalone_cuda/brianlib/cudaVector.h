@@ -8,7 +8,7 @@
  * only grow larger (new_size = old_size*2 + 1) ~= 2^n
  */
 
-#define INITIAL_SIZE 0
+#define INITIAL_SIZE 1
 
 template <class scalar>
 class cudaVector

@@ -32,7 +32,7 @@
 
 int main(int argc, char **argv)
 {
-	size_t limit = 500*1024*1024;	//500MB should be enough for now
+	size_t limit = 1*1024*1024*1024;	//500MB should be enough for now
 	cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
 	cudaDeviceSynchronize();
 
@@ -81,7 +81,6 @@ int main(int argc, char **argv)
 		magicnetwork.add(&defaultclock, _run_neurongroup_resetter_codeobject);
 		magicnetwork.add(&defaultclock, _run_statemonitor_codeobject);
 		magicnetwork.run(1.0);
-		magicnetwork.run(0.001);
 		_debugmsg_spikemonitor_codeobject();
 		_debugmsg_synapses_pre_codeobject();
 	}

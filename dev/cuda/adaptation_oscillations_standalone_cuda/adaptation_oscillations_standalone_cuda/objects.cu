@@ -108,7 +108,7 @@ void _init_arrays()
 {
 	using namespace brian;
 
-	num_blocks = 10;
+	num_blocks = 16;
 
 	deviceside_init<<<1,1>>>(
 		num_blocks);
@@ -116,6 +116,7 @@ void _init_arrays()
 	cudaMalloc((void**)&dev_array_random_floats, sizeof(float)*neuron_N);
 	curandCreateGenerator(&random_float_generator, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(random_float_generator, time(0));
+	curandGenerateNormal(random_float_generator, dev_array_random_floats, 1, 0.0, 1.0);
 
 	cudaMalloc((void**)&dev_size_by_pre, sizeof(unsigned int)*neuron_N*num_blocks);
 	cudaMalloc((void**)&dev_synapses_id_by_pre, sizeof(int32_t*)*neuron_N*num_blocks);
