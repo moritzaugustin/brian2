@@ -16,6 +16,7 @@
 #include "code_objects/synapses_pre_codeobject.h"
 #include "code_objects/synapses_pre_initialise_queue.h"
 #include "code_objects/synapses_pre_push_spikes.h"
+#include "code_objects/synapses_stateupdater_codeobject.h"
 #include "code_objects/synapses_synapses_create_codeobject.h"
 
 

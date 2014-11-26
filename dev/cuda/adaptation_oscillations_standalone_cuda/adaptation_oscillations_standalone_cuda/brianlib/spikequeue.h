@@ -72,7 +72,6 @@ public:
 		DTYPE_int** _post_id_by_pre,
 		unsigned int** _delay_by_pre)
 	{
-		__shared__ unsigned int* synapses_delays;
 		if(tid == 0)
 		{
 			current_offset = 0;
@@ -85,21 +84,22 @@ public:
 			synapses_id_by_pre = _synapses_by_pre;
 			post_id_by_pre = _post_id_by_pre;
 			delay_by_pre = _delay_by_pre;
-			synapses_delays = new unsigned int[syn_N];
-		}
-		__syncthreads();
 
-		//ignore invalid tids (should not happen, but still...)
-		if(tid < 0 || tid >= syn_N)
-		{
-			return;
-		}
-
-		if(tid == 0)
-		{
 			pre_neuron_queue = new cudaVector<DTYPE_int>*[max_delay];
+			if(!pre_neuron_queue)
+			{
+				printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>*)*max_delay);
+			}
 			synapses_queue = new cudaVector<DTYPE_int>*[max_delay];
+			if(!synapses_queue)
+			{
+				printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>*)*max_delay);
+			}
 			post_neuron_queue = new cudaVector<DTYPE_int>*[max_delay];
+			if(!post_neuron_queue)
+			{
+				printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>*)*max_delay);
+			}
 		};
 		__syncthreads();
 
@@ -110,29 +110,34 @@ public:
 		}
 
 		pre_neuron_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-		synapses_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-		post_neuron_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-
-		if(tid == 0)
+		if(!pre_neuron_queue[tid])
 		{
-			delete [] synapses_delays;
+			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
+		}
+		synapses_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
+		if(!synapses_queue[tid])
+		{
+			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
+		}
+		post_neuron_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
+		if(!post_neuron_queue[tid])
+		{
+			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
 		}
 	};
-
-//offset into shared memory in push kernel
-#define SYN_ID_OFFSET(tid)  (3*tid + 0)
-#define DELAY_OFFSET(tid)   (3*tid + 1)
-#define POST_ID_OFFSET(tid) (3*tid + 2)
 
 	__device__ void push(
 		unsigned int bid,
 		unsigned int tid,
 		unsigned int _pre_id,
-		int32_t* _shared_mem)
+		char* _shared_mem)
 	{
-		int32_t* shared_mem = _shared_mem;	//allocated in push_spikes_kernel
 		unsigned int neuron_pre_id = _pre_id;
-		unsigned int num_connected_synapses = size_by_pre[neuron_pre_id];
+		unsigned int num_connected_synapses = size_by_pre[neuron_pre_id*num_blocks + bid];
+		//shared_mem is allocated in push_spikes
+		int32_t* shared_mem_synapses_id = (int32_t*)_shared_mem;
+		unsigned int* shared_mem_synapses_delay = (unsigned int*)((int32_t*)shared_mem_synapses_id + num_connected_synapses);
+		int32_t* shared_mem_post_id = (int32_t*)((unsigned int*)shared_mem_synapses_delay + num_connected_synapses);
 
 		//ignore invalid pre_ids
 		if(neuron_pre_id >= neuron_N || tid > num_connected_synapses)
@@ -140,12 +145,12 @@ public:
 			return;
 		}
 
-		int32_t syn_id = synapses_id_by_pre[neuron_pre_id][tid];
-		shared_mem[SYN_ID_OFFSET(tid)] = syn_id;
-		unsigned int delay = delay_by_pre[neuron_pre_id][tid];
-		shared_mem[DELAY_OFFSET(tid)] = delay;
-		unsigned int post_id = post_id_by_pre[neuron_pre_id][tid];
-		shared_mem[POST_ID_OFFSET(tid)] = post_id;
+		int32_t syn_id = synapses_id_by_pre[neuron_pre_id*num_blocks + bid][tid];
+		shared_mem_synapses_id[tid] = syn_id;
+		unsigned int delay = delay_by_pre[neuron_pre_id*num_blocks + bid][tid];
+		shared_mem_synapses_delay[tid] = delay;
+		unsigned int post_id = post_id_by_pre[neuron_pre_id*num_blocks + bid][tid];
+		shared_mem_post_id[tid] = post_id;
 
 		//only one thread per block inserts into queues
 		if(tid != 0)
@@ -156,9 +161,9 @@ public:
 		for(int i = 0; i < num_connected_synapses; i++)
 		{
 			int32_t queue_pre_id = neuron_pre_id;
-			int32_t queue_syn_id = shared_mem[SYN_ID_OFFSET(i)];
-			int32_t queue_post_id = shared_mem[POST_ID_OFFSET(i)];
-			unsigned int queue_delay = shared_mem[DELAY_OFFSET(i)];
+			int32_t queue_syn_id = shared_mem_synapses_id[i];
+			int32_t queue_post_id = shared_mem_post_id[i];
+			unsigned int queue_delay = shared_mem_synapses_delay[i];
 			unsigned int adjusted_delay = (current_offset + queue_delay)%max_delay;
 			unsigned int queue_id = bid;
 
@@ -193,26 +198,6 @@ public:
 		*(_synapses_queue) =  &(synapses_queue[current_offset][0]);
 		*(_pre_neuron_queue) =  &(pre_neuron_queue[current_offset][0]);
 		*(_post_neuron_queue) =  &(post_neuron_queue[current_offset][0]);
-	}
-
-private:
-	__device__ unsigned int get_max_delay(
-		unsigned int* delays,
-		int synapses_N)
-	{
-		if(synapses_N == 0)
-		{
-			return 0;
-		}
-		unsigned int max = delays[0];
-		for(int i = 1; i < synapses_N; i++)
-		{
-			if(delays[i] > max)
-			{
-				max = delays[i];
-			}
-		}
-		return max + 1; //add +1 because we also need the current step
 	}
 };
 

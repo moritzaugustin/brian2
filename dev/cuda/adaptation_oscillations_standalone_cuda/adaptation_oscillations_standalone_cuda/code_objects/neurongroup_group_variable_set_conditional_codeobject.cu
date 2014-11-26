@@ -6,24 +6,22 @@
 #include<iostream>
 #include<fstream>
 
-#define neuron_N 4000
-#define THREADS 1024
-#define BLOCKS (neuron_N + THREADS -1)/THREADS
-
 __global__ void _run_neurongroup_group_variable_set_conditional_codeobject_kernel(
-	float* par_array_rands,
-	double* par_array_neurongroup_v,
-	bool* par_array_neurongroup_not_refractory)
+	unsigned int _neurongroup_N,
+	unsigned int max_threads_per_block,
+	float* _array_rands,
+	double* _array_neurongroup_v,
+	bool* _array_neurongroup_not_refractory)
 {
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
 
-	float* _ptr_array_rands = par_array_rands;
-	double* _ptr_array_neurongroup_v = par_array_neurongroup_v;
-	bool* _ptr_array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
+	float* _ptr_array_rands = _array_rands;
+	double* _ptr_array_neurongroup_v = _array_neurongroup_v;
+	bool* _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
 	
-	int neuron_id = bid*THREADS + tid;
-	if(neuron_id < 0 || neuron_id >= neuron_N)
+	int neuron_id = bid*max_threads_per_block + tid;
+	if(neuron_id < 0 || neuron_id >= _neurongroup_N)
 	{
 		return;
 	}
@@ -48,13 +46,21 @@ void _run_neurongroup_group_variable_set_conditional_codeobject()
 
 	//genenerate an arry of random numbers on the device
 	float* dev_array_rands;
-	cudaMalloc((void**)&dev_array_rands, sizeof(float)*neuron_N);
+	cudaMalloc((void**)&dev_array_rands, sizeof(float)*neurongroup_N);
+	if(!dev_array_rands)
+	{
+		printf("ERROR while allocating device memory with size %ld in _run_neurongroup_group_variable_set_conditional_codeobject()\n", sizeof(float)*neurongroup_N);
+	}
 	curandGenerator_t gen;
 	curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(gen, time(0));
-	curandGenerateUniform(gen, dev_array_rands, neuron_N);
+	curandGenerateUniform(gen, dev_array_rands, neurongroup_N);
 
-	_run_neurongroup_group_variable_set_conditional_codeobject_kernel<<<BLOCKS, THREADS>>>(
+	unsigned int blocks = (neurongroup_N + max_threads_per_block - 1)/max_threads_per_block;	// = ceil(N/num_threads)
+
+	_run_neurongroup_group_variable_set_conditional_codeobject_kernel<<<blocks, max_threads_per_block>>>(
+		neurongroup_N,
+		max_threads_per_block,
 		dev_array_rands,
 		dev_array_neurongroup_v,
 		dev_array_neurongroup_not_refractory);

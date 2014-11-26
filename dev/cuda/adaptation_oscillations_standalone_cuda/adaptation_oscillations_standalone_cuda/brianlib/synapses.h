@@ -17,6 +17,10 @@ public:
 	__device__ void init()
 	{
 		queue = new CSpikeQueue<scalar>;
+		if(!queue)
+		{
+			printf("ERROR while allocating device memory with size %ld in synapses.h/init()\n", sizeof(CSpikeQueue<scalar>));
+		}
 	}
 	
 	__device__ void destroy()

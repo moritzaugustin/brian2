@@ -1,5 +1,3 @@
-#include <ctime>
-#include <iostream>
 #include "network.h"
 
 #define Clock_epsilon 1e-14
@@ -19,12 +17,9 @@ void Network::add(Clock* clock, codeobj_func func)
 	objects.push_back(std::make_pair<Clock*, codeobj_func>(clock, func));
 }
 
-void Network::run(const double duration, void (*report_func)(const double, const double, const double), const double report_period)
+void Network::run(double duration)
 {
-    std::clock_t start, current;
-    const double t_start = t;
-	const double t_end = t + duration;
-	double next_report_time = report_period;
+	double t_end = t + duration;
 	// compute the set of clocks
 	compute_clocks();
 	// set interval for all clocks
@@ -32,27 +27,11 @@ void Network::run(const double duration, void (*report_func)(const double, const
 	{
 		(*i)->set_interval(t, t_end);
 	}
-	start = std::clock();
-	if (report_func)
-	{
-	    report_func(0.0, 0.0, duration);
-	}
-
 	Clock* clock = next_clocks();
 	while(clock->running())
 	{
 		for(int i=0; i<objects.size(); i++)
 		{
-			if (report_func)
-            {
-                current = std::clock();
-                const double elapsed = (double)(current - start)/CLOCKS_PER_SEC;
-                if (elapsed > next_report_time)
-                {
-                    report_func(elapsed, (clock->t_()-t_start)/duration, duration);
-                    next_report_time += report_period;
-                }
-            }
 			Clock *obj_clock = objects[i].first;
 			// Only execute the object if it uses the right clock for this step
 			if (curclocks.find(obj_clock) != curclocks.end())
@@ -66,11 +45,6 @@ void Network::run(const double duration, void (*report_func)(const double, const
 			(*i)->tick();
 		}
 		clock = next_clocks();
-	}
-	if (report_func)
-	{
-	    current = std::clock();
-	    report_func((double)(current - start)/CLOCKS_PER_SEC, 1.0, duration);
 	}
 	t = t_end;
 }

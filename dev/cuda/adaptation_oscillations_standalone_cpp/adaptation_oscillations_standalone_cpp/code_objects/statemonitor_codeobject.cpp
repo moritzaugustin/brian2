@@ -9,12 +9,10 @@
 
 ////// SUPPORT CODE ///////
 namespace {
- 	
-
+	
 }
 
 ////// HASH DEFINES ///////
-
 
 
 void _run_statemonitor_codeobject()
@@ -29,13 +27,11 @@ const int _numw = 4000;
 const int _numv = 4000;
 const int _numnot_refractory = 4000;
 	///// POINTERS ////////////
- 	
- int32_t * __restrict__ _ptr_array_statemonitor__indices = _array_statemonitor__indices;
- double * __restrict__ _ptr_array_statemonitor_t = _array_statemonitor_t;
- double * __restrict__ _ptr_array_neurongroup_w = _array_neurongroup_w;
- double * __restrict__ _ptr_array_neurongroup_v = _array_neurongroup_v;
- bool * __restrict__ _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
-
+	int32_t * __restrict__ _ptr_array_statemonitor__indices = _array_statemonitor__indices;
+	double * __restrict__ _ptr_array_statemonitor_t = _array_statemonitor_t;
+	double * __restrict__ _ptr_array_neurongroup_w = _array_neurongroup_w;
+	double * __restrict__ _ptr_array_neurongroup_v = _array_neurongroup_v;
+	bool * __restrict__ _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
 
 
     _dynamic_array_statemonitor_t.push_back(_clock_t);
@@ -45,22 +41,15 @@ const int _numnot_refractory = 4000;
     _dynamic_array_statemonitor__recorded_v.resize(_new_size, _num_indices);
     _dynamic_array_statemonitor__recorded_w.resize(_new_size, _num_indices);
 
-    // scalar code
-	const int _vectorisation_idx = -1;
- 	
-
-
     for (int _i = 0; _i < _num_indices; _i++)
     {
-        // vector code
         const int _idx = _ptr_array_statemonitor__indices[_i];
         const int _vectorisation_idx = _idx;
-                                        
-                    const double w = _ptr_array_neurongroup_w[_idx];
-                    const double v = _ptr_array_neurongroup_v[_idx];
-                    const double _to_record_v = v;
-                    const double _to_record_w = w;
-
+            			const bool not_refractory = _ptr_array_neurongroup_not_refractory[_idx];
+			const double w = _ptr_array_neurongroup_w[_idx];
+			const double v = _ptr_array_neurongroup_v[_idx];
+			const double _to_record_v = v;
+			const double _to_record_w = w;
 
 
             _dynamic_array_statemonitor__recorded_v(_new_size-1, _i) = _to_record_v;

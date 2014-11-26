@@ -78,7 +78,7 @@ rateMon = PopulationRateMonitor(neurons)
 
 t_start = time.time()
 
-run(runtime)
+#run(runtime)
 
 print('run() took {s}s'.format(s=time.time()-t_start))
 

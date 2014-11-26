@@ -6,9 +6,6 @@
 #include<iostream>
 #include<fstream>
 
-#define THREADS 1024
-#define BLOCKS(N) (N + THREADS -1)/THREADS
-
 //does nothing in this program, here just to provide a skeleton for this kind of kernel
 __global__ void _run_synapses_stateupdater_codeobject_kernel()
 {
@@ -19,8 +16,9 @@ void _run_synapses_stateupdater_codeobject()
 {
 	using namespace brian;
 
-	const int64_t N = synapses._N();
+	const int64_t syn_N = synapses._N();
 
-	_run_synapses_stateupdater_codeobject_kernel<<<BLOCKS(N), THREADS>>>();
+	unsigned int blocks = (syn_N + max_threads_per_block - 1)/max_threads_per_block;	// = ceil(N/num_threads)
+	_run_synapses_stateupdater_codeobject_kernel<<<blocks, max_threads_per_block>>>();
 }
 

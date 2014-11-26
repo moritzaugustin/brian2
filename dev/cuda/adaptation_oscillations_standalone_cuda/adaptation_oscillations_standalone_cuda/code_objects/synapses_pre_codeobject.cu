@@ -9,14 +9,13 @@
 #include <inttypes.h>
 #include "brianlib/synapses.h"
 
-#define THREADS 1024
 #define THREADS_POST 256
-#define BLOCKS (num_blocks)
-#define neurons_N 4000
 #define MEMORY_PER_THREAD_POST (4*sizeof(double))
 
 //does nothing in this program, here just to provide a skeleton for this kind of kernel
-__global__ void _run_synapses_pre_codeobject_pre_kernel()
+__global__ void _run_synapses_pre_codeobject_pre_kernel(
+	unsigned int _neurongroup_N,
+	unsigned int _threads_per_block)
 {
 	using namespace brian;
 
@@ -36,7 +35,7 @@ __global__ void _run_synapses_pre_codeobject_pre_kernel()
 		return;
 	}
 
-	int neurons_per_thread = (neurons_N + THREADS - 1)/THREADS;
+	int neurons_per_thread = (_neurongroup_N + _threads_per_block - 1)/_threads_per_block;	//= ceil(N/num_threads)
 	int lower_limit = bid*neurons_per_thread;
 	int upper_limit = (bid + 1)*neurons_per_thread;
 
@@ -89,20 +88,19 @@ __global__ void _run_synapses_pre_codeobject_syn_kernel(
 	}
 }
 
-//offset into shared memory in pre_codeobject kernel
-#define POST_ID(tid)		(4*tid + 0)
-#define NEURON_REFRACTORY(tid)	(4*tid + 1)
-#define NEURON_V(tid)		(4*tid + 2)
-#define SYN_C(tid)		(4*tid + 3)
-
 // parallelization over post neuron id groups (due to organization of spike queues)
 __global__ void _run_synapses_pre_codeobject_post_kernel(
+	unsigned int _num_threads,
 	double* _array_synapses_c,
 	bool* _array_neurongroup_not_refractory,
 	double* _array_neurongroup_v)
 {
 	using namespace brian;
-	extern __shared__ double shared_mem[];
+	extern __shared__ char shared_mem[];
+	double* shared_mem_post_ids = (double*)shared_mem;
+	bool* shared_mem_neurongroup_not_refractory = (bool*)((double*)shared_mem_post_ids + _num_threads);
+	double* shared_mem_neurongroup_v = (double*)(shared_mem_neurongroup_not_refractory + _num_threads);
+	double* shared_mem_synapses_c = (double*)(shared_mem_neurongroup_v + _num_threads);
 
 	unsigned int bid = blockIdx.x;
 	unsigned int tid = threadIdx.x;
@@ -114,8 +112,8 @@ __global__ void _run_synapses_pre_codeobject_post_kernel(
 	bool* _ptr_array_neurongroup_not_refractory = _array_neurongroup_not_refractory;
 	double* _ptr_array_neurongroup_v = _array_neurongroup_v;
 
-	//ignore invalid bids
-	if(bid >= synapses_pre.queue->num_blocks)
+	//ignore invalid bids and tids
+	if(bid >= synapses_pre.queue->num_blocks || tid >= _num_threads)
 	{
 		return;
 	}
@@ -132,29 +130,29 @@ __global__ void _run_synapses_pre_codeobject_post_kernel(
 	 */
 	int size = post_neuron_queue[bid].size();
 	//outer loop, since most likely not all spikes fit into our shared memory
-	for(int j = tid; j < size; j += THREADS_POST)
+	for(int j = tid; j < size; j += _num_threads)
 	{
 		int32_t post_neuron_id = post_neuron_queue[bid].getDataByIndex(j);
-		shared_mem[POST_ID(tid)] = post_neuron_id;
+		shared_mem_post_ids[tid] = post_neuron_id;
 		int32_t syn_id = synapses_queue[bid].getDataByIndex(j);
 		bool not_refractory = _ptr_array_neurongroup_not_refractory[post_neuron_id];
-		shared_mem[NEURON_REFRACTORY(tid)] = not_refractory;
+		shared_mem_neurongroup_not_refractory[tid] = not_refractory;
 		double v = _ptr_array_neurongroup_v[post_neuron_id];
-		shared_mem[NEURON_V(tid)] = v;
+		shared_mem_neurongroup_v[tid] = v;
 		double c = _ptr_array_synapses_c[syn_id];
-		shared_mem[SYN_C(tid)] = c;
+		shared_mem_synapses_c[tid] = c;
 
 		if(tid == 0)
 		{
 			//iterate over shared_mem
-			for(int k = 0; k < THREADS_POST && j+k < size; k++)
+			for(int k = 0; k < _num_threads && j+k < size; k++)
 			{
-				bool spike_not_refractory = shared_mem[NEURON_REFRACTORY(k)];
+				bool spike_not_refractory = shared_mem_neurongroup_not_refractory[k];
 				if(spike_not_refractory)
 				{
-					int32_t spike_post_id = shared_mem[POST_ID(k)];
-					double spike_neuron_v = shared_mem[NEURON_V(k)];
-					double spike_syn_c = shared_mem[SYN_C(k)];
+					int32_t spike_post_id = shared_mem_post_ids[k];
+					double spike_neuron_v = shared_mem_neurongroup_v[k];
+					double spike_syn_c = shared_mem_synapses_c[k];
 					spike_neuron_v += spike_syn_c;
 					_ptr_array_neurongroup_v[spike_post_id] = spike_neuron_v;
 				}
@@ -171,14 +169,21 @@ void _run_synapses_pre_codeobject()
 	double* dev_array_synapses_lastupdate = thrust::raw_pointer_cast(&_dynamic_array_synapses_lastupdate[0]);
 	double t = defaultclock.t_();
 
-	//_run_synapses_pre_codeobject_pre_kernel<<<BLOCKS, THREADS>>>();
+	/*
+	_run_synapses_pre_codeobject_pre_kernel<<<num_blocks, max_threads_per_block>>>(
+		neurongroup_N);
+	*/
 
-	_run_synapses_pre_codeobject_syn_kernel<<<BLOCKS, THREADS>>>(
+	_run_synapses_pre_codeobject_syn_kernel<<<num_blocks, max_threads_per_block>>>(
 		t,
 		dev_array_synapses_lastupdate);
 
+	unsigned int num_threads = max_shared_mem_size / MEMORY_PER_THREAD_POST;
+	num_threads = num_threads > max_threads_per_block? max_threads_per_block : num_threads;	// get min of both
+
 	//TODO: real number of spikes instead of THREADS_POST
-	_run_synapses_pre_codeobject_post_kernel<<<BLOCKS, THREADS_POST, THREADS_POST*MEMORY_PER_THREAD_POST>>>(
+	_run_synapses_pre_codeobject_post_kernel<<<num_blocks, num_threads, num_threads*MEMORY_PER_THREAD_POST>>>(
+		num_threads,
 		dev_array_synapses_c,
 		dev_array_neurongroup_not_refractory,
 		dev_array_neurongroup_v);

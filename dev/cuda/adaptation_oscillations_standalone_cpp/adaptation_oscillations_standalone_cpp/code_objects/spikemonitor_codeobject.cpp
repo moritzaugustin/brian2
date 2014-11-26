@@ -9,12 +9,10 @@
 
 ////// SUPPORT CODE ///////
 namespace {
- 	
-
+	
 }
 
 ////// HASH DEFINES ///////
-
 
 
 void _run_spikemonitor_codeobject()
@@ -29,12 +27,10 @@ int32_t* const _array_spikemonitor_i = &_dynamic_array_spikemonitor_i[0];
 const int _numi = _dynamic_array_spikemonitor_i.size();
 const double _clock_t = defaultclock.t_();
 	///// POINTERS ////////////
- 	
- int32_t * __restrict__ _ptr_array_spikemonitor__count = _array_spikemonitor__count;
- int32_t * __restrict__ _ptr_array_neurongroup__spikespace = _array_neurongroup__spikespace;
- double * __restrict__ _ptr_array_spikemonitor_t = _array_spikemonitor_t;
- int32_t * __restrict__ _ptr_array_spikemonitor_i = _array_spikemonitor_i;
-
+	int32_t * __restrict__ _ptr_array_spikemonitor__count = _array_spikemonitor__count;
+	int32_t * __restrict__ _ptr_array_neurongroup__spikespace = _array_neurongroup__spikespace;
+	double * __restrict__ _ptr_array_spikemonitor_t = _array_spikemonitor_t;
+	int32_t * __restrict__ _ptr_array_spikemonitor_i = _array_spikemonitor_i;
 
 	//// MAIN CODE ////////////
 	int _num_spikes = _ptr_array_neurongroup__spikespace[_num_spikespace-1];

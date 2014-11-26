@@ -96,6 +96,10 @@ extern float* dev_array_random_floats;
 extern curandGenerator_t random_float_generator;
 
 extern unsigned int num_blocks;
+extern unsigned int max_threads_per_block;
+extern unsigned int max_shared_mem_size;
+
+extern unsigned int neurongroup_N;
 
 }
 

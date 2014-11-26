@@ -31,6 +31,10 @@ private:
 				data = new_data;
 				size_allocated = new_capacity;
 			}
+			else
+			{
+				printf("ERROR while resizing vector to size %d in cudaVector.h/resize()\n", sizeof(scalar)*new_capacity);
+			}
 		}
 		else if(new_capacity < size_used)
 		{
@@ -49,6 +53,10 @@ public:
 			if(data)
 			{
 				size_allocated = INITIAL_SIZE;
+			}
+			else
+			{
+				printf("ERROR while creating vector with size %d in cudaVector.h/resize()\n", sizeof(scalar)*INITIAL_SIZE);
 			}
 		}
 	};

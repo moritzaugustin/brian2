@@ -5,6 +5,11 @@ synapses_pre_push_spikes.o: code_objects/synapses_pre_push_spikes.cpp \
  objects.h brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
  brianlib/dynamic_array.h brianlib/network.h brianlib/clocks.h \
  code_objects/synapses_pre_push_spikes.h brianlib/common_math.h
+synapses_stateupdater_codeobject.o: \
+ code_objects/synapses_stateupdater_codeobject.cpp objects.h \
+ brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
+ brianlib/dynamic_array.h brianlib/network.h brianlib/clocks.h \
+ code_objects/synapses_stateupdater_codeobject.h brianlib/common_math.h
 neurongroup_group_variable_set_conditional_codeobject.o: \
  code_objects/neurongroup_group_variable_set_conditional_codeobject.cpp \
  objects.h brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
@@ -20,10 +25,10 @@ neurongroup_resetter_codeobject.o: \
  brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
  brianlib/dynamic_array.h brianlib/network.h brianlib/clocks.h \
  code_objects/neurongroup_resetter_codeobject.h brianlib/common_math.h
-statemonitor_codeobject.o: code_objects/statemonitor_codeobject.cpp \
+ratemonitor_codeobject.o: code_objects/ratemonitor_codeobject.cpp \
  objects.h brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
  brianlib/dynamic_array.h brianlib/network.h brianlib/clocks.h \
- code_objects/statemonitor_codeobject.h brianlib/common_math.h
+ code_objects/ratemonitor_codeobject.h brianlib/common_math.h
 synapses_pre_codeobject.o: code_objects/synapses_pre_codeobject.cpp \
  objects.h brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
  brianlib/dynamic_array.h brianlib/network.h brianlib/clocks.h \
@@ -35,10 +40,10 @@ neurongroup_group_variable_set_conditional_codeobject_1.o: \
  brianlib/dynamic_array.h brianlib/network.h brianlib/clocks.h \
  code_objects/neurongroup_group_variable_set_conditional_codeobject_1.h \
  brianlib/common_math.h
-ratemonitor_codeobject.o: code_objects/ratemonitor_codeobject.cpp \
+statemonitor_codeobject.o: code_objects/statemonitor_codeobject.cpp \
  objects.h brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
  brianlib/dynamic_array.h brianlib/network.h brianlib/clocks.h \
- code_objects/ratemonitor_codeobject.h brianlib/common_math.h
+ code_objects/statemonitor_codeobject.h brianlib/common_math.h
 synapses_group_variable_set_conditional_codeobject_1.o: \
  code_objects/synapses_group_variable_set_conditional_codeobject_1.cpp \
  objects.h brianlib/synapses.h brianlib/spikequeue.h brianlib/clocks.h \
@@ -82,14 +87,14 @@ synapses_group_variable_set_conditional_codeobject.o: \
 main.o: main.cpp objects.h brianlib/synapses.h brianlib/spikequeue.h \
  brianlib/clocks.h brianlib/dynamic_array.h brianlib/network.h \
  brianlib/clocks.h run.h code_objects/synapses_pre_push_spikes.h \
- objects.h \
+ objects.h code_objects/synapses_stateupdater_codeobject.h \
  code_objects/neurongroup_group_variable_set_conditional_codeobject.h \
  code_objects/spikemonitor_codeobject.h \
  code_objects/neurongroup_resetter_codeobject.h \
- code_objects/statemonitor_codeobject.h \
+ code_objects/ratemonitor_codeobject.h \
  code_objects/synapses_pre_codeobject.h \
  code_objects/neurongroup_group_variable_set_conditional_codeobject_1.h \
- code_objects/ratemonitor_codeobject.h \
+ code_objects/statemonitor_codeobject.h \
  code_objects/synapses_group_variable_set_conditional_codeobject_1.h \
  code_objects/neurongroup_thresholder_codeobject.h \
  code_objects/synapses_group_variable_set_conditional_codeobject_2.h \
@@ -115,5 +120,6 @@ run.o: run.cpp objects.h brianlib/synapses.h brianlib/spikequeue.h \
  code_objects/synapses_pre_codeobject.h \
  code_objects/synapses_pre_initialise_queue.h \
  code_objects/synapses_pre_push_spikes.h \
+ code_objects/synapses_stateupdater_codeobject.h \
  code_objects/synapses_synapses_create_codeobject.h
 network.o: brianlib/network.cpp brianlib/network.h brianlib/clocks.h

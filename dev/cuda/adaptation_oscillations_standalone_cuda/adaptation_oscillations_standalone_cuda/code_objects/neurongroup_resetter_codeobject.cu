@@ -6,27 +6,25 @@
 #include<iostream>
 #include<fstream>
 
-#define neuron_N 4000
-#define THREADS 1024
-#define BLOCKS (neuron_N + THREADS -1)/THREADS
-
 __global__ void _run_neurongroup_resetter_codeobject_kernel(
-	int32_t* par_array_neurongroup__spikespace,
-	double* par_array_neurongroup_w,
-	double* par_array_neurongroup_v)
+	unsigned int _neurongroup_N,
+	unsigned int max_threads_per_block,
+	int32_t* _array_neurongroup__spikespace,
+	double* _array_neurongroup_w,
+	double* _array_neurongroup_v)
 {
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
 
-	int neuron_id = bid*THREADS + tid;
-	if(neuron_id < 0 || neuron_id >= neuron_N)
+	int neuron_id = bid*max_threads_per_block + tid;
+	if(neuron_id < 0 || neuron_id >= _neurongroup_N)
 	{
 		return;
 	}
 
-	int32_t* _ptr_array_neurongroup__spikespace = par_array_neurongroup__spikespace;
-	double* _ptr_array_neurongroup_w = par_array_neurongroup_w;
-	double* _ptr_array_neurongroup_v = par_array_neurongroup_v;
+	int32_t* _ptr_array_neurongroup__spikespace = _array_neurongroup__spikespace;
+	double* _ptr_array_neurongroup_w = _array_neurongroup_w;
+	double* _ptr_array_neurongroup_v = _array_neurongroup_v;
 
 	int32_t spiking_neuron = _ptr_array_neurongroup__spikespace[neuron_id];
 	if(spiking_neuron != -1)
@@ -47,7 +45,11 @@ void _run_neurongroup_resetter_codeobject()
 {
 	using namespace brian;
 
-	_run_neurongroup_resetter_codeobject_kernel<<<BLOCKS, THREADS>>>(
+	unsigned int blocks = (neurongroup_N + max_threads_per_block - 1)/max_threads_per_block;	// = ceil(N/num_threads)
+
+	_run_neurongroup_resetter_codeobject_kernel<<<blocks, max_threads_per_block>>>(
+		neurongroup_N,
+		max_threads_per_block,
 		dev_array_neurongroup__spikespace,
 		dev_array_neurongroup_w,
 		dev_array_neurongroup_v);

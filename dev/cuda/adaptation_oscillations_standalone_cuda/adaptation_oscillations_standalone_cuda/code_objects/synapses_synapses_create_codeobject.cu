@@ -9,16 +9,19 @@
 #include <inttypes.h>
 #include "brianlib/synapses.h"
 
-#define neuron_N 4000
-#define max_syn_N (neuron_N * neuron_N)
+#define max_syn_N (neurongroup_N * neurongroup_N)
 
 void _run_synapses_synapses_create_codeobject()
 {
 	using namespace brian;
 
-	//generate neuron_N * neuron_N random numbers
+	//generate neurongroup_N * neurongroup_N random numbers
 	float* _array_random_float_numbers;
 	_array_random_float_numbers = (float*)malloc(sizeof(float)*max_syn_N);
+	if(!_array_random_float_numbers)
+	{
+		printf("ERROR while allocating memory with size %ld in _run_synapses_synapses_create_codeobject()\n", sizeof(float)*max_syn_N);
+	}
 	curandGenerator_t gen;
 	curandCreateGeneratorHost(&gen, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(gen, time(0));
@@ -34,10 +37,10 @@ void _run_synapses_synapses_create_codeobject()
 	int32_t * _ptr_array_neurongroup_i = _array_neurongroup_i;
 
 	int syn_id = _dynamic_array_synapses__synaptic_pre.size();
-	for(int i = 0; i < neuron_N; i++)
+	for(int i = 0; i < neurongroup_N; i++)
 	{
 		synapses_by_pre_neuron.push_back(syn_id);
-		for(int j = 0; j < neuron_N; j++)
+		for(int j = 0; j < neurongroup_N; j++)
 		{
 			const int32_t _all_post = _ptr_array_neurongroup_i[j];
 			const int32_t _all_pre = _ptr_array_neurongroup_i[i];
@@ -51,7 +54,7 @@ void _run_synapses_synapses_create_codeobject()
 			{
 				if (_p != 1.0)
 				{
-					float r = _array_random_float_numbers[i*neuron_N + j];
+					float r = _array_random_float_numbers[i*neurongroup_N + j];
 					if (r >= _p)
 					{
 						continue;
@@ -86,6 +89,11 @@ void _run_synapses_synapses_create_codeobject()
 
 	curandDestroyGenerator(gen);
 	free(_array_random_float_numbers);
+
+	temp_synaptic_post.clear();
+	thrust::host_vector<int32_t>().swap(temp_synaptic_post);
+	temp_synaptic_pre.clear();
+	thrust::host_vector<int32_t>().swap(temp_synaptic_pre);
 }
 
 

@@ -32,7 +32,7 @@
 
 int main(int argc, char **argv)
 {
-	size_t limit = 1*1024*1024*1024;	//500MB should be enough for now
+	size_t limit = 500*1024*1024;	//500 MB should be enough for now
 	cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
 	cudaDeviceSynchronize();
 
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 		{
                 	_array_neurongroup_not_refractory[i] = _static_array__array_neurongroup_not_refractory[i];
 		}
-		cudaMemcpy(dev_array_neurongroup_not_refractory, _array_neurongroup_not_refractory, sizeof(double)*_num__array_neurongroup_not_refractory, cudaMemcpyHostToDevice);
+		cudaMemcpy(dev_array_neurongroup_not_refractory, _array_neurongroup_not_refractory, sizeof(bool)*_num__array_neurongroup_not_refractory, cudaMemcpyHostToDevice);
 
 		_run_neurongroup_group_variable_set_conditional_codeobject();
 		_run_neurongroup_group_variable_set_conditional_codeobject_1();
@@ -64,11 +64,11 @@ int main(int argc, char **argv)
 		_run_synapses_group_variable_set_conditional_codeobject_2();
 		_run_synapses_pre_initialise_queue();
 
-		/*
-		 * IMPORTANT change of order:
-		 * now: resetter is always last
-		 * since now the resetter also overwrites all data in our spikespace
-		 */
+		//
+		// IMPORTANT change of order:
+		// now: resetter is always last
+		// since now the resetter also overwrites all data in our spikespace
+		//
 		magicnetwork.clear();
 		magicnetwork.add(&defaultclock, _random_number_generation);
 		magicnetwork.add(&defaultclock, _run_synapses_stateupdater_codeobject);
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 		magicnetwork.add(&defaultclock, _run_ratemonitor_codeobject);
 		magicnetwork.add(&defaultclock, _run_neurongroup_resetter_codeobject);
 		magicnetwork.add(&defaultclock, _run_statemonitor_codeobject);
-		magicnetwork.run(1.0);
+		magicnetwork.run(1.0, NULL, 10.0);
 		_debugmsg_spikemonitor_codeobject();
 		_debugmsg_synapses_pre_codeobject();
 	}

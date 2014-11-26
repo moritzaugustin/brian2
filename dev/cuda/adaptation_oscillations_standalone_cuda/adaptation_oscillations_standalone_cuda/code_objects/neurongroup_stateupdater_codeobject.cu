@@ -6,10 +6,6 @@
 #include<iostream>
 #include<fstream>
 
-#define neuron_N 4000
-#define THREADS 1024
-#define BLOCKS (neuron_N + THREADS -1)/THREADS
-
 namespace {
 	__device__ int int_(const bool value)
 	{
@@ -18,6 +14,8 @@ namespace {
 }
 
 __global__ void _run_neurongroup_stateupdater_codeobject_kernel(
+	unsigned int _neurongroup_N,
+	unsigned int max_threads_per_block,
 	double par_t,
 	double par_dt,
 	float* par_array_random_floats,
@@ -28,9 +26,9 @@ __global__ void _run_neurongroup_stateupdater_codeobject_kernel(
 {
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
-	int neuron_id = bid * THREADS + tid;
+	int neuron_id = bid * max_threads_per_block + tid;
 
-	if(neuron_id < 0 || neuron_id >= neuron_N)
+	if(neuron_id < 0 || neuron_id >= _neurongroup_N)
 	{
 		return;
 	}
@@ -74,7 +72,11 @@ void _run_neurongroup_stateupdater_codeobject()
 	const double t = defaultclock.t_();
 	const double dt = defaultclock.dt_();
 
-	_run_neurongroup_stateupdater_codeobject_kernel<<<BLOCKS, THREADS>>>(
+	unsigned int blocks = (neurongroup_N + max_threads_per_block - 1)/max_threads_per_block;	// = ceil(N/num_threads)
+
+	_run_neurongroup_stateupdater_codeobject_kernel<<<blocks, max_threads_per_block>>>(
+		neurongroup_N,
+		max_threads_per_block,
 		t,
 		dt,
 		dev_array_random_floats,
