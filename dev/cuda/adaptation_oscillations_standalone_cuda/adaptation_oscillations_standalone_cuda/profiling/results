@@ -1,4 +1,8 @@
-
+default: 
+N_Neurons: 4000
+sparsity: 0.05
+input_mean: 0.14
+runtime: 1.0
 
 N_neurons (simulation time is missing):
 value	GPU(init)	GPU(sim)	CPU		spikes		nvprof
