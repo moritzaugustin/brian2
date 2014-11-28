@@ -141,7 +141,7 @@ public:
 		int32_t* shared_mem_post_id = (int32_t*)((unsigned int*)shared_mem_synapses_delay + num_connected_synapses);
 
 		//ignore invalid pre_ids
-		if(neuron_pre_id >= neuron_N || tid > num_connected_synapses)
+		if(neuron_pre_id >= neuron_N || tid >= num_connected_synapses)
 		{
 			return;
 		}

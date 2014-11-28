@@ -113,7 +113,7 @@ void _init_arrays()
 	cudaGetDeviceProperties(&props, 0);
 
 	num_blocks = props.multiProcessorCount * 1;
-	max_threads_per_block = props.maxThreadsPerBlock;
+	max_threads_per_block = props.maxThreadsPerBlock / 2;	//temporary fix for TooMuchRessourcesError
 	max_shared_mem_size = props.sharedMemPerBlock;
 
 	deviceside_init<<<1,1>>>(
