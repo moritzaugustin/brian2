@@ -24,6 +24,11 @@ __global__ void _run_synapses_pre_push_spikes_push_kernel(
 	extern __shared__ char shared_mem[];
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
+
+	//if dynamic parallelism is enabled
+	//iterate over spikespace:
+	//	for each spike:
+	//		launch new push_kernel<<<bid, THREADS>>>(spike_id);
 	
 	synapses_pre.queue->push(
 		bid,
@@ -35,7 +40,7 @@ __global__ void _run_synapses_pre_push_spikes_push_kernel(
 void _run_synapses_pre_push_spikes()
 {
 	using namespace brian;
-	cudaMemcpy(_array_neurongroup__spikespace, dev_array_neurongroup__spikespace, sizeof(int32_t)*_num__array_neurongroup__spikespace, cudaMemcpyDeviceToHost);
+	cudaMemcpy(_array_neurongroup__spikespace, dev_array_neurongroup__spikespace, sizeof(int32_t)*(neurongroup_N + 1), cudaMemcpyDeviceToHost);
 
 	_run_synapses_pre_push_spikes_advance_kernel<<<1, num_blocks>>>();
 

@@ -8,23 +8,16 @@
 
 
 __global__ void _run_statemonitor_codeobject_kernel(
-	int par_neuron_id,
-	int par_index_last_element,
-	double* par_statemonitor_v,
-	double* par_statemonitor_w,
-	double* par_array_neurongroup_v,
-	double* par_array_neurongroup_w
+	int _neuron_id,
+	int _index_last_element,
+	double* _statemonitor_v,
+	double* _statemonitor_w,
+	double* _array_neurongroup_v,
+	double* _array_neurongroup_w
 	)
 {
-	int neuron_id = par_neuron_id;
-	int index_last_element = par_index_last_element;
-	double* statemonitor_v = par_statemonitor_v;
-	double* statemonitor_w = par_statemonitor_w;
-	double* array_neurongroup_v = par_array_neurongroup_v;
-	double* array_neurongroup_w = par_array_neurongroup_w;
-
-	statemonitor_v[index_last_element] = array_neurongroup_v[neuron_id];
-	statemonitor_w[index_last_element] = array_neurongroup_w[neuron_id];
+	_statemonitor_v[_index_last_element] = _array_neurongroup_v[_neuron_id];
+	_statemonitor_w[_index_last_element] = _array_neurongroup_w[_neuron_id];
 }
 
 void _run_statemonitor_codeobject()

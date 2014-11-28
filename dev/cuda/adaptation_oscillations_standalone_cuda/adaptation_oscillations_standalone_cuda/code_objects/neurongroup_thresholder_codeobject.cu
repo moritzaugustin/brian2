@@ -41,6 +41,7 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 		//init number of spikes with 0
 		_ptr_array_neurongroup__spikespace[_neurongroup_N] = 0;
 	}
+	__syncthreads();
 
 	double v = _ptr_array_neurongroup_v[neuron_id];
 	bool not_refractory = _ptr_array_neurongroup_not_refractory[neuron_id];
@@ -65,10 +66,10 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 			_ptr_array_neurongroup_lastspike[spiking_neuron] = t;
 			num_spikes_in_block++;
 		}
-		//add number of spikes of all blocks together
-		//last element of spikespace holds total number of spikes
-		atomicAdd(&_ptr_array_neurongroup__spikespace[_neurongroup_N], num_spikes_in_block);
 	}
+	//add number of spikes of all blocks together
+	//last element of spikespace holds total number of spikes
+	atomicAdd(&_ptr_array_neurongroup__spikespace[_neurongroup_N], num_spikes_in_block);
 }
 
 void _run_neurongroup_thresholder_codeobject()

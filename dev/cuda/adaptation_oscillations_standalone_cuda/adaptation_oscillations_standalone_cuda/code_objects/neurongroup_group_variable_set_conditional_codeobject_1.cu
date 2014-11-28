@@ -9,17 +9,13 @@
 __global__ void _run_neurongroup_group_variable_set_conditional_codeobject_1_kernel(
 	unsigned int _neurongroup_N,
 	unsigned int max_threads_per_block,
-	float* par_array_rands,
-	double* par_array_neurongroup_w,
-	bool* par_array_neurongroup_not_refractory)
+	float* _array_rands,
+	double* _array_neurongroup_w,
+	bool* _array_neurongroup_not_refractory)
 {
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
 
-	float* _ptr_array_rands = par_array_rands;
-	double* _ptr_array_neurongroup_w = par_array_neurongroup_w;
-	bool* _ptr_array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
-	
 	int neuron_id = bid*max_threads_per_block + tid;
 	if(neuron_id < 0 || neuron_id >= _neurongroup_N)
 	{
@@ -29,13 +25,13 @@ __global__ void _run_neurongroup_group_variable_set_conditional_codeobject_1_ker
 	bool _cond = true;
 	if(_cond)
 	{
-		const bool not_refractory = _ptr_array_neurongroup_not_refractory[neuron_id];
-		double w = _ptr_array_neurongroup_w[neuron_id];
+		const bool not_refractory = _array_neurongroup_not_refractory[neuron_id];
+		double w = _array_neurongroup_w[neuron_id];
 		if(not_refractory)
 		{
-			float r = _ptr_array_rands[neuron_id];	//get random pregenerated number
+			float r = _array_rands[neuron_id];	//get random pregenerated number
 			w = r * 10 * 0.0001;
-			_ptr_array_neurongroup_w[neuron_id] = w;
+			_array_neurongroup_w[neuron_id] = w;
 		}
 	}
 }

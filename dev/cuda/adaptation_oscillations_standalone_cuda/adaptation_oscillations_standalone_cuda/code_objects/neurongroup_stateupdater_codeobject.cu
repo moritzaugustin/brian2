@@ -16,13 +16,13 @@ namespace {
 __global__ void _run_neurongroup_stateupdater_codeobject_kernel(
 	unsigned int _neurongroup_N,
 	unsigned int max_threads_per_block,
-	double par_t,
-	double par_dt,
-	float* par_array_random_floats,
-	double* par_array_neurongroup_v,
-	double* par_array_neurongroup_w,
-	double* par_array_neurongroup_lastspike,
-	bool* par_array_neurongroup_not_refractory)
+	double _t,
+	double _dt,
+	float* _array_random_floats,
+	double* _array_neurongroup_v,
+	double* _array_neurongroup_w,
+	double* _array_neurongroup_lastspike,
+	bool* _array_neurongroup_not_refractory)
 {
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
@@ -33,36 +33,25 @@ __global__ void _run_neurongroup_stateupdater_codeobject_kernel(
 		return;
 	}
 
-	double t = par_t;
-	double dt = par_dt;
-	float* _ptr_array_random_floats = par_array_random_floats;
-	double* _ptr_array_neurongroup_v = par_array_neurongroup_v;
-	double* _ptr_array_neurongroup_w = par_array_neurongroup_w;
-	double* _ptr_array_neurongroup_lastspike = par_array_neurongroup_lastspike;
-	bool* _ptr_array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
+	double w = _array_neurongroup_w[neuron_id];
+	double v = _array_neurongroup_v[neuron_id];
+	double lastspike = _array_neurongroup_lastspike[neuron_id];
+	bool not_refractory = _array_neurongroup_not_refractory[neuron_id];
 
-	double w = _ptr_array_neurongroup_w[neuron_id];
-	double v = _ptr_array_neurongroup_v[neuron_id];
-	double lastspike = _ptr_array_neurongroup_lastspike[neuron_id];
-	bool not_refractory = _ptr_array_neurongroup_not_refractory[neuron_id];
-
-	not_refractory = t - lastspike > 0.0025;
-	float r = _ptr_array_random_floats[neuron_id]; //get random pregenerated number
-	const double xi = pow(dt, 0.5) * r;
-	const double _w = -(dt) * w * int_(not_refractory) / 0.2 + w;
-	const double _v = dt * (0.14 * int_(not_refractory) - v * int_(not_refractory) / 0.01 - w * int_(not_refractory) / 0.01) + v + 0.002213594362117866 * xi * int_(not_refractory);
+	not_refractory = _t - lastspike > 0.0025;
+	float r = _array_random_floats[neuron_id]; //get random pregenerated number
+	const double xi = pow(_dt, 0.5) * r;
+	const double _w = -(_dt) * w * int_(not_refractory) / 0.2 + w;
+	const double _v = _dt * (0.14 * int_(not_refractory) - v * int_(not_refractory) / 0.01 - w * int_(not_refractory) / 0.01) + v + 0.002213594362117866 * xi * int_(not_refractory);
 	if(not_refractory)
 	{
 		w = _w;
-	}
-	if(not_refractory)
-	{
 		v = _v;
 	}
 
-	_ptr_array_neurongroup_not_refractory[neuron_id] = not_refractory;
-	_ptr_array_neurongroup_w[neuron_id] = w;
-	_ptr_array_neurongroup_v[neuron_id] = v;
+	_array_neurongroup_not_refractory[neuron_id] = not_refractory;
+	_array_neurongroup_w[neuron_id] = w;
+	_array_neurongroup_v[neuron_id] = v;
 }
 
 void _run_neurongroup_stateupdater_codeobject()

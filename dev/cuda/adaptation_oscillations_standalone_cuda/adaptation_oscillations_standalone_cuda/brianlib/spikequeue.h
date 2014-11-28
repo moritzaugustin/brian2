@@ -133,7 +133,8 @@ public:
 		char* _shared_mem)
 	{
 		unsigned int neuron_pre_id = _pre_id;
-		unsigned int num_connected_synapses = size_by_pre[neuron_pre_id*num_blocks + bid];
+		unsigned int right_offset = bid*neuron_N + neuron_pre_id;
+		unsigned int num_connected_synapses = size_by_pre[right_offset];
 		//shared_mem is allocated in push_spikes
 		int32_t* shared_mem_synapses_id = (int32_t*)_shared_mem;
 		unsigned int* shared_mem_synapses_delay = (unsigned int*)((int32_t*)shared_mem_synapses_id + num_connected_synapses);
@@ -145,11 +146,11 @@ public:
 			return;
 		}
 
-		int32_t syn_id = synapses_id_by_pre[neuron_pre_id*num_blocks + bid][tid];
+		int32_t syn_id = synapses_id_by_pre[right_offset][tid];
 		shared_mem_synapses_id[tid] = syn_id;
-		unsigned int delay = delay_by_pre[neuron_pre_id*num_blocks + bid][tid];
+		unsigned int delay = delay_by_pre[right_offset][tid];
 		shared_mem_synapses_delay[tid] = delay;
-		unsigned int post_id = post_id_by_pre[neuron_pre_id*num_blocks + bid][tid];
+		unsigned int post_id = post_id_by_pre[right_offset][tid];
 		shared_mem_post_id[tid] = post_id;
 
 		//only one thread per block inserts into queues
