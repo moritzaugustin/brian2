@@ -1,0 +1,14 @@
+==19449== NVPROF is profiling process 19449, command: ./main
+==19449== Profiling application: ./main
+==19449== Profiling result:
+No kernels were profiled.
+
+==19449== API calls:
+Time(%)      Time     Calls       Avg       Min       Max  Name
+ 77.41%  177.27us        83  2.1350us     195ns  72.504us  cuDeviceGetAttribute
+ 11.00%  25.191us         1  25.191us  25.191us  25.191us  cuDeviceTotalMem
+ 10.54%  24.144us         1  24.144us  24.144us  24.144us  cuDeviceGetName
+  0.77%  1.7710us         2     885ns     363ns  1.4080us  cuDeviceGetCount
+  0.27%     611ns         2     305ns     305ns     306ns  cuDeviceGet
+==19449== Warning: Some profiling data are not recorded. Make sure cudaDeviceReset() is called before application exit to flush profile data.
+======== Error: Application received signal 139

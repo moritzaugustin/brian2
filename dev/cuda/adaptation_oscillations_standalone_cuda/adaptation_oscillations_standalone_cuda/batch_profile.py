@@ -10,6 +10,7 @@ def change_N_neurons(old_value, new_value):
 	os.system("sed -i \"s/" + str(old_value) +"/"+ str(new_value) + "/\" ../../adaptation_oscillations_standalone_cpp/adaptation_oscillations_standalone_cpp/*/*")
 	os.system("sed -i \"s/" + str(old_value + 1) +"/"+ str(new_value + 1) + "/\" ../../adaptation_oscillations_standalone_cpp/adaptation_oscillations_standalone_cpp/*/*")
 	os.system("rm static_arrays/_static_array__array_neurongroup*")
+	os.system("rm ../../adaptation_oscillation_standalone_cpp/adaptation_oscillation_standalone_cpp/static_arrays/_static_array__array_neurongroup*")
 	content = "\x01" * new_value
 	f = open("static_arrays/_static_array__array_neurongroup_not_refractory", "w")
 	f.write(content)
@@ -89,8 +90,8 @@ def run_tests():
 		f.write(str(i) + "\t")
 		init_time, sim_time, num_spikes = profile()
 		f.write(str(init_time) + "\t" + str(sim_time) + "\t")
-		init_time, sim_time, num_spikes = profile()
-		f.write(str(sim_time) + "\t" + str(num_spikes))
+		init_time, sim_time, num_spikes = profile("cpu")
+		f.write(str(sim_time) + "\t" + str(num_spikes) + "\n")
 		nvprofile(str(normal_N_neurons)+"_"+str(i)+"_"+str(normal_input_mean)+"_"+str(normal_runtime)+".txt")
 		change_sparsity(i, normal_sparsity)
 		f.flush()
@@ -100,8 +101,8 @@ def run_tests():
 		f.write(str(i) + "\t")
 		init_time, sim_time, num_spikes = profile()
 		f.write(str(init_time) + "\t" + str(sim_time) + "\t")
-		init_time, sim_time, num_spikes = profile()
-		f.write(str(sim_time) + "\t" + str(num_spikes))
+		init_time, sim_time, num_spikes = profile("cpu")
+		f.write(str(sim_time) + "\t" + str(num_spikes)+ "\n")
 		nvprofile(str(normal_N_neurons)+"_"+str(normal_sparsity)+"_"+str(i)+"_"+str(normal_runtime)+".txt")
 		change_input_mean(i, normal_input_mean)
 		f.flush()
@@ -111,15 +112,15 @@ def run_tests():
 		f.write(str(i) + "\t")
 		init_time, sim_time, num_spikes = profile()
 		f.write(str(init_time) + "\t" + str(sim_time) + "\t")
-		init_time, sim_time, num_spikes = profile()
-		f.write(str(sim_time) + "\t" + str(num_spikes))
+		init_time, sim_time, num_spikes = profile("cpu")
+		f.write(str(sim_time) + "\t" + str(num_spikes) + "\n")
 		nvprofile(str(normal_N_neurons)+"_"+str(normal_sparsity)+"_"+str(normal_input_mean)+"_"+str(i)+".txt")
 		change_runtime(i, normal_runtime)
 		f.flush()
 	f.close()
 
-outfile = "profiling_old/results.txt"
-outfolder = "profiling_old"
+outfile = "profiling_new/results.txt"
+outfolder = "profiling_new"
 
 values_N_neurons = [1000, 4000, 20000, 100000]
 values_sparsity = [0.01, 0.03, 0.05, 0.08, 0.1, 0.2]
