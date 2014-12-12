@@ -129,6 +129,7 @@ public:
 	__device__ void push(
 		unsigned int bid,
 		unsigned int tid,
+		unsigned int num_threads,
 		unsigned int _pre_id,
 		char* _shared_mem)
 	{
@@ -141,36 +142,40 @@ public:
 		int32_t* shared_mem_post_id = (int32_t*)((unsigned int*)shared_mem_synapses_delay + num_connected_synapses);
 
 		//ignore invalid pre_ids
-		if(neuron_pre_id >= neuron_N || tid >= num_connected_synapses)
+		if(neuron_pre_id >= neuron_N)
 		{
 			return;
 		}
 
-		int32_t syn_id = synapses_id_by_pre[right_offset][tid];
-		shared_mem_synapses_id[tid] = syn_id;
-		unsigned int delay = delay_by_pre[right_offset][tid];
-		shared_mem_synapses_delay[tid] = delay;
-		unsigned int post_id = post_id_by_pre[right_offset][tid];
-		shared_mem_post_id[tid] = post_id;
-
-		//only one thread per block inserts into queues
-		if(tid != 0)
+		for(int i = tid; i < num_connected_synapses; i += num_threads)
 		{
-			return;
-		}
+			int32_t syn_id = synapses_id_by_pre[right_offset][i];
+			shared_mem_synapses_id[tid] = syn_id;
+			unsigned int delay = delay_by_pre[right_offset][i];
+			shared_mem_synapses_delay[tid] = delay;
+			unsigned int post_id = post_id_by_pre[right_offset][i];
+			shared_mem_post_id[tid] = post_id;
 
-		for(int i = 0; i < num_connected_synapses; i++)
-		{
-			int32_t queue_pre_id = neuron_pre_id;
-			int32_t queue_syn_id = shared_mem_synapses_id[i];
-			int32_t queue_post_id = shared_mem_post_id[i];
-			unsigned int queue_delay = shared_mem_synapses_delay[i];
-			unsigned int adjusted_delay = (current_offset + queue_delay)%max_delay;
-			unsigned int queue_id = bid;
+			if(tid < max_delay)
+			{
+				for(int j = 0; j < num_threads && (i-tid)+j < num_connected_synapses; j++)
+				{
+					int32_t queue_pre_id = neuron_pre_id;
+					int32_t queue_syn_id = shared_mem_synapses_id[j];
+					int32_t queue_post_id = shared_mem_post_id[j];
+					unsigned int queue_delay = shared_mem_synapses_delay[j];
+					unsigned int adjusted_delay = (current_offset + queue_delay)%max_delay;
+					unsigned int queue_id = bid;
 
-			pre_neuron_queue[adjusted_delay][queue_id].push(queue_pre_id);
-			synapses_queue[adjusted_delay][queue_id].push(queue_syn_id);
-			post_neuron_queue[adjusted_delay][queue_id].push(queue_post_id);
+					if(tid == adjusted_delay)
+					{
+						pre_neuron_queue[adjusted_delay][queue_id].push(queue_pre_id);
+						synapses_queue[adjusted_delay][queue_id].push(queue_syn_id);
+						post_neuron_queue[adjusted_delay][queue_id].push(queue_post_id);
+					}
+				}
+			}
+			__syncthreads();
 		}
 	}
 

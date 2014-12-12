@@ -11,11 +11,11 @@
 __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 	unsigned int _neurongroup_N,
 	unsigned int _num_thread_per_block,
-	double par_t,
-	int32_t* par_array_neurongroup__spikespace,
-	double* par_array_neurongroup_v,
-	double* par_array_neurongroup_lastspike,
-	bool* par_array_neurongroup_not_refractory)
+	double _t,
+	int32_t* _array_neurongroup__spikespace,
+	double* _array_neurongroup_v,
+	double* _array_neurongroup_lastspike,
+	bool* _array_neurongroup_not_refractory)
 {
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
@@ -29,22 +29,18 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 		return;
 	}
 
-	double t = par_t;
-	int32_t* _ptr_array_neurongroup__spikespace = par_array_neurongroup__spikespace;
-	double* _ptr_array_neurongroup_v = par_array_neurongroup_v;
-	double* _ptr_array_neurongroup_lastspike = par_array_neurongroup_lastspike;
-	bool* _ptr_array_neurongroup_not_refractory = par_array_neurongroup_not_refractory;
-
 	spike_cache[tid] = false;
+	_array_neurongroup__spikespace[neuron_id] = -1;
+	
 	if(tid == 0 && bid == 0)
 	{
 		//init number of spikes with 0
-		_ptr_array_neurongroup__spikespace[_neurongroup_N] = 0;
+		_array_neurongroup__spikespace[_neurongroup_N] = 0;
 	}
 	__syncthreads();
 
-	double v = _ptr_array_neurongroup_v[neuron_id];
-	bool not_refractory = _ptr_array_neurongroup_not_refractory[neuron_id];
+	double v = _array_neurongroup_v[neuron_id];
+	bool not_refractory = _array_neurongroup_not_refractory[neuron_id];
 	spike_cache[tid] = (v > 0.001) && (not_refractory);
 
 	//only one thread per block iterates over the cache
@@ -61,15 +57,15 @@ __global__ void _run_neurongroup_thresholder_codeobject_kernel(
 		{
 			//spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
 			int spiking_neuron = first_neuron_in_block + i;
-			_ptr_array_neurongroup__spikespace[first_neuron_in_block + num_spikes_in_block] = spiking_neuron;
-			_ptr_array_neurongroup_not_refractory[spiking_neuron] = false;
-			_ptr_array_neurongroup_lastspike[spiking_neuron] = t;
+			_array_neurongroup__spikespace[first_neuron_in_block + num_spikes_in_block] = spiking_neuron;
+			_array_neurongroup_not_refractory[spiking_neuron] = false;
+			_array_neurongroup_lastspike[spiking_neuron] = _t;
 			num_spikes_in_block++;
 		}
 	}
 	//add number of spikes of all blocks together
 	//last element of spikespace holds total number of spikes
-	atomicAdd(&_ptr_array_neurongroup__spikespace[_neurongroup_N], num_spikes_in_block);
+	atomicAdd(&_array_neurongroup__spikespace[_neurongroup_N], num_spikes_in_block);
 }
 
 void _run_neurongroup_thresholder_codeobject()

@@ -64,6 +64,9 @@ int main(int argc, char **argv)
 		_run_synapses_group_variable_set_conditional_codeobject_2();
 		_run_synapses_pre_initialise_queue();
 
+		double _init_duration = (std::clock()-start)/(double)CLOCKS_PER_SEC;
+		std::cout << "Initialization time: " << _init_duration << endl;
+
 		//
 		// IMPORTANT change of order:
 		// now: resetter is always last

@@ -1,4 +1,3 @@
-
 #ifndef _BRIAN_OBJECTS_H
 #define _BRIAN_OBJECTS_H
 
@@ -23,16 +22,16 @@ extern Network magicnetwork;
 extern Network magicnetwork;
 
 //////////////// dynamic arrays ///////////
-extern std::vector<double> _dynamic_array_ratemonitor_rate;
-extern std::vector<double> _dynamic_array_ratemonitor_t;
+extern thrust::device_vector<double> _dynamic_array_ratemonitor_rate;
+extern thrust::device_vector<double> _dynamic_array_ratemonitor_t;
 extern thrust::device_vector<double> _dynamic_array_synapses_c;
 extern thrust::device_vector<double> _dynamic_array_synapses_lastupdate;
 extern thrust::device_vector<double> _dynamic_array_synapses_pre_delay;
 extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_post;
 extern thrust::device_vector<int32_t> _dynamic_array_synapses__synaptic_pre;
-extern thrust::device_vector<int32_t> synapses_by_pre_neuron;	//neuron 0 has syns arr[0] to (arr[1] - 1), etc...
-extern std::vector<int32_t> _dynamic_array_spikemonitor_i;
-extern std::vector<double> _dynamic_array_spikemonitor_t;
+extern thrust::device_vector<int32_t> synapses_by_pre_neuron;	//in CSR format: neuron 0 has syns from arr[0] to (arr[1] - 1), neuron 1 from arr[1] to (arr[2] - 1), etc...
+extern thrust::device_vector<int32_t> _dynamic_array_spikemonitor_i;
+extern thrust::device_vector<double> _dynamic_array_spikemonitor_t;
 extern std::vector<double> _dynamic_array_statemonitor_t;
 extern thrust::device_vector<double>* _dynamic_array_statemonitor__recorded_v;
 extern thrust::device_vector<double>* _dynamic_array_statemonitor__recorded_w;
@@ -98,7 +97,6 @@ extern curandGenerator_t random_float_generator;
 extern unsigned int num_blocks;
 extern unsigned int max_threads_per_block;
 extern unsigned int max_shared_mem_size;
-
 extern unsigned int neurongroup_N;
 
 }

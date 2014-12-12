@@ -36,9 +36,6 @@ __global__ void _run_neurongroup_resetter_codeobject_kernel(
 		_ptr_array_neurongroup_v[spiking_neuron] = v;
 		_ptr_array_neurongroup_w[spiking_neuron] = w;
 	}
-
-	//also reset spikespace array
-	_ptr_array_neurongroup__spikespace[neuron_id] = -1;
 }
 
 void _run_neurongroup_resetter_codeobject()

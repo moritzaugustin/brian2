@@ -17,7 +17,10 @@ __global__ void _run_synapses_pre_push_spikes_advance_kernel()
 }
 
 __global__ void _run_synapses_pre_push_spikes_push_kernel(
-	unsigned int _pre_id)
+	unsigned int _neurongroup_N,
+	unsigned int _num_blocks,
+	unsigned int _num_threads,
+	int32_t* _array_neurongroup_spikespace)
 {
 	using namespace brian;
 
@@ -25,41 +28,41 @@ __global__ void _run_synapses_pre_push_spikes_push_kernel(
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
 
-	//if dynamic parallelism is enabled
-	//iterate over spikespace:
-	//	for each spike:
-	//		launch new push_kernel<<<bid, THREADS>>>(spike_id);
-	
-	synapses_pre.queue->push(
-		bid,
-		tid,
-		_pre_id,
-		shared_mem);
+	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
+	for(int i = 0; i < _neurongroup_N;)
+	{
+		int32_t spiking_neuron = _array_neurongroup_spikespace[i];
+		if(spiking_neuron != -1)
+		{
+			__syncthreads();
+			i++;
+			synapses_pre.queue->push(
+				bid,
+				tid,
+				_num_threads,
+				spiking_neuron,
+				shared_mem);
+		}
+		else
+		{
+			//round to nearest multiple of N/num_blocks = start of next block
+			i += _neurongroup_N/_num_blocks - i % (_neurongroup_N/_num_blocks);
+		}
+	}
 }
 
 void _run_synapses_pre_push_spikes()
 {
 	using namespace brian;
-	cudaMemcpy(_array_neurongroup__spikespace, dev_array_neurongroup__spikespace, sizeof(int32_t)*(neurongroup_N + 1), cudaMemcpyDeviceToHost);
-
+	
 	_run_synapses_pre_push_spikes_advance_kernel<<<1, num_blocks>>>();
 
-	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
-	for(int i = 0; i < neurongroup_N;)
-	{
-		int32_t spiking_neuron = _array_neurongroup__spikespace[i];
-		if(spiking_neuron != -1)
-		{
-			unsigned int num_connected_synapses = _array_synapses_N_outgoing[spiking_neuron];
-			//TODO: case num_connected_synapses > THREADS_PER_BLOCK = 1024
-			_run_synapses_pre_push_spikes_push_kernel<<<num_blocks, num_connected_synapses, num_connected_synapses*MEMORY_PER_THREAD>>>(
-				spiking_neuron);
-			i++;
-		}
-		else
-		{
-			//round to nearest multiple of N/num_blocks = start of next block
-			i += neurongroup_N/num_blocks - i % (neurongroup_N/num_blocks);
-		}
-	}
+	unsigned int num_threads = max_shared_mem_size / MEMORY_PER_THREAD;
+	num_threads = num_threads > max_threads_per_block? max_threads_per_block : num_threads;	// get min of both
+	_run_synapses_pre_push_spikes_push_kernel<<<num_blocks, num_threads, num_threads*MEMORY_PER_THREAD>>>(
+		neurongroup_N,
+		num_blocks,
+		num_threads,
+		dev_array_neurongroup__spikespace);
+
 }

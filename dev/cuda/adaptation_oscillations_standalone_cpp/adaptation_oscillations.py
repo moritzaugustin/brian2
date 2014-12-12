@@ -10,7 +10,7 @@ import time
 
 
 standalone = True
-build_dir = 'adaptation_oscillations_standalone_cuda'
+build_dir = 'adaptation_oscillations_standalone_cpp'
 
 N_neurons = 4000
 sparsity = 0.05 # each neuron receives approx. N_neurons*sparsity connections => 0: uncoupled network

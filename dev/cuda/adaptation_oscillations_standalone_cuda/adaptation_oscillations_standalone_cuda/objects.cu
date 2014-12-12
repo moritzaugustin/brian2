@@ -59,16 +59,16 @@ int32_t** brian::dev_post_neuron_by_pre;
 unsigned int** brian::dev_delay_by_pre;
 
 //////////////// dynamic arrays 1d /////////
-std::vector<double> brian::_dynamic_array_ratemonitor_rate;
-std::vector<double> brian::_dynamic_array_ratemonitor_t;
+thrust::device_vector<double> brian::_dynamic_array_ratemonitor_rate;
+thrust::device_vector<double> brian::_dynamic_array_ratemonitor_t;
 thrust::device_vector<double> brian::_dynamic_array_synapses_c;
 thrust::device_vector<double> brian::_dynamic_array_synapses_lastupdate;
 thrust::device_vector<double> brian::_dynamic_array_synapses_pre_delay;
 thrust::device_vector<int32_t> brian::_dynamic_array_synapses__synaptic_post;
 thrust::device_vector<int32_t> brian::_dynamic_array_synapses__synaptic_pre;
 thrust::device_vector<int32_t> brian::synapses_by_pre_neuron;
-std::vector<int32_t> brian::_dynamic_array_spikemonitor_i;
-std::vector<double> brian::_dynamic_array_spikemonitor_t;
+thrust::device_vector<int32_t> brian::_dynamic_array_spikemonitor_i;
+thrust::device_vector<double> brian::_dynamic_array_spikemonitor_t;
 std::vector<double> brian::_dynamic_array_statemonitor_t;
 thrust::device_vector<double>* brian::_dynamic_array_statemonitor__recorded_v;
 thrust::device_vector<double>* brian::_dynamic_array_statemonitor__recorded_w;
@@ -93,7 +93,7 @@ unsigned int brian::neurongroup_N = 4000;
 Synapses<double> brian::synapses(neurongroup_N, neurongroup_N);
 __device__ SynapticPathway<double> brian::synapses_pre;
 
-//////////////// random numbers /////////////////
+//////////////// random numbers ///////////
 float* brian::dev_array_random_floats;
 curandGenerator_t brian::random_float_generator;
 
@@ -464,11 +464,12 @@ void _write_arrays()
 
 
 
+	thrust::host_vector<double> temp_dynamic_array_ratemonitor_rate = _dynamic_array_ratemonitor_rate;
 	ofstream outfile__dynamic_array_ratemonitor_rate;
 	outfile__dynamic_array_ratemonitor_rate.open("results/_dynamic_array_ratemonitor_rate", ios::binary | ios::out);
 	if(outfile__dynamic_array_ratemonitor_rate.is_open())
 	{
-		outfile__dynamic_array_ratemonitor_rate.write(reinterpret_cast<char*>(&_dynamic_array_ratemonitor_rate[0]), _dynamic_array_ratemonitor_rate.size()*sizeof(_dynamic_array_ratemonitor_rate[0]));
+		outfile__dynamic_array_ratemonitor_rate.write(reinterpret_cast<char*>(&temp_dynamic_array_ratemonitor_rate[0]), temp_dynamic_array_ratemonitor_rate.size()*sizeof(temp_dynamic_array_ratemonitor_rate[0]));
 		outfile__dynamic_array_ratemonitor_rate.close();
 	} else
 	{
@@ -477,11 +478,12 @@ void _write_arrays()
 
 
 
+	thrust::host_vector<double> temp_dynamic_array_ratemonitor_t = _dynamic_array_ratemonitor_t;
 	ofstream outfile__dynamic_array_ratemonitor_t;
 	outfile__dynamic_array_ratemonitor_t.open("results/_dynamic_array_ratemonitor_t", ios::binary | ios::out);
 	if(outfile__dynamic_array_ratemonitor_t.is_open())
 	{
-		outfile__dynamic_array_ratemonitor_t.write(reinterpret_cast<char*>(&_dynamic_array_ratemonitor_t[0]), _dynamic_array_ratemonitor_t.size()*sizeof(_dynamic_array_ratemonitor_t[0]));
+		outfile__dynamic_array_ratemonitor_t.write(reinterpret_cast<char*>(&temp_dynamic_array_ratemonitor_t[0]), temp_dynamic_array_ratemonitor_t.size()*sizeof(temp_dynamic_array_ratemonitor_t[0]));
 		outfile__dynamic_array_ratemonitor_t.close();
 	} else
 	{
@@ -490,11 +492,12 @@ void _write_arrays()
 
 
 
+	thrust::host_vector<int32_t> temp_dynamic_array_spikemonitor_i = _dynamic_array_spikemonitor_i;
 	ofstream outfile__dynamic_array_spikemonitor_i;
 	outfile__dynamic_array_spikemonitor_i.open("results/_dynamic_array_spikemonitor_i", ios::binary | ios::out);
 	if(outfile__dynamic_array_spikemonitor_i.is_open())
 	{
-		outfile__dynamic_array_spikemonitor_i.write(reinterpret_cast<char*>(&_dynamic_array_spikemonitor_i[0]), _dynamic_array_spikemonitor_i.size()*sizeof(_dynamic_array_spikemonitor_i[0]));
+		outfile__dynamic_array_spikemonitor_i.write(reinterpret_cast<char*>(&temp_dynamic_array_spikemonitor_i[0]), temp_dynamic_array_spikemonitor_i.size()*sizeof(int32_t));
 		outfile__dynamic_array_spikemonitor_i.close();
 	} else
 	{
@@ -503,11 +506,12 @@ void _write_arrays()
 
 
 
+	thrust::host_vector<double> temp_dynamic_array_spikemonitor_t = _dynamic_array_spikemonitor_t;
 	ofstream outfile__dynamic_array_spikemonitor_t;
 	outfile__dynamic_array_spikemonitor_t.open("results/_dynamic_array_spikemonitor_t", ios::binary | ios::out);
 	if(outfile__dynamic_array_spikemonitor_t.is_open())
 	{
-		outfile__dynamic_array_spikemonitor_t.write(reinterpret_cast<char*>(&_dynamic_array_spikemonitor_t[0]), _dynamic_array_spikemonitor_t.size()*sizeof(_dynamic_array_spikemonitor_t[0]));
+		outfile__dynamic_array_spikemonitor_t.write(reinterpret_cast<char*>(&temp_dynamic_array_spikemonitor_t[0]), temp_dynamic_array_spikemonitor_t.size()*sizeof(&temp_dynamic_array_spikemonitor_t[0]));
 		outfile__dynamic_array_spikemonitor_t.close();
 	} else
 	{
@@ -702,6 +706,18 @@ void _dealloc_arrays()
 
 	_dynamic_array_synapses__synaptic_pre.clear();
 	thrust::device_vector<int32_t>().swap(_dynamic_array_synapses__synaptic_pre);
+
+	_dynamic_array_spikemonitor_i.clear();
+	thrust::device_vector<int32_t>().swap(_dynamic_array_spikemonitor_i);
+
+	_dynamic_array_spikemonitor_t.clear();
+	thrust::device_vector<double>().swap(_dynamic_array_spikemonitor_t);
+
+	_dynamic_array_ratemonitor_rate.clear();
+	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_rate);
+
+	_dynamic_array_ratemonitor_t.clear();
+	thrust::device_vector<double>().swap(_dynamic_array_ratemonitor_t);
 
 	if(_array_neurongroup__spikespace!=0)
 	{
