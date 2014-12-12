@@ -6,8 +6,14 @@ def change_N_neurons(old_value, new_value):
 	new_string = "unsigned int brian::neurongroup_N = " + str(new_value) + ";"
 	os.system("sed -i \"s/" + old_string +"/"+ new_string + "/\" objects.cu")
 	os.system("rm static_arrays/_static_array__array_neurongroup*")
-	os.system("dd if=/dev/zero of=static_arrays/_static_array__array_neurongroup_lastspike bs="+ str(new_value * 8) + " count=1")
-	os.system("dd if=/dev/zero of=static_arrays/_static_array__array_neurongroup_not_refractory bs="+ str(new_value * 1) + " count=1")
+	content = "\x01" * new_value
+	f = open("static_arrays/_static_array__array_neurongroup_not_refractory", "w")
+	f.write(content)
+	f.close()
+	content = ("\x00" * 6 + "\xf0\xff") * new_value
+	f = open("static_arrays/_static_array__array_neurongroup_lastspike", "w")
+	f.write(content)
+	f.close()
 
 def change_sparsity(old_value, new_value):
 	old_string = "const double _p = " + str(old_value) + ";"
