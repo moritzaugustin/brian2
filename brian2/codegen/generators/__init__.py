@@ -7,6 +7,7 @@ prefs.register_preferences('codegen.generators',
 
 from .base import *
 from .cpp_generator import *
+from .cuda_generator import *
 from .numpy_generator import *
 try:
     from .cython_generator import *

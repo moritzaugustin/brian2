@@ -134,6 +134,13 @@ setup(name='Brian2',
                                                       'templates/makefile',
                                                       'brianlib/*.cpp',
                                                       'brianlib/*.h'],
+                    'brian2.devices.cuda_standalone': ['templates/*.cpp',
+                                                      'templates/*.cu',
+                                                      'templates/*.h',
+                                                      'templates/makefile',
+                                                      'brianlib/*.cu',
+                                                      'brianlib/*.cpp',
+                                                      'brianlib/*.h'],
                     # include C++ version of spike queue
                     'brian2.synapses': ['*.cpp'],
                     # include default_preferences file
