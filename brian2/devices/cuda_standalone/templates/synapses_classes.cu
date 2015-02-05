@@ -18,55 +18,33 @@ template <class scalar>
 class SynapticPathway
 {
 public:
-	int Nsource, Ntarget;
-	std::vector<scalar> &delay;
-	std::vector<int> &sources;
-	std::vector<int> all_peek;
+	int Nsource;
+	int Ntarget;
+	scalar* dev_delay;
+	int32_t* dev_sources;
+	int32_t* dev_targets;
 	scalar dt;
 	CSpikeQueue<scalar>* queue;
-	SynapticPathway(int _Nsource, int _Ntarget, std::vector<scalar>& _delay, std::vector<int> &_sources,
-					scalar _dt, int _spikes_start, int _spikes_stop)
-		: Nsource(_Nsource), Ntarget(_Ntarget), delay(_delay), sources(_sources), dt(_dt)
+
+	//our real constructor
+	__device__ void init(int _Nsource, int _Ntarget, scalar* d_delay, int32_t* _sources,
+				int32_t* _targets, scalar _dt, int _spikes_start, int _spikes_stop)
 	{
-		queue = new CSpikeQueue<scalar>(_spikes_start, _spikes_stop);
+		Nsource = _Nsource;
+		Ntarget = _Ntarget;
+		dev_delay = d_delay;
+		dev_sources = _sources;
+		dev_targets = _targets;
+		dt = _dt;
+		queue = new CSpikeQueue<scalar>;
     };
 
-	~SynapticPathway()
+	//our real destructor
+	__device__ void destroy()
 	{
+		queue->destroy();
 		delete queue;
 	}
-
-	void push(int *spikes, unsigned int nspikes)
-    {
-    	queue->push(spikes, nspikes);
-    }
-
-	void advance()
-    {
-    	queue->advance();
-    }
-
-	DTYPE_int* peek()
-    {
-		if (_thread == 0)
-				all_peek.clear();
-		all_peek.insert(all_peek.end(), queue->peek()->begin(), queue->peek()->end());
-    	return &all_peek;
-    }
-
-    void prepare(scalar *real_delays, unsigned int n_delays,
-                 int *sources, unsigned int n_synapses, double _dt)
-    {
-    	unsigned int length;
-    	length = n_synapses;
-    	unsigned int padding  = 0;
-
-		if (n_delays > 1)
-			queue->prepare(&real_delays[padding], length, &sources[padding], length, _dt);
-		else
-			queue->prepare(&real_delays[0], 1, &sources[padding], length, _dt);
-    }
-
 };
 
 template <class scalar>

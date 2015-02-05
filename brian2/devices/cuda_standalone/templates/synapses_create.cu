@@ -1,55 +1,79 @@
 {% extends 'common_synapses.cu' %}
 
+{% block extra_headers %}
+{{ super() }}
+#include<iostream>
+{% endblock %}
+
 {% block kernel %}
 {% endblock %}
 
 {% block kernel_call %}
 {% endblock %}
 
-{% block maincode %}
-    #include<iostream>
+{% block extra_maincode %}
 	{# USES_VARIABLES { _synaptic_pre, _synaptic_post, rand,
 	                    N_incoming, N_outgoing } #}
 
-	{{pointers_lines|autoindent}}
-    
-    // scalar code
-    const int _vectorisation_idx = -1;
 	{{scalar_code|autoindent}}
-	
-    for(int _i=0; _i<_num_all_pre; _i++)
+	unsigned int MAX_SYN_N = _num_all_pre*_num_all_post;
+
+	//generate MAX_SYN_N random numbers
+	float* _array_random_float_numbers;
+	_array_random_float_numbers = (float*)malloc(sizeof(float)*MAX_SYN_N);
+	if(!_array_random_float_numbers)
 	{
-		for(int _j=0; _j<_num_all_post; _j++)
+		printf("ERROR while allocating memory with size %ld()\n", sizeof(float)*MAX_SYN_N);
+	}
+	curandGenerator_t gen;
+	curandCreateGeneratorHost(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+	curandSetPseudoRandomGeneratorSeed(gen, time(0));
+	curandGenerateUniform(gen, _array_random_float_numbers, max_syn_N);
+
+	//these two vectors just cache everything on the CPU-side
+	//data is copied to GPU at the end
+	thrust::host_vector<int32_t> temp_synaptic_post;
+	thrust::host_vector<int32_t> temp_synaptic_pre;
+
+	{{pointers_lines|autoindent}}
+
+	int syn_id = {{_dynamic__synaptic_pre}}.size();
+	for(int i = 0; i < _num_all_pre; i++)
+	{
+		synapses_by_pre_neuron.push_back(syn_id);
+		for(int j = 0; j < _num_all_post; j++)
 		{
+			{% block maincode_inner %}
 		    const int _vectorisation_idx = _j;
-	        {# The abstract code consists of the following lines (the first two lines
-	        are there to properly support subgroups as sources/targets):
-	        _pre_idx = _all_pre
-	        _post_idx = _all_post
-	        _cond = {user-specified condition}
-	        _n = {user-specified number of synapses}
-	        _p = {user-specified probability}
-	        #}
 			{{vector_code|autoindent}}
 			// Add to buffer
 			if(_cond)
 			{
-			    if (_p != 1.0) {
-			        // We have to use _rand instead of rand to use our rand
-			        // function, not the one from the C standard library
-			        if (_rand(_vectorisation_idx) >= _p)
-			            continue;
-			    }
-			    for (int _repetition=0; _repetition<_n; _repetition++) {
-			        {{N_outgoing}}[_pre_idx] += 1;
-			        {{N_incoming}}[_post_idx] += 1;
-			    	{{_dynamic__synaptic_pre}}.push_back(_pre_idx);
-			    	{{_dynamic__synaptic_post}}.push_back(_post_idx);
-                }
+				if (_p != 1.0)
+				{
+					float r = _array_random_float_numbers[i*N_outgoing + j];
+					if (r >= _p)
+					{
+						continue;
+					}
+				}
+				for (int _repetition = 0; _repetition < _n; _repetition++)
+				{
+					{{N_outgoing}}[_pre_idx] += 1;
+					{{N_incoming}}[_post_idx] += 1;
+					temp_synaptic_pre.push_back(_pre_idx);
+					temp_synaptic_post.push_back(_post_idx);
+					syn_id++;
+				}
 			}
+			{% endblock %}
 		}
 	}
+	synapses_by_pre_neuron.push_back(syn_id);
 
+	{{_synaptic_post}} = temp_synaptic_post;
+	{{_synaptic_pre}} = temp_synaptic_pre;
+    
 	// now we need to resize all registered variables
 	const int32_t newsize = {{_dynamic__synaptic_pre}}.size();
 	{% for variable in owner._registered_variables | sort(attribute='name') %}

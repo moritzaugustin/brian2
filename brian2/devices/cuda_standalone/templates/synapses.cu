@@ -9,42 +9,31 @@
 {% endfor %}
 
 {% block maincode %}
-
 	// This is only needed for the _debugmsg function below	
 	{# USES_VARIABLES { _synaptic_pre } #}	
 	
+	cudaVector<int32_t>* pre_neuron_queue;
+	cudaVector<int32_t>* synapses_queue;
+	cudaVector<int32_t>* post_neuron_queue;
+
 	// scalar code
 	const int _vectorisation_idx = -1;
-	{{scalar_code|autoindent}}
 	
-	std::vector<int> *_spiking_synapses = {{pathway.name}}.peek();
-	const unsigned int _num_spiking_synapses = _spiking_synapses->size();
+	{{pathway.name}}.queue->peek(
+		&synapses_queue,
+		&pre_neuron_queue,
+		&post_neuron_queue);
 
-	{% if _non_synaptic %}
+	int size = post_neuron_queue[bid].size();
+	//outer loop, since most likely not all spikes fit into our shared memory
+	for(int j = tid; j < size; j += THREADS_PER_BLOCK)
 	{
-		for(unsigned int _spiking_synapse_idx=0;
-			_spiking_synapse_idx<_num_spiking_synapses;
-			_spiking_synapse_idx++)
-		{
-			const int _idx = (*_spiking_synapses)[_spiking_synapse_idx];
-			const int _vectorisation_idx = _idx;
-			{{vector_code|autoindent}}
-		}
-	}
-	{% else %}
-	for(unsigned int _spiking_synapse_idx=0;
-		_spiking_synapse_idx<_num_spiking_synapses;
-		_spiking_synapse_idx++)
-	{
-		const int _idx = (*_spiking_synapses)[_spiking_synapse_idx];
-		const int _vectorisation_idx = _idx;
+		int32_t _idx = post_neuron_queue[bid].getDataByIndex(j);
+		int32_t _spiking_synapse_idx = synapses_queue[bid].getDataByIndex(j);
+
 		{{vector_code|autoindent}}
 	}
-
-	{% endif %}
-
 {% endblock %}
-
 
 {% block extra_functions_cu %}
 void _debugmsg_{{codeobj_name}}()

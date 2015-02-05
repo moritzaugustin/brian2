@@ -9,6 +9,8 @@
 #include "network.h"
 #include<iostream>
 #include<fstream>
+#include <curand.h>
+#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
 //////////////// clocks ///////////////////
@@ -39,7 +41,7 @@ thrust::device_vector<{{c_data_type(var.dtype)}}> brian::dev{{varname}};
 
 //////////////// dynamic arrays 2d /////////
 {% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
-DynamicArray2D<{{c_data_type(var.dtype)}}> brian::{{varname}};
+thrust::device_vector<{{c_data_type(var.dtype)}}>* brian::{{varname}};
 {% endfor %}
 
 /////////////// static arrays /////////////
@@ -53,16 +55,17 @@ const int brian::_num_{{name}} = {{N}};
 {% endfor %}
 
 //////////////// synapses /////////////////
+thrust::device_vector<int32_t> brian::synapses_by_pre_neuron;
 {% for S in synapses | sort(attribute='name') %}
 // {{S.name}}
 Synapses<double> brian::{{S.name}}({{S.source|length}}, {{S.target|length}});
 {% for path in S._pathways | sort(attribute='name') %}
-SynapticPathway<double> brian::{{path.name}}(
-		{{path.source|length}}, {{path.target|length}},
-		{{dynamic_array_specs[path.variables['delay']]}},
-		{{dynamic_array_specs[path.synapse_sources]}},
-		{{path.source.dt_}},
-		{{path.source.start}}, {{path.source.stop}});
+// {{path.name}}
+unsigned* brian::{{path.name}}_size_by_pre;
+int32_t** brian::{{path.name}}_synapses_id_by_pre;
+int32_t** brian::{{path.name}}_post_neuron_by_pre;
+unsigned int** brian::{{path.name}}_delay_by_pre;
+__device__ SynapticPathway<double> brian::{{path.name}};
 {% endfor %}
 {% endfor %}
 
@@ -70,6 +73,25 @@ unsigned int brian::num_cuda_processors;
 unsigned int brian::max_threads_per_block;
 unsigned int brian::max_shared_mem_size;
 
+{% for S in synapses | sort(attribute='name') %}
+{% for path in S._pathways | sort(attribute='name') %}
+__global__ void {{path.name}}_init(
+				unsigned int Nsource,
+				unsigned int Ntarget,
+				double* delays,
+				int32_t* sources,
+				int32_t* targets,
+				double dt,
+				int32_t start,
+				int32_t stop
+		)
+{
+	using namespace brian;
+
+	{{path.name}}.init(Nsource, Ntarget, delays, sources, targets, dt, start, stop);
+}
+{% endfor %}
+{% endfor %}
 
 void _init_arrays()
 {
@@ -81,6 +103,21 @@ void _init_arrays()
 	num_cuda_processors = props.multiProcessorCount;
 	max_threads_per_block = props.maxThreadsPerBlock;
 	max_shared_mem_size = props.sharedMemPerBlock;
+
+	{% for S in synapses | sort(attribute='name') %}
+	{% for path in S._pathways | sort(attribute='name') %}
+	{{path.name}}_init<<<1,1>>>(
+			{{path.source|length}},
+			{{path.target|length}},
+			thrust::raw_pointer_cast(&dev{{dynamic_array_specs[path.variables['delay']]}}[0]),
+			thrust::raw_pointer_cast(&dev{{dynamic_array_specs[path.synapse_sources]}}[0]),
+			thrust::raw_pointer_cast(&dev{{dynamic_array_specs[path.synapse_targets]}}[0]),
+			{{path.source.dt_}},
+			{{path.source.start}},
+			{{path.source.stop}}
+			);
+	{% endfor %}
+	{% endfor %}
 
     // Arrays initialized to 0
 	{% for var in zero_arrays | sort(attribute='name') %}
@@ -118,7 +155,10 @@ void _init_arrays()
 	{
 		printf("ERROR while allocating device memory with size %ld\n", sizeof({{dtype_spec}})*{{N}});
 	}
+	{% endfor %}
 
+	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
+	{{varname}} = new thrust::device_vector<{{c_data_type(var.dtype)}}>[_num__array_statemonitor__indices];
 	{% endfor %}
 }
 
@@ -141,6 +181,7 @@ void _load_arrays()
 
 void _write_arrays()
 {
+	/*
 	using namespace brian;
 
 	{% for var, varname in array_specs | dictsort(by='value') %}
@@ -186,12 +227,29 @@ void _write_arrays()
 		std::cout << "Error writing output file for {{varname}}." << endl;
 	}
 	{% endfor %}
+	*/
 }
+
+{% for S in synapses | sort(attribute='name') %}
+{% for path in S._pathways | sort(attribute='name') %}
+__global__ void {{path.name}}_destroy()
+{
+	using namespace brian;
+
+	{{path.name}}.destroy();
+}
+{% endfor %}
+{% endfor %}
 
 void _dealloc_arrays()
 {
 	using namespace brian;
 
+	{% for S in synapses | sort(attribute='name') %}
+	{% for path in S._pathways | sort(attribute='name') %}
+	{{path.name}}_destroy<<<1,1>>>();
+	{% endfor %}
+	{% endfor %}
 
 	{% for var, varname in dynamic_array_specs | dictsort(by='value') %}
 	dev{{varname}}.clear();
@@ -271,7 +329,7 @@ extern const int _num_{{varname}};
 
 //////////////// dynamic arrays 2d /////////
 {% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
-extern DynamicArray2D<{{c_data_type(var.dtype)}}> {{varname}};
+extern thrust::device_vector<{{c_data_type(var.dtype)}}>* {{varname}};
 {% endfor %}
 
 /////////////// static arrays /////////////
@@ -285,11 +343,16 @@ extern const int _num_{{name}};
 {% endfor %}
 
 //////////////// synapses /////////////////
+extern thrust::device_vector<int32_t> synapses_by_pre_neuron;	//in CSR format: neuron 0 has syns from arr[0] to (arr[1] - 1), neuron 1 from arr[1] to (arr[2] - 1), etc...
 {% for S in synapses | sort(attribute='name') %}
 // {{S.name}}
 extern Synapses<double> {{S.name}};
 {% for path in S._pathways | sort(attribute='name') %}
-extern SynapticPathway<double> {{path.name}};
+extern unsigned* {{path.name}}_size_by_pre;
+extern int32_t** {{path.name}}_synapses_id_by_pre;
+extern int32_t** {{path.name}}_post_neuron_by_pre;
+extern unsigned int** {{path.name}}_delay_by_pre;
+extern __device__ SynapticPathway<double> {{path.name}};
 {% endfor %}
 {% endfor %}
 

@@ -21,8 +21,8 @@ namespace {
 	{{support_code_lines|autoindent}}
 }
 
-{% block kernel %}}
-__global__ void _kernel_{{codeobj_name}}(
+{% block kernel %}
+__global__ void kernel_{{codeobj_name}}(
 	unsigned int THREADS_PER_BLOCK,
 	%DEVICE_PARAMETERS%
 	)
@@ -36,7 +36,7 @@ __global__ void _kernel_{{codeobj_name}}(
 	unsigned int _vectorisation_idx = _idx;
 	%KERNEL_VARIABLES%
 
-	if(_idx < 0 || _idx >= N)
+	if(_idx >= N)
 	{
 		return;
 	}
@@ -55,9 +55,13 @@ __global__ void _kernel_{{codeobj_name}}(
 
 void _run_{{codeobj_name}}()
 {	
+	{# USES_VARIABLES { N } #}
 	using namespace brian;
 	///// CONSTANTS ///////////
 	%CONSTANTS%
+
+	{% block extra_maincode %}
+	{% endblock %}
 
 	{% block kernel_call %}
 	kernel_{{codeobj_name}}<<<num_blocks(N),num_threads(N)>>>(

@@ -307,6 +307,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                             device_parameters[codeobj.name].append("%s* par_%s" % (c_data_type(v.dtype), self.get_array_name(v)))
                             kernel_variables[codeobj.name].append("%s* _ptr%s = par_%s;" % (c_data_type(v.dtype),  self.get_array_name(v), self.get_array_name(v)))
 
+                            code_object_defs[codeobj.name].append('const int _num%s = %s;' % (k, v.size))
                             kernel_variables[codeobj.name].append('const int _num%s = %s;' % (k, v.size))
                     except TypeError:
                         pass
@@ -321,10 +322,10 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             ns = codeobj.variables
             # TODO: fix these freeze/CONSTANTS hacks somehow - they work but not elegant.
             code = freeze(codeobj.code.cu_file, ns)
-            code = code.replace('%CONSTANTS%', '\n'.join(code_object_defs[codeobj.name]))
-            code = code.replace('%HOST_PARAMETERS%', ',\n'.join(host_parameters[codeobj.name]))
-            code = code.replace('%DEVICE_PARAMETERS%', ',\n'.join(device_parameters[codeobj.name]))
-            code = code.replace('%KERNEL_VARIABLES%', '\n'.join(kernel_variables[codeobj.name]))
+            code = code.replace('%CONSTANTS%', '\n\t\t'.join(code_object_defs[codeobj.name]))
+            code = code.replace('%HOST_PARAMETERS%', ',\n\t\t\t'.join(host_parameters[codeobj.name]))
+            code = code.replace('%DEVICE_PARAMETERS%', ',\n\t'.join(device_parameters[codeobj.name]))
+            code = code.replace('%KERNEL_VARIABLES%', '\n\t'.join(kernel_variables[codeobj.name]))
             code = '#include "objects.h"\n'+code
             
             writer.write('code_objects/'+codeobj.name+'.cu', code)
@@ -367,11 +368,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             elif file.lower().endswith('.h'):
                 writer.header_files.append('brianlib/'+file)
 
-        # Copy the CSpikeQueue implementation
-        spikequeue_h = os.path.join(directory, 'brianlib', 'spikequeue.h')
-        shutil.copy2(os.path.join(os.path.split(inspect.getsourcefile(Synapses))[0], 'cspikequeue.cpp'),
-                     spikequeue_h)
-        
         writer.source_files.extend(additional_source_files)
         writer.header_files.extend(additional_header_files)
 
