@@ -10,10 +10,10 @@
 
 ////// SUPPORT CODE ///////
 namespace {
-	int num_blocks(int objects){
-		return ceil(objects / (double)brian::max_threads_per_block);
+	int num_blocks(int num_objects){
+		return ceil(num_objects / (double)brian::max_threads_per_block);
 	}
-	int num_threads(int objects){
+	int num_threads(int num_objects){
 		return brian::max_threads_per_block;
 	}
 	{% block extra_device_helper %}
@@ -35,11 +35,15 @@ __global__ void kernel_{{codeobj_name}}(
 	unsigned int _idx = bid * THREADS_PER_BLOCK + tid;
 	unsigned int _vectorisation_idx = _idx;
 	%KERNEL_VARIABLES%
+	{% block additional_variables %}
+	{% endblock %}
 
+	{% block num_thread_check %}
 	if(_idx >= N)
 	{
 		return;
 	}
+	{% endblock %}
 
 	{% block maincode %}
 	{% block maincode_inner %}

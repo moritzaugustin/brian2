@@ -2,6 +2,7 @@
 
 {% block kernel_call %}
 {# USES_VARIABLES { t, _clock_t, _indices } #}
+/*
 	for(int i = 0; i < _num_indices; i++)
 	{
 		unsigned int _id = {{_indices}}[i];
@@ -24,6 +25,7 @@
 			{% endfor %}
 			index_last_element);
 	}
+	*/
 {% endblock %}
 
 {% block kernel %}

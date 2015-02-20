@@ -193,7 +193,20 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         # for repeated runs of standalone (e.g. in the test suite).
         for net in networks:
             net.after_run()
-
+            
+        #check how many random numbers are needed per step
+        num_rand_normal = 0
+        num_rand_uniform = 0
+        for code_object in self.code_objects.itervalues():
+            if code_object.runs_every_tick:
+                for name, value in code_object.variables.iteritems():
+                    if name == "_python_rand":
+                        code_object.rand_start = num_rand_uniform
+                        num_rand_uniform += code_object.owner.N
+                    elif name == "_python_randn":
+                        code_object.rand_start_uniform = num_rand_normal
+                        num_rand_normal += code_object.owner.N
+                        
         arr_tmp = CUDAStandaloneCodeObject.templater.objects(
                         None, None,
                         array_specs=self.arrays,
@@ -205,6 +218,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         clocks=self.clocks,
                         static_array_specs=static_array_specs,
                         networks=networks)
+        arr_tmp.cu_file = arr_tmp.cu_file.replace('%RANDOM_NUMBER_NORMAL%', str(num_rand_normal))
+        arr_tmp.cu_file = arr_tmp.cu_file.replace('%RANDOM_NUMBER_UNIFORM%', str(num_rand_uniform))
         writer.write('objects.*', arr_tmp)
 
         main_lines = []
@@ -220,7 +235,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             elif func=='set_by_array':
                 arrayname, staticarrayname = args
                 code = '''
-                {pragma}
                 for(int i=0; i<_num_{staticarrayname}; i++)
                 {{
                     {arrayname}[i] = {staticarrayname}[i];
@@ -231,7 +245,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             elif func=='set_array_by_array':
                 arrayname, staticarrayname_index, staticarrayname_value = args
                 code = '''
-                {pragma}
                 for(int i=0; i<_num_{staticarrayname_index}; i++)
                 {{
                     {arrayname}[{staticarrayname_index}[i]] = {staticarrayname_value}[i];
@@ -265,8 +278,41 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         code_object_defs = defaultdict(list)
         for codeobj in self.code_objects.itervalues():
             lines = []
+            additional_code = []
             for k, v in codeobj.variables.iteritems():
-                if isinstance(v, AttributeVariable):
+                if k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
+                    additional_code.append('''
+                        //genenerate an arry of random numbers on the device
+                        float* dev_array_randn;
+                        cudaMalloc((void**)&dev_array_randn, sizeof(float)*N);
+                        if(!dev_array_randn)
+                        {
+                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N);
+                        }
+                        curandGenerator_t gen;
+                        curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+                        curandSetPseudoRandomGeneratorSeed(gen, time(0));
+                        curandGenerateNormal(gen, dev_array_randn, N, 0, 1);''')
+                    line = "float* _array_randn"
+                    device_parameters[codeobj.name].append(line)
+                    host_parameters[codeobj.name].append("dev_array_randn")
+                elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
+                    additional_code.append('''
+                        //genenerate an arry of random numbers on the device
+                        float* dev_array_rand;
+                        cudaMalloc((void**)&dev_array_rand, sizeof(float)*N);
+                        if(!dev_array_rand)
+                        {
+                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N);
+                        }
+                        curandGenerator_t gen;
+                        curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+                        curandSetPseudoRandomGeneratorSeed(gen, time(0));
+                        curandGenerateUniform(gen, dev_array_rand, N);''')
+                    line = "float* _array_rand"
+                    device_parameters[codeobj.name].append(line)
+                    host_parameters[codeobj.name].append("dev_array_rand")
+                elif isinstance(v, AttributeVariable):
                     # We assume all attributes are implemented as property-like methods
                     line = 'const {c_type} {varname} = {objname}.{attrname}();'
                     lines.append(line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
@@ -316,6 +362,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 # dictionary -- make sure to never add a line twice
                 if not line in code_object_defs[codeobj.name]:
                     code_object_defs[codeobj.name].append(line)
+            for line in additional_code:
+                code_object_defs[codeobj.name].append(line)
 
         # Generate the code objects
         for codeobj in self.code_objects.itervalues():
@@ -326,6 +374,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             code = code.replace('%HOST_PARAMETERS%', ',\n\t\t\t'.join(host_parameters[codeobj.name]))
             code = code.replace('%DEVICE_PARAMETERS%', ',\n\t'.join(device_parameters[codeobj.name]))
             code = code.replace('%KERNEL_VARIABLES%', '\n\t'.join(kernel_variables[codeobj.name]))
+            code = code.replace('%RAND_NORMAL_START%', str(codeobj.rand_start_normal))
+            code = code.replace('%RAND_UNIFORM_START%', str(codeobj.rand_start_uniform))
             code = '#include "objects.h"\n'+code
             
             writer.write('code_objects/'+codeobj.name+'.cu', code)
@@ -355,6 +405,9 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                                                         additional_headers=run_includes,
                                                         )
         writer.write('run.*', run_tmp)
+        
+        rand_tmp = CUDAStandaloneCodeObject.templater.rand(None, None)
+        writer.write('rand.*', rand_tmp)
 
         # Copy the brianlibdirectory
         brianlib_dir = os.path.join(os.path.split(inspect.getsourcefile(CUDAStandaloneCodeObject))[0],
@@ -407,6 +460,95 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         self.has_been_run = True
                 else:
                     raise RuntimeError("Project compilation failed")
+                
+    def network_run(self, net, duration, report=None, report_period=10*second,
+                        namespace=None, level=0):
+        net._clocks = [obj.clock for obj in net.objects]
+        # We have to use +2 for the level argument here, since this function is
+        # called through the device_override mechanism
+        net.before_run(namespace, level=level+2)
+            
+        self.clocks.update(net._clocks)
+
+        # We run a simplified "update loop" that only advances the clocks
+        # This can be useful because some Python code might use the t attribute
+        # of the Network or a NeuronGroup etc.
+        t_end = net.t+duration
+        for clock in net._clocks:
+            clock.set_interval(net.t, t_end)
+            # manually set the clock to the end, no need to run Clock.tick() in a loop
+            clock._i = clock._i_end
+        net.t_ = float(t_end)
+
+        # TODO: remove this horrible hack
+        for clock in self.clocks:
+            if clock.name=='clock':
+                clock._name = '_clock'
+            
+        # Extract all the CodeObjects
+        # Note that since we ran the Network object, these CodeObjects will be sorted into the right
+        # running order, assuming that there is only one clock
+        code_objects = []
+        for obj in net.objects:
+            for codeobj in obj._code_objects:
+                codeobj.runs_every_tick = True
+                code_objects.append((obj.clock, codeobj))
+
+        # Code for a progress reporting function
+        standard_code = '''
+        void report_progress(const double elapsed, const double completed, const double duration)
+        {
+            if (completed == 0.0)
+            {
+                %STREAMNAME% << "Starting simulation for duration " << duration << " s";
+            } else
+            {
+                %STREAMNAME% << completed*duration << " s (" << (int)(completed*100.) << "%) simulated in " << elapsed << " s";
+                if (completed < 1.0)
+                {
+                    const int remaining = (int)((1-completed)/completed*elapsed+0.5);
+                    %STREAMNAME% << ", estimated " << remaining << " s remaining.";
+                }
+            }
+
+            %STREAMNAME% << std::endl << std::flush;
+        }
+        '''
+        if report is None:
+            self.report_func = ''
+        elif report == 'text' or report == 'stdout':
+            self.report_func = standard_code.replace('%STREAMNAME%', 'std::cout')
+        elif report == 'stderr':
+            self.report_func = standard_code.replace('%STREAMNAME%', 'std::cerr')
+        elif isinstance(report, basestring):
+            self.report_func = '''
+            void report_progress(const double elapsed, const double completed, const double duration)
+            {
+            %REPORT%
+            }
+            '''.replace('%REPORT%', report)
+        else:
+            raise TypeError(('report argument has to be either "text", '
+                             '"stdout", "stderr", or the code for a report '
+                             'function'))
+
+        if report is not None:
+            report_call = 'report_progress'
+        else:
+            report_call = 'NULL'
+
+        # Generate the updaters
+        run_lines = ['{net.name}.clear();'.format(net=net)]
+        run_lines.append('{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net));
+        for clock, codeobj in code_objects:
+            run_lines.append('{net.name}.add(&{clock.name}, _run_{codeobj.name});'.format(clock=clock, net=net,
+                                                                                               codeobj=codeobj))
+        run_lines.append('{net.name}.run({duration}, {report_call}, {report_period});'.format(net=net,
+                                                                                              duration=float(duration),
+                                                                                              report_call=report_call,
+                                                                                              report_period=float(report_period)))
+        self.main_queue.append(('run_network', (net, run_lines)))
+
 
 
 class RunFunctionContext(object):

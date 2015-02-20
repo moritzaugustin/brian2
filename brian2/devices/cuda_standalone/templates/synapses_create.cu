@@ -28,7 +28,7 @@
 	curandGenerator_t gen;
 	curandCreateGeneratorHost(&gen, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(gen, time(0));
-	curandGenerateUniform(gen, _array_random_float_numbers, max_syn_N);
+	curandGenerateUniform(gen, _array_random_float_numbers, MAX_SYN_N);
 
 	//these two vectors just cache everything on the CPU-side
 	//data is copied to GPU at the end
@@ -38,10 +38,10 @@
 	{{pointers_lines|autoindent}}
 
 	int syn_id = {{_dynamic__synaptic_pre}}.size();
-	for(int i = 0; i < _num_all_pre; i++)
+	for(int _i = 0; _i < _num_all_pre; _i++)
 	{
 		synapses_by_pre_neuron.push_back(syn_id);
-		for(int j = 0; j < _num_all_post; j++)
+		for(int _j = 0; _j < _num_all_post; _j++)
 		{
 			{% block maincode_inner %}
 		    const int _vectorisation_idx = _j;
@@ -51,7 +51,7 @@
 			{
 				if (_p != 1.0)
 				{
-					float r = _array_random_float_numbers[i*N_outgoing + j];
+					float r = _array_random_float_numbers[_i*_numN_outgoing + _j];
 					if (r >= _p)
 					{
 						continue;
@@ -76,6 +76,7 @@
     
 	// now we need to resize all registered variables
 	const int32_t newsize = {{_dynamic__synaptic_pre}}.size();
+	Nsynapses = 0;
 	{% for variable in owner._registered_variables | sort(attribute='name') %}
 	{% set varname = get_array_name(variable, access_data=False) %}
 	{{varname}}.resize(newsize);

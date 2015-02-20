@@ -8,6 +8,9 @@
     {% endif %}
 {% endfor %}
 
+{% block num_thread_check %}
+{% endblock %}
+
 {% block maincode %}
 	// This is only needed for the _debugmsg function below	
 	{# USES_VARIABLES { _synaptic_pre } #}	
@@ -15,9 +18,6 @@
 	cudaVector<int32_t>* pre_neuron_queue;
 	cudaVector<int32_t>* synapses_queue;
 	cudaVector<int32_t>* post_neuron_queue;
-
-	// scalar code
-	const int _vectorisation_idx = -1;
 	
 	{{pathway.name}}.queue->peek(
 		&synapses_queue,
@@ -25,14 +25,17 @@
 		&post_neuron_queue);
 
 	int size = post_neuron_queue[bid].size();
-	//outer loop, since most likely not all spikes fit into our shared memory
 	for(int j = tid; j < size; j += THREADS_PER_BLOCK)
 	{
-		int32_t _idx = post_neuron_queue[bid].getDataByIndex(j);
-		int32_t _spiking_synapse_idx = synapses_queue[bid].getDataByIndex(j);
+		int32_t _pre_idx = post_neuron_queue[bid].at(j);
+		int32_t _syn_idx = synapses_queue[bid].at(j);
 
 		{{vector_code|autoindent}}
 	}
+{% endblock %}
+
+{% block extra_maincode %}
+unsigned int N = {{owner.name}}._N();
 {% endblock %}
 
 {% block extra_functions_cu %}

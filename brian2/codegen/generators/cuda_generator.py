@@ -168,72 +168,39 @@ for func, func_cuda in [('arcsin', 'asin'), ('arccos', 'acos'), ('arctan', 'atan
 
 # Functions that need to be implemented specifically
 randn_code = '''
-
-    inline double _ranf()
-    {
-        return (double)rand()/RAND_MAX;
-    }
-
-    double _randn(const int vectorisation_idx)
-    {
-         double x1, x2, w;
-         static double y1, y2;
-         static bool need_values = true;
-         if (need_values)
-         {
-             do {
-                     x1 = 2.0 * _ranf() - 1.0;
-                     x2 = 2.0 * _ranf() - 1.0;
-                     w = x1 * x1 + x2 * x2;
-             } while ( w >= 1.0 );
-
-             w = sqrt( (-2.0 * log( w ) ) / w );
-             y1 = x1 * w;
-             y2 = x2 * w;
-
-             need_values = false;
-             return y1;
-         } else
-         {
-            need_values = true;
-            return y2;
-         }
-    }
+    #define _randn(vectorisation_idx) (_array_randn[%RAND_NORMAL_START% + vectorisation_idx])
         '''
 DEFAULT_FUNCTIONS['randn'].implementations.add_implementation(CUDACodeGenerator,
                                                               code=randn_code,
                                                               name='_randn')
 
 rand_code = '''
-        double _rand(int vectorisation_idx)
-        {
-	        return (double)rand()/RAND_MAX;
-        }
-        '''
+    #define _rand(vectorisation_idx) (_array_rand[%RAND_NORMAL_START% + vectorisation_idx])
+    '''
 DEFAULT_FUNCTIONS['rand'].implementations.add_implementation(CUDACodeGenerator,
                                                              code=rand_code,
                                                              name='_rand')
 
 clip_code = '''
-        double _clip(const float value, const float a_min, const float a_max)
-        {
-	        if (value < a_min)
-	            return a_min;
-	        if (value > a_max)
-	            return a_max;
-	        return value;
-	    }
-        '''
+    __device__ double _clip(const float value, const float a_min, const float a_max)
+    {
+        if (value < a_min)
+            return a_min;
+        if (value > a_max)
+            return a_max;
+        return value;
+    }
+    '''
 DEFAULT_FUNCTIONS['clip'].implementations.add_implementation(CUDACodeGenerator,
                                                              code=clip_code,
                                                              name='_clip')
 
 int_code = '''
-        int int_(const bool value)
-        {
-	        return value ? 1 : 0;
-        }
-        '''
+    __device__ int int_(const bool value)
+    {
+        return value ? 1 : 0;
+    }
+    '''
 DEFAULT_FUNCTIONS['int'].implementations.add_implementation(CUDACodeGenerator,
                                                             code=int_code,
                                                             name='int_')

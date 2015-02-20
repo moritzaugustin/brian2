@@ -9,9 +9,10 @@
 #include "network.h"
 #include<iostream>
 #include<fstream>
-#include <curand.h>
+
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <curand.h>
 
 //////////////// clocks ///////////////////
 {% for clock in clocks | sort(attribute='name') %}
@@ -93,6 +94,15 @@ __global__ void {{path.name}}_init(
 {% endfor %}
 {% endfor %}
 
+//////////////random numbers//////////////////
+float* brian::dev_array_random_normal_floats;
+float* brian::dev_array_random_uniform_floats;
+__device__ float* brian::_array_randn;
+__device__ float* brian::_array_rand;
+unsigned int brian::num_random_normal_numbers;
+unsigned int brian::num_random_uniform_numbers;
+curandGenerator_t brian::random_float_generator;
+
 void _init_arrays()
 {
 	using namespace brian;
@@ -103,6 +113,24 @@ void _init_arrays()
 	num_cuda_processors = props.multiProcessorCount;
 	max_threads_per_block = props.maxThreadsPerBlock;
 	max_shared_mem_size = props.sharedMemPerBlock;
+
+	num_random_normal_numbers = %RANDOM_NUMBER_NORMAL%;
+	num_random_uniform_numbers = %RANDOM_NUMBER_UNIFORM%;
+	cudaMalloc((void**)&dev_array_random_normal_floats, sizeof(float)*num_random_normal_numbers);
+	if(!dev_array_random_normal_floats)
+	{
+		printf("ERROR while allocating device memory with size %ld\n", sizeof(float)*num_random_normal_numbers);
+	}
+	cudaMalloc((void**)&dev_array_random_uniform_floats, sizeof(float)*num_random_uniform_numbers);
+	if(!dev_array_random_uniform_floats)
+	{
+		printf("ERROR while allocating device memory with size %ld\n", sizeof(float)*num_random_uniform_numbers);
+	}
+	cudaMemcpyToSymbol(_array_randn, dev_array_random_normal_floats, sizeof(float*));
+	cudaMemcpyToSymbol(_array_rand, dev_array_random_uniform_floats, sizeof(float*));
+	curandCreateGenerator(&random_float_generator, CURAND_RNG_PSEUDO_DEFAULT);
+	curandSetPseudoRandomGeneratorSeed(random_float_generator, time(0));
+	curandGenerateNormal(random_float_generator, dev_array_random_normal_floats, 1, 0.0, 1.0);	//generating one number here fixes some curand bugs
 
 	{% for S in synapses | sort(attribute='name') %}
 	{% for path in S._pathways | sort(attribute='name') %}
@@ -298,6 +326,7 @@ void _dealloc_arrays()
 #include "network.h"
 
 #include <thrust/device_vector.h>
+#include <curand.h>
 
 namespace brian {
 
@@ -356,6 +385,16 @@ extern __device__ SynapticPathway<double> {{path.name}};
 {% endfor %}
 {% endfor %}
 
+//////////////// random numbers /////////////////
+extern float* dev_array_random_normal_floats;
+extern float* dev_array_random_uniform_floats;
+extern __device__ float* _array_randn;
+extern __device__ float* _array_rand;
+extern unsigned int num_random_normal_numbers;
+extern unsigned int num_random_uniform_numbers;
+extern curandGenerator_t random_float_generator;
+
+//CUDA
 extern unsigned int num_cuda_processors;
 extern unsigned int max_threads_per_block;
 extern unsigned int max_shared_mem_size;

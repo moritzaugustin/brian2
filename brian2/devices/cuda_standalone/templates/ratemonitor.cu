@@ -1,9 +1,9 @@
 {% extends 'common_group.cu' %}
-
-{% block extra_maincode %}
 {# USES_VARIABLES { rate, t, _spikespace, _clock_t, _clock_dt,
                     _num_source_neurons, _source_start, _source_stop } #}
-{{_dynamic_t}}.push_back(t);
+
+{% block extra_maincode %}
+{{_dynamic_t}}.push_back(_clock_t);
 {{_dynamic_rate}}.push_back(0.0);	//push dummy value
 
 double* dev{{_dynamic_rate}} = thrust::raw_pointer_cast(&({{_dynamic_rate}}[0]));
@@ -12,20 +12,20 @@ int index_last_element = {{_dynamic_rate}}.size() - 1;
 
 {% block kernel_call %}
 _run_{{codeobj_name}}_kernel<<<1,1>>>(
-	{{_num_source_neurons}},
+	{{owner.source.N}},
 	_clock_dt,
 	index_last_element,
-	dev{{_spikespace}},
+	dev_array_{{owner.source.name}}__spikespace,
 	dev{{_dynamic_rate}});
 {% endblock %}
 
 {% block kernel %}
-__global__ void kernel_{{codeobj_name}}(
+__global__ void _run_{{codeobj_name}}_kernel(
 	unsigned int N,
 	double _clock_dt,
 	int32_t index_last_element,
 	int32_t* spikespace,
-	double* ratemonitor_rate;
+	double* ratemonitor_rate
 	)
 {
 	using namespace brian;

@@ -24,6 +24,9 @@ class CUDAStandaloneCodeObject(CPPStandaloneCodeObject):
     templater = Templater('brian2.devices.cuda_standalone',
                           env_globals={'c_data_type': c_data_type})
     generator_class = CUDACodeGenerator
+    runs_every_tick = False
+    rand_start_normal = 0
+    rand_start_uniform = 0
 
     def __call__(self, **kwds):
         return self.run()

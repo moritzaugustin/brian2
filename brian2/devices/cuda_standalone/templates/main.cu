@@ -3,6 +3,7 @@
 #include <ctime>
 #include <time.h>
 #include "run.h"
+#include "rand.h"
 
 {% for codeobj in code_objects %}
 #include "code_objects/{{codeobj.name}}.h"

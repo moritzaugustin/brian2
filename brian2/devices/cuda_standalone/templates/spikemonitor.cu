@@ -1,47 +1,55 @@
 {% extends 'common_group.cu' %}
+{# USES_VARIABLES { t, i, _clock_t, _spikespace, _count,
+                    _source_start, _source_stop} #}
 
-{% block maincode %}
-	//// MAIN CODE ////////////
-    {# USES_VARIABLES { t, i, _clock_t, _spikespace, _count,
-                        _source_start, _source_stop} #}
-	int32_t _num_spikes = {{_spikespace}}[_num_spikespace-1];
-    
-    {
-        if (_num_spikes > 0)
-        {
-            int _start_idx = 0;
-            int _end_idx = - 1;
-            for(int _j=0; _j<_num_spikes; _j++)
-            {
-                const int _idx = {{_spikespace}}[_j];
-                if (_idx >= _source_start) {
-                    _start_idx = _j;
-                    break;
-                }
-            }
-            for(int _j=_start_idx; _j<_num_spikes; _j++)
-            {
-                const int _idx = {{_spikespace}}[_j];
-                if (_idx >= _source_stop) {
-                    _end_idx = _j;
-                    break;
-                }
-            }
-            if (_end_idx == -1)
-                _end_idx =_num_spikes;
-            _num_spikes = _end_idx - _start_idx;
-            if (_num_spikes > 0) {
-                for(int _j=_start_idx; _j<_end_idx; _j++)
-                {
-                    const int _idx = {{_spikespace}}[_j];
-                    {{_dynamic_i}}.push_back(_idx-_source_start);
-                    {{_dynamic_t}}.push_back(_clock_t);
-                    {{_count}}[_idx-_source_start]++;
-                }
-            }
-        }
-    }
+{% block extra_maincode %}
+unsigned int start_spikes = {{_dynamic_i}}.size();
+int32_t num_spikes;
+cudaMemcpy(&num_spikes, &dev_array_{{owner.source.name}}__spikespace[{{owner.source.N}}], sizeof(int32_t), cudaMemcpyDeviceToHost);
 
+for(int i = 0; i < num_spikes; i++)
+{
+	{{_dynamic_i}}.push_back(0);	//push dummy value
+	{{_dynamic_t}}.push_back(t);
+}
+{% endblock %}
+
+{% block kernel_call %}
+_run_{{codeobj_name}}_kernel<<<1, 1>>>(
+		{{owner.source.N}},
+		num_blocks({{owner.source.N}}),
+		start_spikes,
+		thrust::raw_pointer_cast(&({{_dynamic_i}}[0])),
+		dev_array_{{owner.source.name}}__spikespace);
+{% endblock %}
+
+{% block kernel %}
+_global__ void _run_{{codeobj_name}}_kernel(
+	unsigned int neurongroup_N,
+	unsigned int num_blocks,
+	int32_t index_last_element,
+	int32_t* spikemonitor_i,
+	int32_t* spikespace
+	)
+{
+	using namespace brian;
+
+	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
+	for(int i = 0; i < neurongroup_N;)
+	{
+		int32_t spiking_neuron = spikespace[i];
+		if(spiking_neuron != -1)
+		{
+			spikemonitor_i[index++] = spiking_neuron;
+			i++;
+		}
+		else
+		{
+			//round to nearest multiple of N/num_blocks = start of next block
+			i += neurongroup_N/num_blocks - i % (neurongroup_N/num_blocks);
+		}
+	}
+}
 {% endblock %}
 
 {% block extra_functions_cu %}
