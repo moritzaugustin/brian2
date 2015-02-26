@@ -7,11 +7,10 @@
 
 	//// MAIN CODE ////////////	
 	// scalar code
-	const int _vectorisation_idx = -1;
 	{{scalar_code|autoindent}}
     
-	const int _idx = _spikes[_idx];
-	const int _vectorisation_idx = _idx;
+	//get spiking neuron_id
+	_idx = _spikes[_idx];
 	if(_idx != -1)
 	{
 		{{vector_code|autoindent}}

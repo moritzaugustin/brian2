@@ -10,7 +10,7 @@
 #include<stdint.h>
 #include "brianlib/common_math.h"
 
-unsigned int MEM_PER_THREAD = (2*sizeof(int32_t) + sizeof(unsigned int));
+#define MEM_PER_THREAD (2*sizeof(int32_t) + sizeof(unsigned int))
 
 __global__ void _run_{{codeobj_name}}_advance_kernel()
 {

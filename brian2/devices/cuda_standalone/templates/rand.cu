@@ -17,8 +17,15 @@ void _run_random_number_generation()
 
 	float mean = 0.0;
 	float std_deviation = 1.0;
-	curandGenerateNormal(random_float_generator, dev_array_random_normal_floats, num_random_normal_numbers, mean, std_deviation);
-	curandGenerateUniform(random_float_generator, dev_array_random_uniform_floats, num_random_uniform_numbers);
+
+	{% for co in code_objects %}
+	{% if co.rand_calls > 0 %}
+	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, {{co.owner._N}} * {{co.rand_calls}});
+	{% endif %}
+	{% if co.randn_calls > 0 %}
+	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.rand_calls}}), mean, std_deviation);
+	{% endif %}
+	{% endfor %}
 }
 {% endmacro %}
 

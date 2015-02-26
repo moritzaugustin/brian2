@@ -10,7 +10,7 @@ cudaMemcpy(&num_spikes, &dev_array_{{owner.source.name}}__spikespace[{{owner.sou
 for(int i = 0; i < num_spikes; i++)
 {
 	{{_dynamic_i}}.push_back(0);	//push dummy value
-	{{_dynamic_t}}.push_back(t);
+	{{_dynamic_t}}.push_back(_clock_t);
 }
 {% endblock %}
 
@@ -24,7 +24,7 @@ _run_{{codeobj_name}}_kernel<<<1, 1>>>(
 {% endblock %}
 
 {% block kernel %}
-_global__ void _run_{{codeobj_name}}_kernel(
+__global__ void _run_{{codeobj_name}}_kernel(
 	unsigned int neurongroup_N,
 	unsigned int num_blocks,
 	int32_t index_last_element,
@@ -40,7 +40,7 @@ _global__ void _run_{{codeobj_name}}_kernel(
 		int32_t spiking_neuron = spikespace[i];
 		if(spiking_neuron != -1)
 		{
-			spikemonitor_i[index++] = spiking_neuron;
+			spikemonitor_i[index_last_element++] = spiking_neuron;
 			i++;
 		}
 		else

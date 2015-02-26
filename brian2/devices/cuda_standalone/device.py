@@ -195,17 +195,16 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             net.after_run()
             
         #check how many random numbers are needed per step
-        num_rand_normal = 0
-        num_rand_uniform = 0
         for code_object in self.code_objects.itervalues():
             if code_object.runs_every_tick:
-                for name, value in code_object.variables.iteritems():
-                    if name == "_python_rand":
-                        code_object.rand_start = num_rand_uniform
-                        num_rand_uniform += code_object.owner.N
-                    elif name == "_python_randn":
-                        code_object.rand_start_uniform = num_rand_normal
-                        num_rand_normal += code_object.owner.N
+                num_occurences_rand = code_object.code.cu_file.count("_rand(")
+                num_occurences_randn = code_object.code.cu_file.count("_randn(")
+                if num_occurences_rand > 0:
+                    #first one is alway the definition, so subtract 1
+                    code_object.rand_calls = num_occurences_rand - 1
+                if num_occurences_randn > 0:
+                    #first one is alway the definition, so subtract 1
+                    code_object.randn_calls = num_occurences_randn - 1
                         
         arr_tmp = CUDAStandaloneCodeObject.templater.objects(
                         None, None,
@@ -217,9 +216,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         synapses=synapses,
                         clocks=self.clocks,
                         static_array_specs=static_array_specs,
-                        networks=networks)
-        arr_tmp.cu_file = arr_tmp.cu_file.replace('%RANDOM_NUMBER_NORMAL%', str(num_rand_normal))
-        arr_tmp.cu_file = arr_tmp.cu_file.replace('%RANDOM_NUMBER_UNIFORM%', str(num_rand_uniform))
+                        networks=networks,
+                        code_objects=self.code_objects.values())
         writer.write('objects.*', arr_tmp)
 
         main_lines = []
@@ -280,7 +278,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             lines = []
             additional_code = []
             for k, v in codeobj.variables.iteritems():
-                if k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
+                if k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
                     additional_code.append('''
                         //genenerate an arry of random numbers on the device
                         float* dev_array_randn;
@@ -293,7 +291,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
                         curandGenerateNormal(gen, dev_array_randn, N, 0, 1);''')
-                    line = "float* _array_randn"
+                    line = "float* _array_{name}_randn".format(name=codeobj.name)
                     device_parameters[codeobj.name].append(line)
                     host_parameters[codeobj.name].append("dev_array_randn")
                 elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
@@ -309,7 +307,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
                         curandGenerateUniform(gen, dev_array_rand, N);''')
-                    line = "float* _array_rand"
+                    line = "float* _array_{name}_rand".format(name=codeobj.name)
                     device_parameters[codeobj.name].append(line)
                     host_parameters[codeobj.name].append("dev_array_rand")
                 elif isinstance(v, AttributeVariable):
@@ -374,8 +372,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             code = code.replace('%HOST_PARAMETERS%', ',\n\t\t\t'.join(host_parameters[codeobj.name]))
             code = code.replace('%DEVICE_PARAMETERS%', ',\n\t'.join(device_parameters[codeobj.name]))
             code = code.replace('%KERNEL_VARIABLES%', '\n\t'.join(kernel_variables[codeobj.name]))
-            code = code.replace('%RAND_NORMAL_START%', str(codeobj.rand_start_normal))
-            code = code.replace('%RAND_UNIFORM_START%', str(codeobj.rand_start_uniform))
+            code = code.replace('%CODEOBJ_NAME%', codeobj.name)
             code = '#include "objects.h"\n'+code
             
             writer.write('code_objects/'+codeobj.name+'.cu', code)
@@ -406,7 +403,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                                                         )
         writer.write('run.*', run_tmp)
         
-        rand_tmp = CUDAStandaloneCodeObject.templater.rand(None, None)
+        rand_tmp = CUDAStandaloneCodeObject.templater.rand(None, None, code_objects=self.code_objects.values())
         writer.write('rand.*', rand_tmp)
 
         # Copy the brianlibdirectory

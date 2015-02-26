@@ -25,8 +25,8 @@ class CUDAStandaloneCodeObject(CPPStandaloneCodeObject):
                           env_globals={'c_data_type': c_data_type})
     generator_class = CUDACodeGenerator
     runs_every_tick = False
-    rand_start_normal = 0
-    rand_start_uniform = 0
+    rand_calls = 0
+    randn_calls = 0
 
     def __call__(self, **kwds):
         return self.run()

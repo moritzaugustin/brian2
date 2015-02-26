@@ -168,14 +168,14 @@ for func, func_cuda in [('arcsin', 'asin'), ('arccos', 'acos'), ('arctan', 'atan
 
 # Functions that need to be implemented specifically
 randn_code = '''
-    #define _randn(vectorisation_idx) (_array_randn[%RAND_NORMAL_START% + vectorisation_idx])
+    #define _randn(vectorisation_idx) (_array_%CODEOBJ_NAME%_randn[vectorisation_idx])
         '''
 DEFAULT_FUNCTIONS['randn'].implementations.add_implementation(CUDACodeGenerator,
                                                               code=randn_code,
                                                               name='_randn')
 
 rand_code = '''
-    #define _rand(vectorisation_idx) (_array_rand[%RAND_NORMAL_START% + vectorisation_idx])
+    #define _rand(vectorisation_idx) (_array_%CODEOBJ_NAME%_rand[vectorisation_idx])
     '''
 DEFAULT_FUNCTIONS['rand'].implementations.add_implementation(CUDACodeGenerator,
                                                              code=rand_code,
