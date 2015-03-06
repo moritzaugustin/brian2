@@ -42,7 +42,7 @@ unsigned int N = {{owner.name}}._N();
 void _debugmsg_{{codeobj_name}}()
 {
 	using namespace brian;
-	std::cout << "Number of synapses: " << {{_dynamic__synaptic_pre}}.size() << endl;
+	std::cout << "Number of synapses: " << dev{{_dynamic__synaptic_pre}}.size() << endl;
 }
 {% endblock %}
 

@@ -56,7 +56,7 @@ __global__ void _run_{{codeobj_name}}_kernel(
 void _debugmsg_{{codeobj_name}}()
 {
 	using namespace brian;
-	std::cout << "Number of spikes: " << {{_dynamic_i}}.size() << endl;
+	std::cout << "Number of spikes: " << dev{{_dynamic_i}}.size() << endl;
 }
 {% endblock %}
 

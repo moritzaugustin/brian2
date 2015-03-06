@@ -19,10 +19,10 @@ void _run_random_number_generation()
 	float std_deviation = 1.0;
 
 	{% for co in code_objects %}
-	{% if co.rand_calls > 0 %}
+	{% if co.rand_calls > 0 and co.runs_every_tick == True %}
 	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, {{co.owner._N}} * {{co.rand_calls}});
 	{% endif %}
-	{% if co.randn_calls > 0 %}
+	{% if co.randn_calls > 0 and co.runs_every_tick == True %}
 	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.rand_calls}}), mean, std_deviation);
 	{% endif %}
 	{% endfor %}

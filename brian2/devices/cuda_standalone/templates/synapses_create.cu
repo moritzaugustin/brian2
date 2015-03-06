@@ -71,15 +71,17 @@
 	}
 	synapses_by_pre_neuron.push_back(syn_id);
 
-	{{_synaptic_post}} = &temp_synaptic_post[0];
-	{{_synaptic_pre}} = &temp_synaptic_pre[0];
+	dev{{_dynamic__synaptic_pre}} = temp_synaptic_post;
+	dev{{_dynamic__synaptic_post}} = temp_synaptic_pre;
     
 	// now we need to resize all registered variables
-	const int32_t newsize = {{_dynamic__synaptic_pre}}.size();
+	const int32_t newsize = dev{{_dynamic__synaptic_pre}}.size();
 	{% for variable in owner._registered_variables | sort(attribute='name') %}
 	{% set varname = get_array_name(variable, access_data=False) %}
-	{{varname}}.resize(newsize);
+	dev{{varname}}.resize(newsize);
 	{% endfor %}
 	// Also update the total number of synapses
 	{{owner.name}}._N_value = newsize;
+
+	free(_array_random_float_numbers);
 {% endblock %}

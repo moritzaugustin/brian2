@@ -196,15 +196,24 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             
         #check how many random numbers are needed per step
         for code_object in self.code_objects.itervalues():
-            if code_object.runs_every_tick:
-                num_occurences_rand = code_object.code.cu_file.count("_rand(")
-                num_occurences_randn = code_object.code.cu_file.count("_randn(")
-                if num_occurences_rand > 0:
-                    #first one is alway the definition, so subtract 1
-                    code_object.rand_calls = num_occurences_rand - 1
-                if num_occurences_randn > 0:
-                    #first one is alway the definition, so subtract 1
-                    code_object.randn_calls = num_occurences_randn - 1
+            num_occurences_rand = code_object.code.cu_file.count("_rand(")
+            num_occurences_randn = code_object.code.cu_file.count("_randn(")
+            if num_occurences_rand > 0:
+                #first one is alway the definition, so subtract 1
+                code_object.rand_calls = num_occurences_rand - 1
+                for i in range(0, code_object.rand_calls):
+                    if code_object.owner.N <> 0:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
+                    else:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * N)", 1)
+            if num_occurences_randn > 0:
+                #first one is alway the definition, so subtract 1
+                code_object.randn_calls = num_occurences_randn - 1
+                for i in range(0, code_object.randn_calls):
+                    if code_object.owner.N <> 0:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
+                    else:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " *N)", 1)
                         
         arr_tmp = CUDAStandaloneCodeObject.templater.objects(
                         None, None,
@@ -282,15 +291,15 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     additional_code.append('''
                         //genenerate an arry of random numbers on the device
                         float* dev_array_randn;
-                        cudaMalloc((void**)&dev_array_randn, sizeof(float)*N);
+                        cudaMalloc((void**)&dev_array_randn, sizeof(float)*N*''' + str(codeobj.randn_calls) + ''');
                         if(!dev_array_randn)
                         {
-                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N);
+                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N*''' + str(codeobj.randn_calls) + ''');
                         }
                         curandGenerator_t gen;
                         curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
-                        curandGenerateNormal(gen, dev_array_randn, N, 0, 1);''')
+                        curandGenerateNormal(gen, dev_array_randn, N*''' + str(codeobj.rand_calls) + ''', 0, 1);''')
                     line = "float* _array_{name}_randn".format(name=codeobj.name)
                     device_parameters[codeobj.name].append(line)
                     host_parameters[codeobj.name].append("dev_array_randn")
@@ -298,15 +307,15 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     additional_code.append('''
                         //genenerate an arry of random numbers on the device
                         float* dev_array_rand;
-                        cudaMalloc((void**)&dev_array_rand, sizeof(float)*N);
+                        cudaMalloc((void**)&dev_array_rand, sizeof(float)*N*''' + str(codeobj.rand_calls) + ''');
                         if(!dev_array_rand)
                         {
-                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N);
+                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N*''' + str(codeobj.rand_calls) + ''');
                         }
                         curandGenerator_t gen;
                         curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
-                        curandGenerateUniform(gen, dev_array_rand, N);''')
+                        curandGenerateUniform(gen, dev_array_rand, N*''' + str(codeobj.randn_calls) + ''');''')
                     line = "float* _array_{name}_rand".format(name=codeobj.name)
                     device_parameters[codeobj.name].append(line)
                     host_parameters[codeobj.name].append("dev_array_rand")
