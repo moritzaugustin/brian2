@@ -8,7 +8,10 @@ from numpy.testing.utils import assert_equal, assert_allclose, assert_raises
 import numpy as np
 
 from brian2 import *
+from brian2.core.variables import variables_by_owner
 from brian2.utils.logger import catch_logs
+from brian2.devices.device import restore_device
+
 
 def _compare(synapses, expected):
     conn_matrix = np.zeros((len(synapses.source), len(synapses.target)))
@@ -35,6 +38,21 @@ def test_creation():
     assert len(S) == 0
     S = Synapses(G, model='w:1', pre='v+=w')
     assert S.source.name == S.target.name == G.name
+
+
+@attr('codegen-independent')
+def test_name_clashes():
+    # Using identical names for synaptic and pre- or post-synaptic variables
+    # is confusing and should be forbidden
+    G1 = NeuronGroup(1, 'a : 1')
+    G2 = NeuronGroup(1, 'b : 1')
+    assert_raises(ValueError, lambda: Synapses(G1, G2, 'a : 1'))
+    assert_raises(ValueError, lambda: Synapses(G1, G2, 'b : 1'))
+
+    # this should all be ok
+    Synapses(G1, G2, 'c : 1')
+    Synapses(G1, G2, 'a_syn : 1')
+    Synapses(G1, G2, 'b_syn : 1')
 
 
 def test_incoming_outgoing():
@@ -107,15 +125,10 @@ def test_connection_arrays():
 
 from brian2.devices.cpp_standalone import cpp_standalone_device
 
-
-def restore_device():
-    cpp_standalone_device.reinit()
-    set_device('runtime')
-    restore_initial_state()
-
-@attr('standalone')
+@attr('cpp_standalone', 'standalone-only')
 @with_setup(teardown=restore_device)
 def test_connection_array_standalone():
+    previous_device = get_device()
     set_device('cpp_standalone')
     # use a clock with 1s timesteps to avoid rounding issues
     G1 = SpikeGeneratorGroup(4, np.array([0, 1, 2, 3]),
@@ -137,6 +150,7 @@ def test_connection_array_standalone():
                          [0, 0, 0, 1, 1],
                          [0, 0, 0, 0, 0]], dtype=np.float64)
     assert_equal(mon.v, expected)
+    set_device(previous_device)
 
 
 def test_connection_string_deterministic_basic():
@@ -443,10 +457,10 @@ def test_subexpression_references():
     G.v = np.arange(10)
     S = Synapses(G, G, '''w : 1
                           u = v2_post + 1 : 1
-                          v = v2_pre + 1 : 1''')
+                          x = v2_pre + 1 : 1''')
     S.connect('i==(10-1-j)')
     assert_equal(S.u[:], np.arange(10)[::-1]*2+1)
-    assert_equal(S.v[:], np.arange(10)*2+1)
+    assert_equal(S.x[:], np.arange(10)*2+1)
 
 
 def test_delay_specification():
@@ -509,7 +523,8 @@ def test_transmission():
         assert_allclose(source_mon.t[source_mon.i==1],
                         target_mon.t[target_mon.i==1] - default_dt - delay[1])
 
-
+#@attr('standalone-compatible')  # scalar delays not yet supported in standalone
+@with_setup(teardown=restore_device)
 def test_transmission_scalar_delay():
     inp = SpikeGeneratorGroup(2, [0, 1], [0, 1]*ms)
     target = NeuronGroup(2, 'v:1')
@@ -522,7 +537,8 @@ def test_transmission_scalar_delay():
     assert_equal(mon[1].v[mon.t<1.5*ms], 0)
     assert_equal(mon[1].v[mon.t>=1.5*ms], 1)
 
-
+#@attr('standalone-compatible')  # scalar delays not yet supported in standalone
+@with_setup(teardown=restore_device)
 def test_transmission_scalar_delay_different_clocks():
 
     inp = SpikeGeneratorGroup(2, [0, 1], [0, 1]*ms, dt=0.5*ms,
@@ -591,6 +607,20 @@ def test_changed_dt_spikes_in_queue():
     assert_equal(mon.t[:], expected)
 
 
+@attr('codegen-independent')
+def test_no_synapses():
+    # Synaptic pathway but no synapses
+    G1 = NeuronGroup(1, '', threshold='True')
+    G2 = NeuronGroup(1, 'v:1')
+    S = Synapses(G1, G2, pre='v+=1', name='synapses_'+str(uuid.uuid4()).replace('-', '_'))
+    net = Network(G1, G2, S)
+    with catch_logs() as l:
+        net.run(defaultclock.dt)
+        assert len(l) == 1, 'expected 1 warning, got %d' % len(l)
+        assert l[0][1].endswith('.no_synapses')
+
+#@attr('standalone-compatible')  # synaptic indexing is not yet possible in standalone
+@with_setup(teardown=restore_device)
 def test_summed_variable():
     source = NeuronGroup(2, 'v : 1', threshold='v>1', reset='v=0')
     source.v = 1.1  # will spike immediately
@@ -690,7 +720,8 @@ def test_scalar_subexpression():
                                                      sub = v_post + s : 1 (shared)''',
                                                 pre='v+=s', connect=True))
 
-
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_external_variables():
     # Make sure that external variables are correctly resolved
     source = SpikeGeneratorGroup(1, [0], [0]*ms)
@@ -704,7 +735,7 @@ def test_external_variables():
     assert target.v[0] == 2
 
 
-@attr('long')
+@attr('long', 'standalone-compatible')
 def test_event_driven():
     # Fake example, where the synapse is actually not changing the state of the
     # postsynaptic neuron, the pre- and post spiketrains are regular spike
@@ -768,9 +799,29 @@ def test_repr():
     for func in [str, repr, sympy.latex]:
         assert len(func(S.equations))
 
+@attr('codegen-independent')
+def test_variables_by_owner():
+    # Test the `variables_by_owner` convenience function
+    G = NeuronGroup(10, 'v : 1')
+    G2 = NeuronGroup(10, '''v : 1
+                            w : 1''')
+    S = Synapses(G, G2, 'x : 1')
+
+    # Check that the variables returned as owned by the pre/post groups are the
+    # variables stored in the respective groups. We only compare the `Variable`
+    # objects, as the names may be different (e.g. ``v_post`` vs. ``v``)
+    assert set(G.variables.values()) == set(variables_by_owner(S.variables, G).values())
+    assert set(G2.variables.values()) == set(variables_by_owner(S.variables, G2).values())
+    assert len(set(variables_by_owner(S.variables, S)) & set(G.variables.values())) == 0
+    assert len(set(variables_by_owner(S.variables, S)) & set(G2.variables.values())) == 0
+    # Just test a few examples for synaptic variables
+    assert all(varname in variables_by_owner(S.variables, S)
+               for varname in ['x', 'N', 'N_incoming', 'N_outgoing'])
+
 
 if __name__ == '__main__':
     test_creation()
+    test_name_clashes()
     test_incoming_outgoing()
     test_connection_string_deterministic()
     test_connection_random()
@@ -788,6 +839,7 @@ if __name__ == '__main__':
     test_transmission_scalar_delay_different_clocks()
     test_clocks()
     test_changed_dt_spikes_in_queue()
+    test_no_synapses()
     test_summed_variable()
     test_summed_variable_errors()
     test_scalar_parameter_access()
@@ -795,3 +847,4 @@ if __name__ == '__main__':
     test_external_variables()
     test_event_driven()
     test_repr()
+    test_variables_by_owner()

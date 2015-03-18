@@ -18,7 +18,7 @@ from brian2.utils.stringtools import code_representation, indent
 
 __all__ = ['Device', 'RuntimeDevice',
            'get_device', 'set_device',
-           'all_devices',
+           'all_devices', 'restore_device',
            'device',
            ]
 
@@ -30,20 +30,62 @@ all_devices = {}
 prefs.register_preferences('devices', 'Device preferences')
 
 
+#: caches the automatically determined code generation target
+_auto_target = None
+
+def auto_target():
+    '''
+    Automatically chose a code generation target (invoked when the
+    `codegen.target` preference is set to `'auto'`. Caches its result so it
+    only does the check once. Prefers weave > cython > numpy.
+
+    Returns
+    -------
+    target : class derived from `CodeObject`
+        The target to use
+    '''
+    global _auto_target
+    if _auto_target is None:
+        target_dict = dict((target.class_name, target)
+                           for target in codegen_targets
+                           if target.class_name)
+        using_fallback = False
+        if 'weave' in target_dict and target_dict['weave'].is_available():
+            _auto_target = target_dict['weave']
+        elif 'cython' in target_dict and target_dict['cython'].is_available():
+            _auto_target = target_dict['cython']
+        else:
+            _auto_target = target_dict['numpy']
+            using_fallback = True
+
+        if using_fallback:
+            logger.warn('Cannot use compiled code, falling back to the numpy '
+                        'code generation target. Note that this will likely '
+                        'be slower than using compiled code.',
+                        'codegen_fallback')
+        else:
+            logger.info(('Chosing %r as the code generation '
+                         'target.') % _auto_target.class_name)
+
+    return _auto_target
+
 def get_default_codeobject_class(pref='codegen.target'):
     '''
     Returns the default `CodeObject` class from the preferences.
     '''
     codeobj_class = prefs[pref]
     if isinstance(codeobj_class, str):
+        if codeobj_class == 'auto':
+            return auto_target()
         for target in codegen_targets:
             if target.class_name == codeobj_class:
                 return target
         # No target found
+        targets = ['auto'] + [target.class_name
+                              for target in codegen_targets
+                              if target.class_name]
         raise ValueError("Unknown code generation target: %s, should be "
-                         " one of %s"%(codeobj_class,
-                                       [target.class_name
-                                        for target in codegen_targets]))
+                         " one of %s" % (codeobj_class, targets))
     return codeobj_class
 
 
@@ -245,6 +287,13 @@ class Device(object):
         For standalone projects, called when the project is ready to be built. Does nothing for runtime mode.
         '''
         pass
+
+    def reinit(self):
+        '''
+        Reinitialize the device. For standalone devices, clears all the internal
+        state of the device.
+        '''
+        pass
     
     
 class RuntimeDevice(Device):
@@ -376,6 +425,7 @@ def get_device():
     global active_device
     return active_device
 
+
 def set_device(device):
     '''
     Sets the active `Device` object
@@ -386,3 +436,10 @@ def set_device(device):
     active_device = device
     active_device.activate()
 
+
+def restore_device():
+    from brian2 import restore_initial_state  # avoids circular import
+
+    for device in all_devices.itervalues():
+        device.reinit()
+    restore_initial_state()

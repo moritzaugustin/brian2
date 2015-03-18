@@ -112,9 +112,15 @@ class CPPCodeGenerator(CodeGenerator):
 
     def __init__(self, *args, **kwds):
         super(CPPCodeGenerator, self).__init__(*args, **kwds)
-        self.restrict = prefs['codegen.generators.cpp.restrict_keyword'] + ' '
-        self.flush_denormals = prefs['codegen.generators.cpp.flush_denormals']
         self.c_data_type = c_data_type
+
+    @property
+    def restrict(self):
+        return prefs['codegen.generators.cpp.restrict_keyword'] + ' '
+
+    @property
+    def flush_denormals(self):
+        return prefs['codegen.generators.cpp.flush_denormals']
 
     @staticmethod
     def get_array_name(var, access_data=True):
@@ -296,20 +302,6 @@ class CPPCodeGenerator(CodeGenerator):
         keywords.update(template_kwds)
         return keywords
 
-    def translate_statement_sequence(self, statements):
-        scalar_code = {}
-        vector_code = {}
-        for name, block in statements.iteritems():
-            scalar_statements = [stmt for stmt in block if stmt.scalar]
-            vector_statements = [stmt for stmt in block if not stmt.scalar]
-            scalar_code[name] = self.translate_one_statement_sequence(scalar_statements)
-            vector_code[name] = self.translate_one_statement_sequence(vector_statements)
-
-        kwds = self.determine_keywords()
-
-        return scalar_code, vector_code, kwds
-
-
 ################################################################################
 # Implement functions
 ################################################################################
@@ -322,10 +314,20 @@ for func in ['sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'exp', 'log',
 
 # Functions that need a name translation
 for func, func_cpp in [('arcsin', 'asin'), ('arccos', 'acos'), ('arctan', 'atan'),
-                       ('abs', 'fabs'), ('mod', 'fmod')]:
+                       ('mod', 'fmod'),
+                       ]:
     DEFAULT_FUNCTIONS[func].implementations.add_implementation(CPPCodeGenerator,
                                                                code=None,
                                                                name=func_cpp)
+
+
+abs_code = '''
+#define _brian_abs std::abs
+'''
+DEFAULT_FUNCTIONS['abs'].implementations.add_implementation(CPPCodeGenerator,
+                                                            code=abs_code,
+                                                            name='_brian_abs')
+
 
 # Functions that need to be implemented specifically
 randn_code = '''

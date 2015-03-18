@@ -1,9 +1,10 @@
+from nose import with_setup
 from nose.plugins.attrib import attr
 from numpy.testing.utils import assert_raises, assert_equal, assert_allclose
 
 from brian2 import *
 from brian2.utils.logger import catch_logs
-
+from brian2.devices.device import restore_device
 
 @attr('codegen-independent')
 def test_str_repr():
@@ -99,6 +100,8 @@ def test_state_variables_group_as_index_problematic():
             assert all([entry[1].endswith('ambiguous_string_expression')
                         for entry in l])
 
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_state_monitor():
     G = NeuronGroup(10, 'v : volt')
     G.v = np.arange(10) * volt
@@ -256,30 +259,30 @@ def test_subexpression_references():
 
     S1 = Synapses(SG1, SG2, '''w : 1
                           u = v2_post + 1 : 1
-                          v = v2_pre + 1 : 1''')
+                          x = v2_pre + 1 : 1''')
     S1.connect('i==(5-1-j)')
     assert_equal(S1.i[:], np.arange(5))
     assert_equal(S1.j[:], np.arange(5)[::-1])
     assert_equal(S1.u[:], np.arange(10)[:-6:-1]*2+1)
-    assert_equal(S1.v[:], np.arange(5)*2+1)
+    assert_equal(S1.x[:], np.arange(5)*2+1)
 
     S2 = Synapses(G, SG2, '''w : 1
                              u = v2_post + 1 : 1
-                             v = v2_pre + 1 : 1''')
+                             x = v2_pre + 1 : 1''')
     S2.connect('i==(5-1-j)')
     assert_equal(S2.i[:], np.arange(5))
     assert_equal(S2.j[:], np.arange(5)[::-1])
     assert_equal(S2.u[:], np.arange(10)[:-6:-1]*2+1)
-    assert_equal(S2.v[:], np.arange(5)*2+1)
+    assert_equal(S2.x[:], np.arange(5)*2+1)
 
     S3 = Synapses(SG1, G, '''w : 1
                              u = v2_post + 1 : 1
-                             v = v2_pre + 1 : 1''')
+                             x = v2_pre + 1 : 1''')
     S3.connect('i==(10-1-j)')
     assert_equal(S3.i[:], np.arange(5))
     assert_equal(S3.j[:], np.arange(10)[:-6:-1])
     assert_equal(S3.u[:], np.arange(10)[:-6:-1]*2+1)
-    assert_equal(S3.v[:], np.arange(5)*2+1)
+    assert_equal(S3.x[:], np.arange(5)*2+1)
 
 
 def test_subexpression_no_references():
@@ -295,35 +298,36 @@ def test_subexpression_no_references():
 
     S1 = Synapses(G[:5], G[5:], '''w : 1
                           u = v2_post + 1 : 1
-                          v = v2_pre + 1 : 1''')
+                          x = v2_pre + 1 : 1''')
     S1.connect('i==(5-1-j)')
     assert_equal(S1.i[:], np.arange(5))
     assert_equal(S1.j[:], np.arange(5)[::-1])
     assert_equal(S1.u[:], np.arange(10)[:-6:-1]*2+1)
-    assert_equal(S1.v[:], np.arange(5)*2+1)
+    assert_equal(S1.x[:], np.arange(5)*2+1)
 
     S2 = Synapses(G, G[5:], '''w : 1
                              u = v2_post + 1 : 1
-                             v = v2_pre + 1 : 1''')
+                             x = v2_pre + 1 : 1''')
     S2.connect('i==(5-1-j)')
     assert_equal(S2.i[:], np.arange(5))
     assert_equal(S2.j[:], np.arange(5)[::-1])
     assert_equal(S2.u[:], np.arange(10)[:-6:-1]*2+1)
-    assert_equal(S2.v[:], np.arange(5)*2+1)
+    assert_equal(S2.x[:], np.arange(5)*2+1)
 
     S3 = Synapses(G[:5], G, '''w : 1
                              u = v2_post + 1 : 1
-                             v = v2_pre + 1 : 1''')
+                             x = v2_pre + 1 : 1''')
     S3.connect('i==(10-1-j)')
     assert_equal(S3.i[:], np.arange(5))
     assert_equal(S3.j[:], np.arange(10)[:-6:-1])
     assert_equal(S3.u[:], np.arange(10)[:-6:-1]*2+1)
-    assert_equal(S3.v[:], np.arange(5)*2+1)
+    assert_equal(S3.x[:], np.arange(5)*2+1)
 
-
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_synaptic_propagation():
     G1 = NeuronGroup(10, 'v:1', threshold='v>1', reset='v=0')
-    G1.v[1::2] = 1.1 # odd numbers should spike
+    G1.v['i%2==1'] = 1.1 # odd numbers should spike
     G2 = NeuronGroup(20, 'v:1')
     SG1 = G1[1:6]
     SG2 = G2[10:]
@@ -336,7 +340,8 @@ def test_synaptic_propagation():
     expected[[10, 12, 14]] = 1
     assert_equal(np.asarray(G2.v).flatten(), expected)
 
-
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_spike_monitor():
     G = NeuronGroup(10, 'v:1', threshold='v>1', reset='v=0')
     G.v[0] = 1.1
@@ -378,6 +383,8 @@ def test_no_reference_1():
     G.v = np.arange(10)
     assert_equal(G[:5].v[:], G.v[:5])
 
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_no_reference_2():
     '''
     Using subgroups without keeping an explicit reference. Monitors
@@ -394,7 +401,8 @@ def test_no_reference_2():
     assert_equal(spike_mon.t[:], np.array([0])*second)
     assert_equal(rate_mon.rate[:], np.array([0.5, 0])/defaultclock.dt)
 
-
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_no_reference_3():
     '''
     Using subgroups without keeping an explicit reference. Monitors
@@ -406,13 +414,14 @@ def test_no_reference_3():
     net.run(defaultclock.dt)
     assert_equal(G.v[:], np.array([0, 1]))
 
-
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_no_reference_4():
     '''
     Using subgroups without keeping an explicit reference. Synapses
     '''
     G1 = NeuronGroup(10, 'v:1', threshold='v>1', reset='v=0')
-    G1.v[1::2] = 1.1 # odd numbers should spike
+    G1.v['i%2==1'] = 1.1 # odd numbers should spike
     G2 = NeuronGroup(20, 'v:1')
     S = Synapses(G1[1:6], G2[10:], pre='v+=1')
     S.connect('i==j')

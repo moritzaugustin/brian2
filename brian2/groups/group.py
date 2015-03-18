@@ -3,12 +3,8 @@ This module defines the `Group` object, a mix-in class for everything that
 saves state variables, e.g. `NeuronGroup` or `StateMonitor`.
 '''
 import collections
+from collections import OrderedDict
 import weakref
-try:
-    from collections import OrderedDict
-except ImportError:
-    # OrderedDict was added in Python 2.7, use backport for Python 2.6
-    from brian2.utils.ordereddict import OrderedDict
 
 import numpy as np
 
@@ -27,7 +23,7 @@ from brian2.units.fundamentalunits import (fail_for_dimension_mismatch, Unit,
                                            get_unit)
 from brian2.units.allunits import second
 from brian2.utils.logger import get_logger
-from brian2.utils.stringtools import get_identifiers
+from brian2.utils.stringtools import get_identifiers, SpellChecker
 
 __all__ = ['Group', 'CodeRunner']
 
@@ -196,9 +192,11 @@ class Indexing(object):
             raise IndexError(('Can only interpret 1-d indices, '
                               'got %d dimensions.') % len(item))
         else:
-            if item is None:
+            if item is None or item == 'True':
                 item = slice(None)
             if isinstance(item, slice):
+                if index_var == '0':
+                    return 0
                 if index_var == '_idx':
                     start, stop, step = item.indices(self.N.get_value())
                 else:
@@ -369,8 +367,55 @@ class Group(BrianObject):
             var.get_addressable_value(name[:-1], self).set_item(slice(None),
                                                                 val,
                                                                 level=level+1)
-        else:
+        elif hasattr(self, name) or name.startswith('_'):
             object.__setattr__(self, name, val)
+        else:
+            # Try to suggest the correct name in case of a typo
+            checker = SpellChecker([varname for varname, var in self.variables.iteritems()
+                                    if not (varname.startswith('_') or var.read_only)])
+            if name.endswith('_'):
+                suffix = '_'
+                name = name[:-1]
+            else:
+                suffix = ''
+            error_msg = 'Could not find a state variable with name "%s".' % name
+            suggestions = checker.suggest(name)
+            if len(suggestions) == 1:
+                suggestion, = suggestions
+                error_msg += ' Did you mean to write "%s%s"?' % (suggestion,
+                                                                 suffix)
+            elif len(suggestions) > 1:
+                error_msg += (' Did you mean to write any of the following: %s ?' %
+                              (', '.join(['"%s%s"' % (suggestion, suffix)
+                                          for suggestion in suggestions])))
+            error_msg += (' Use the add_attribute method if you intend to add '
+                          'a new attribute to the object.')
+            raise AttributeError(error_msg)
+
+    def add_attribute(self, name):
+        '''
+        Add a new attribute to this group. Using this method instead of simply
+        assigning to the new attribute name is necessary because Brian will
+        raise an error in that case, to avoid bugs passing unnoticed
+        (misspelled state variable name, un-declared state variable, ...).
+
+        Parameters
+        ----------
+        name : str
+            The name of the new attribute
+
+        Raises
+        ------
+        AttributeError
+            If the name already exists as an attribute or a state variable.
+        '''
+        if name in self.variables:
+            raise AttributeError('Cannot add an attribute "%s", it is already '
+                                 'a state variable of this group.' % name)
+        if hasattr(self, name):
+            raise AttributeError('Cannot add an attribute "%s", it is already '
+                                 'an attribute of this group.' % name)
+        object.__setattr__(self, name, None)
 
     def get_states(self, vars=None, units=True, format='dict', level=0):
         '''
@@ -551,17 +596,27 @@ class Group(BrianObject):
             # external namespace nevertheless, to report a warning if it is
             # present there as well.
             try:
-                self._resolve_external(identifier,
-                                       run_namespace=run_namespace,
-                                       level=level+1)
+                resolved_external = self._resolve_external(identifier,
+                                                           run_namespace=run_namespace,
+                                                           level=level+1)
                 # If we arrive here without a KeyError then the name is present
                 # in the external namespace as well
-                message = ('Variable {var} is present in the namespace but is '
-                           'also an internal variable of {name}, the internal '
-                           'variable will be used.'.format(var=identifier,
-                                                           name=self.name))
-                logger.warn(message, 'Group.resolve.resolution_conflict',
-                            once=True)
+
+                # Do not raise a warning if both correspond to the same constant
+                # value, a typical case being an externally defined "N" with the
+                # the number of neurons and a later use of "N" in an expression
+                # (which refers to the internal variable storing the number of
+                # neurons in the group)
+                if not (isinstance(resolved_internal, Constant) and
+                            isinstance(resolved_external, Constant) and
+                                resolved_internal.get_value() == resolved_external.get_value()):
+
+                    message = ('Variable {var} is present in the namespace but is '
+                               'also an internal variable of {name}, the internal '
+                               'variable will be used.'.format(var=identifier,
+                                                               name=self.name))
+                    logger.warn(message, 'Group.resolve.resolution_conflict',
+                                once=True)
             except KeyError:
                 pass  # Nothing to warn about
 
@@ -715,7 +770,7 @@ class Group(BrianObject):
 
         # Replace pure Python functions by a Functions object
         if callable(resolved) and not isinstance(resolved, Function):
-            resolved = Function(resolved)
+            resolved = Function(resolved, stateless=False)
 
         if not isinstance(resolved, (Function, Variable)):
             # Wrap the value in a Constant object
@@ -854,6 +909,7 @@ class CodeRunner(BrianObject):
         if codeobj_class is None:
             codeobj_class = group.codeobj_class
         self.codeobj_class = codeobj_class
+        self.codeobj = None
 
     def update_abstract_code(self, run_namespace=None, level=0):
         '''

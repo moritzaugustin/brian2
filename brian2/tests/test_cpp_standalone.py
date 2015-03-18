@@ -4,21 +4,16 @@ import os
 from nose import with_setup
 from nose.plugins.attrib import attr
 import numpy
-from numpy.testing.utils import assert_allclose
+from numpy.testing.utils import assert_allclose, assert_equal
 
 from brian2 import *
 from brian2.devices.cpp_standalone import cpp_standalone_device
+from brian2.devices.device import restore_device
 
-
-def restore_device():
-    cpp_standalone_device.reinit()
-    set_device('runtime')
-    restore_initial_state()
-
-
-@attr('standalone')
+@attr('cpp_standalone', 'standalone-only')
 @with_setup(teardown=restore_device)
 def test_cpp_standalone(with_output=False):
+    previous_device = get_device()
     set_device('cpp_standalone')
     ##### Define the model
     tau = 1*ms
@@ -55,10 +50,12 @@ def test_cpp_standalone(with_output=False):
     assert len(M.t) == len(M.i)
     assert M.t[0] == 0.
     assert M.t[-1] == 100*ms - defaultclock.dt
+    set_device(previous_device)
 
-@attr('standalone')
+@attr('cpp_standalone', 'standalone-only')
 @with_setup(teardown=restore_device)
 def test_multiple_connects(with_output=False):
+    previous_device = get_device()
     set_device('cpp_standalone')
     G = NeuronGroup(10, 'v:1')
     S = Synapses(G, G, 'w:1')
@@ -71,10 +68,12 @@ def test_multiple_connects(with_output=False):
     device.build(directory=tempdir, compile=True, run=True,
                  with_output=True)
     assert len(S) == 2 and len(S.w[:]) == 2
+    set_device(previous_device)
 
-@attr('standalone')
+@attr('cpp_standalone', 'standalone-only')
 @with_setup(teardown=restore_device)
 def test_storing_loading(with_output=False):
+    previous_device = get_device()
     set_device('cpp_standalone')
     G = NeuronGroup(10, '''v : volt
                            x : 1
@@ -88,32 +87,33 @@ def test_storing_loading(with_output=False):
     G.x = x
     G.n = n
     G.b = b
-    S = Synapses(G, G, '''v : volt
-                          x : 1
-                          n : integer
-                          b : boolean''', connect='i==j')
-    S.v = v
-    S.x = x
-    S.n = n
-    S.b = b
+    S = Synapses(G, G, '''v_syn : volt
+                          x_syn : 1
+                          n_syn : integer
+                          b_syn : boolean''', connect='i==j')
+    S.v_syn = v
+    S.x_syn = x
+    S.n_syn = n
+    S.b_syn = b
     run(0*ms)
     tempdir = tempfile.mkdtemp()
     if with_output:
         print tempdir
     device.build(directory=tempdir, compile=True, run=True, with_output=True)
     assert_allclose(G.v[:], v)
-    assert_allclose(S.v[:], v)
+    assert_allclose(S.v_syn[:], v)
     assert_allclose(G.x[:], x)
-    assert_allclose(S.x[:], x)
+    assert_allclose(S.x_syn[:], x)
     assert_allclose(G.n[:], n)
-    assert_allclose(S.n[:], n)
+    assert_allclose(S.n_syn[:], n)
     assert_allclose(G.b[:], b)
-    assert_allclose(S.b[:], b)
+    assert_allclose(S.b_syn[:], b)
+    set_device(previous_device)
 
-@attr('standalone')
+@attr('cpp_standalone', 'standalone-only')
 @with_setup(teardown=restore_device)
 def test_openmp_consistency(with_output=False):
-
+    previous_device = get_device()
     n_cells    = 100
     n_recorded = 10
     numpy.random.seed(42)
@@ -133,7 +133,10 @@ def test_openmp_consistency(with_output=False):
 
     connectivity = numpy.random.randn(n_cells, n_cells)
     sources      = numpy.random.random_integers(0, n_cells-1, 10*n_cells)
-    times        = 1*second*numpy.sort(numpy.random.rand(10*n_cells))
+    # Only use one spike per time step (to rule out that a single source neuron
+    # has more than one spike in a time step)
+    times        = numpy.random.choice(numpy.arange(10*n_cells), 10*n_cells,
+                                       replace=False)*ms
     v_init       = Vr + numpy.random.rand(n_cells) * (Vt - Vr)
 
     eqs  = Equations('''
@@ -204,6 +207,41 @@ def test_openmp_consistency(with_output=False):
         assert_allclose(results[key1]['v'], results[key2]['v'])
         assert_allclose(results[key1]['r'], results[key2]['r'])
         assert_allclose(results[key1]['s'], results[key2]['s'])
+    set_device(previous_device)
+
+@attr('cpp_standalone', 'standalone-only')
+@with_setup(teardown=restore_device)
+def test_timedarray(with_output=True):
+    previous_device = get_device()
+    set_device('cpp_standalone')
+
+    defaultclock.dt = 0.1*ms
+    ta1d = TimedArray(np.arange(10)*volt, dt=1*ms)
+    ta2d = TimedArray(np.arange(300).reshape(3, 100).T, dt=defaultclock.dt)
+    G = NeuronGroup(4, '''x = ta1d(t) : volt
+                          y = ta2d(t, i) : 1''')
+    mon = StateMonitor(G, ['x', 'y'], record=True)
+    run(11*ms)
+    tempdir = tempfile.mkdtemp()
+    if with_output:
+        print tempdir
+    device.build(directory=tempdir, compile=True,
+                 run=True, with_output=with_output)
+
+    for idx in xrange(4):
+        # x variable should have neuron independent values
+        assert_equal(mon[idx].x[:],
+                     np.clip(np.arange(11).repeat(10), 0, 9)*volt)
+
+    for idx in xrange(3):
+        # y variable is neuron-specific
+        assert_equal(mon[idx].y[:],
+                     np.clip(np.arange(110), 0, 99) + idx*100)
+    # the 2d array only has 3 columns, the last neuron should therefore contain
+    # only NaN
+    assert_equal(mon[3].y[:], np.nan)
+
+    set_device(previous_device)
 
 
 if __name__=='__main__':
@@ -213,7 +251,8 @@ if __name__=='__main__':
              test_cpp_standalone,
              test_multiple_connects,
              test_storing_loading,
-             test_openmp_consistency
+             test_openmp_consistency,
+             test_timedarray
              ]:
         t(with_output=True)
         restore_device()

@@ -1,11 +1,11 @@
-from nose import SkipTest
+from nose import SkipTest, with_setup
 from nose.plugins.attrib import attr
 from numpy.testing import assert_equal, assert_raises, assert_allclose
 
 from brian2 import *
 from brian2.parsing.sympytools import str_to_sympy, sympy_to_str
 from brian2.utils.logger import catch_logs
-
+from brian2.devices.device import restore_device
 
 @attr('codegen-independent')
 def test_constants_sympy():
@@ -125,6 +125,8 @@ def test_math_functions():
                             err_msg='Function %s did not return the correct values' % func.__name__)
 
 
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_user_defined_function():
     @implementation('cpp',"""
                 inline double usersin(double x)
@@ -153,6 +155,7 @@ def test_user_defined_function():
     assert_equal(np.sin(test_array), mon.func_.flatten())
 
 
+@with_setup(teardown=restore_device)
 def test_user_defined_function_units():
     '''
     Test the preparation of functions for use in code with check_units.
@@ -284,6 +287,7 @@ def test_manual_user_defined_function():
 
     assert mon[0].func == [6] * volt
 
+
 def test_manual_user_defined_function_weave():
     if prefs.codegen.target != 'weave':
         raise SkipTest('weave-only test')
@@ -374,7 +378,7 @@ def test_function_implementation_container():
 
     # Register the code generation targets
     _previous_codegen_targets = set(targets.codegen_targets)
-    targets.codegen_targets = set([ACodeObject, BCodeObject])
+    targets.codegen_targets = {ACodeObject, BCodeObject}
 
     @check_units(x=volt, result=volt)
     def foo(x):
@@ -406,8 +410,8 @@ def test_function_implementation_container():
 
     # some basic dictionary properties
     assert len(container) == 4
-    assert set((key for key in container)) == set(['A Language', 'B',
-                                                   ACodeObject, BCodeGenerator])
+    assert set((key for key in container)) == {'A Language', 'B', ACodeObject,
+                                               BCodeGenerator}
 
     # Restore the previous codegeneration targets
     targets.codegen_targets = _previous_codegen_targets

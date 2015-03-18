@@ -9,7 +9,6 @@ C++ project in the directory ``STDP_standalone``.
 from brian2 import *
 
 set_device('cuda_standalone')
-
 N = 1000
 taum = 10*ms
 taupre = 20*ms
