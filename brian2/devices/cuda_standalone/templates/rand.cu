@@ -3,7 +3,6 @@
 #include "objects.h"
 #include "synapses_classes.h"
 #include "brianlib/clocks.h"
-#include "brianlib/dynamic_array.h"
 #include "network.h"
 #include<iostream>
 #include<fstream>
@@ -23,7 +22,7 @@ void _run_random_number_generation()
 	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, {{co.owner._N}} * {{co.rand_calls}});
 	{% endif %}
 	{% if co.randn_calls > 0 and co.runs_every_tick == True %}
-	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.rand_calls}}), mean, std_deviation);
+	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.randn_calls}}, mean, std_deviation);
 	{% endif %}
 	{% endfor %}
 }

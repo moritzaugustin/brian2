@@ -5,7 +5,6 @@
 #include "objects.h"
 #include "synapses_classes.h"
 #include "brianlib/clocks.h"
-#include "brianlib/dynamic_array.h"
 #include "network.h"
 #include<iostream>
 #include<fstream>
@@ -36,12 +35,12 @@ const int brian::_num_{{varname}} = {{var.size}};
 
 //////////////// dynamic arrays 1d /////////
 {% for var, varname in dynamic_array_specs | dictsort(by='value') %}
-std::vector<{{c_data_type(var.dtype)}}> brian::{{varname}};
 thrust::device_vector<{{c_data_type(var.dtype)}}> brian::dev{{varname}};
 {% endfor %}
 
 //////////////// dynamic arrays 2d /////////
 {% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
+thrust::device_vector<{{c_data_type(var.dtype)}}*> brian::addresses_monitor_{{varname}};
 thrust::device_vector<{{c_data_type(var.dtype)}}>* brian::{{varname}};
 {% endfor %}
 
@@ -56,21 +55,20 @@ const int brian::_num_{{name}} = {{N}};
 {% endfor %}
 
 //////////////// synapses /////////////////
-thrust::device_vector<int32_t> brian::synapses_by_pre_neuron;
 {% for S in synapses | sort(attribute='name') %}
 // {{S.name}}
 Synapses<double> brian::{{S.name}}({{S.source|length}}, {{S.target|length}});
 {% for path in S._pathways | sort(attribute='name') %}
 // {{path.name}}
-unsigned* brian::{{path.name}}_size_by_pre;
-int32_t** brian::{{path.name}}_synapses_id_by_pre;
-int32_t** brian::{{path.name}}_post_neuron_by_pre;
-unsigned int** brian::{{path.name}}_delay_by_pre;
+__device__ unsigned int* brian::{{path.name}}_size_by_pre;
+__device__ int32_t** brian::{{path.name}}_synapses_id_by_pre;
+__device__ int32_t** brian::{{path.name}}_post_neuron_by_pre;
+__device__ unsigned int** brian::{{path.name}}_delay_by_pre;
 __device__ SynapticPathway<double> brian::{{path.name}};
 {% endfor %}
 {% endfor %}
 
-unsigned int brian::num_cuda_processors;
+unsigned int brian::num_parallel_blocks;
 unsigned int brian::max_threads_per_block;
 unsigned int brian::max_shared_mem_size;
 
@@ -114,18 +112,18 @@ void _init_arrays()
 	cudaDeviceProp props;
 	cudaGetDeviceProperties(&props, 0);
 
-	num_cuda_processors = props.multiProcessorCount;
+	num_parallel_blocks = props.multiProcessorCount;
 	max_threads_per_block = props.maxThreadsPerBlock;
 	max_shared_mem_size = props.sharedMemPerBlock;
 
 	{% for co in code_objects %}
 	{% if co.rand_calls > 0 and co.runs_every_tick == True %}
 	cudaMalloc((void**)&dev_{{co.name}}_random_uniform_floats, sizeof(float)*{{co.owner._N}} * {{co.rand_calls}});
-	cudaMemcpyToSymbol(_array_{{co.name}}_rand, dev_{{co.name}}_random_uniform_floats, sizeof(float*));
+	cudaMemcpyToSymbol(_array_{{co.name}}_rand, &dev_{{co.name}}_random_uniform_floats, sizeof(float*));
 	{% endif %}
 	{% if co.randn_calls > 0 and co.runs_every_tick == True %}
 	cudaMalloc((void**)&dev_{{co.name}}_random_normal_floats, sizeof(float)*{{co.owner._N}} * {{co.rand_calls}});
-	cudaMemcpyToSymbol(_array_{{co.name}}_randn, dev_{{co.name}}_random_normal_floats, sizeof(float*));
+	cudaMemcpyToSymbol(_array_{{co.name}}_randn, &dev_{{co.name}}_random_normal_floats, sizeof(float*));
 	{% endif %}
 	{% endfor %}
 
@@ -204,6 +202,7 @@ void _load_arrays()
 	{
 		std::cout << "Error opening static array {{name}}." << endl;
 	}
+	cudaMemcpy(dev{{name}}, {{name}}, sizeof({{dtype_spec}})*{{N}}, cudaMemcpyHostToDevice);
 	{% endfor %}
 }	
 
@@ -218,7 +217,7 @@ void _write_arrays()
 	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
 	if(outfile_{{varname}}.is_open())
 	{
-		outfile_{{varname}}.write(reinterpret_cast<char*>({{varname}}), {{var.size}}*sizeof({{varname}}[0]));
+		outfile_{{varname}}.write(reinterpret_cast<char*>({{varname}}), {{var.size}}*sizeof({{c_data_type(var.dtype)}}));
 		outfile_{{varname}}.close();
 	} else
 	{
@@ -227,13 +226,13 @@ void _write_arrays()
 	{% endif %}
 	{% endfor %}
 
-	/*
 	{% for var, varname in dynamic_array_specs | dictsort(by='value') %}
+	thrust::host_vector<{{c_data_type(var.dtype)}}> temp{{varname}} = dev{{varname}};
 	ofstream outfile_{{varname}};
 	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
 	if(outfile_{{varname}}.is_open())
 	{
-		outfile_{{varname}}.write(reinterpret_cast<char*>(&{{varname}}[0]), {{varname}}.size()*sizeof({{varname}}[0]));
+		outfile_{{varname}}.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&temp{{varname}}[0])), dev{{varname}}.size()*sizeof({{c_data_type(var.dtype)}}));
 		outfile_{{varname}}.close();
 	} else
 	{
@@ -242,21 +241,28 @@ void _write_arrays()
 	{% endfor %}
 
 	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
-	ofstream outfile_{{varname}};
-	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
-	if(outfile_{{varname}}.is_open())
-	{
-        for (int n=0; n<{{varname}}.n; n++)
-        {
-            outfile_{{varname}}.write(reinterpret_cast<char*>(&{{varname}}(n, 0)), {{varname}}.m*sizeof({{varname}}(0, 0)));
-        }
-        outfile_{{varname}}.close();
-	} else
-	{
-		std::cout << "Error writing output file for {{varname}}." << endl;
-	}
-	{% endfor %}
-	*/
+		ofstream outfile_{{varname}};
+		outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
+		if(outfile_{{varname}}.is_open())
+		{
+			thrust::host_vector<{{c_data_type(var.dtype)}}>* temp_array{{varname}} = new thrust::host_vector<{{c_data_type(var.dtype)}}>;
+	        for (int n=0; n<_num__array_{{var.owner.name}}__indices; n++)
+	        {
+	        	temp_array{{varname}}[n] = {{varname}}[n];
+	        }
+	        for(int j = 0; j < temp_array{{varname}}[0].size(); j++)
+	        {
+	        	for(int i = 0; i < _num__array_{{var.owner.name}}__indices; i++)
+	        	{
+		        	outfile_{{varname}}.write(reinterpret_cast<char*>(&temp_array{{varname}}[i][j]), sizeof({{c_data_type(var.dtype)}}));
+	        	}
+	        }
+	        outfile_{{varname}}.close();
+		} else
+		{
+			std::cout << "Error writing output file for {{varname}}." << endl;
+		}
+		{% endfor %}
 }
 
 {% for S in synapses | sort(attribute='name') %}
@@ -309,6 +315,16 @@ void _dealloc_arrays()
 	{% endif %}
 	{% endfor %}
 
+	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
+	for(int i = 0; i < _num__array_{{var.owner.name}}__indices; i++)
+	{
+		{{varname}}[i].clear();
+		thrust::device_vector<{{c_data_type(var.dtype)}}>().swap({{varname}}[i]);
+	}
+	addresses_monitor_{{varname}}.clear();
+	thrust::device_vector<{{c_data_type(var.dtype)}}*>().swap(addresses_monitor_{{varname}});
+	{% endfor %}
+
 	// static arrays
 	{% for (name, dtype_spec, N, filename) in static_array_specs | sort %}
 	if({{name}}!=0)
@@ -332,7 +348,6 @@ void _dealloc_arrays()
 #include<stdint.h>
 #include "synapses_classes.h"
 #include "brianlib/clocks.h"
-#include "brianlib/dynamic_array.h"
 #include "network.h"
 
 #include <thrust/device_vector.h>
@@ -353,7 +368,6 @@ extern Network {{net.name}};
 
 //////////////// dynamic arrays ///////////
 {% for var, varname in dynamic_array_specs | dictsort(by='value') %}
-extern std::vector<{{c_data_type(var.dtype)}}> {{varname}};
 extern thrust::device_vector<{{c_data_type(var.dtype)}}> dev{{varname}};
 {% endfor %}
 
@@ -368,6 +382,7 @@ extern const int _num_{{varname}};
 
 //////////////// dynamic arrays 2d /////////
 {% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
+extern thrust::device_vector<{{c_data_type(var.dtype)}}*> addresses_monitor_{{varname}};
 extern thrust::device_vector<{{c_data_type(var.dtype)}}>* {{varname}};
 {% endfor %}
 
@@ -382,15 +397,14 @@ extern const int _num_{{name}};
 {% endfor %}
 
 //////////////// synapses /////////////////
-extern thrust::device_vector<int32_t> synapses_by_pre_neuron;	//in CSR format: neuron 0 has syns from arr[0] to (arr[1] - 1), neuron 1 from arr[1] to (arr[2] - 1), etc...
 {% for S in synapses | sort(attribute='name') %}
 // {{S.name}}
 extern Synapses<double> {{S.name}};
 {% for path in S._pathways | sort(attribute='name') %}
-extern unsigned* {{path.name}}_size_by_pre;
-extern int32_t** {{path.name}}_synapses_id_by_pre;
-extern int32_t** {{path.name}}_post_neuron_by_pre;
-extern unsigned int** {{path.name}}_delay_by_pre;
+extern __device__ unsigned* {{path.name}}_size_by_pre;
+extern __device__ int32_t** {{path.name}}_synapses_id_by_pre;
+extern __device__ int32_t** {{path.name}}_post_neuron_by_pre;
+extern __device__ unsigned int** {{path.name}}_delay_by_pre;
 extern __device__ SynapticPathway<double> {{path.name}};
 {% endfor %}
 {% endfor %}
@@ -410,7 +424,7 @@ extern __device__ float* _array_{{co.name}}_randn;
 {% endfor %}
 
 //CUDA
-extern unsigned int num_cuda_processors;
+extern unsigned int num_parallel_blocks;
 extern unsigned int max_threads_per_block;
 extern unsigned int max_shared_mem_size;
 

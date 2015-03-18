@@ -24,6 +24,7 @@ from brian2.utils.logger import get_logger
 
 from .codeobject import CUDAStandaloneCodeObject
 from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice, freeze, invert_dict
+from brian2.monitors.statemonitor import StateMonitor
 
 
 __all__ = []
@@ -287,35 +288,40 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             lines = []
             additional_code = []
             for k, v in codeobj.variables.iteritems():
+                number_elements = ""
+                if codeobj.N == 0:
+                    number_elements = "N"
+                else:
+                    number_elements = str(codeobj.N) 
                 if k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
                     additional_code.append('''
-                        //genenerate an arry of random numbers on the device
+                        //genenerate an array of random numbers on the device
                         float* dev_array_randn;
-                        cudaMalloc((void**)&dev_array_randn, sizeof(float)*N*''' + str(codeobj.randn_calls) + ''');
+                        cudaMalloc((void**)&dev_array_randn, sizeof(float)*''' + number_elements + ''' * ''' + str(codeobj.randn_calls) + ''');
                         if(!dev_array_randn)
                         {
-                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N*''' + str(codeobj.randn_calls) + ''');
+                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*''' + number_elements + '''*''' + str(codeobj.randn_calls) + ''');
                         }
                         curandGenerator_t gen;
                         curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
-                        curandGenerateNormal(gen, dev_array_randn, N*''' + str(codeobj.rand_calls) + ''', 0, 1);''')
+                        curandGenerateNormal(gen, dev_array_randn, ''' + number_elements + '''*''' + str(codeobj.randn_calls) + ''', 0, 1);''')
                     line = "float* _array_{name}_randn".format(name=codeobj.name)
                     device_parameters[codeobj.name].append(line)
                     host_parameters[codeobj.name].append("dev_array_randn")
                 elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
                     additional_code.append('''
-                        //genenerate an arry of random numbers on the device
+                        //genenerate an array of random numbers on the device
                         float* dev_array_rand;
-                        cudaMalloc((void**)&dev_array_rand, sizeof(float)*N*''' + str(codeobj.rand_calls) + ''');
+                        cudaMalloc((void**)&dev_array_rand, sizeof(float)*''' + number_elements + '''*''' + str(codeobj.rand_calls) + ''');
                         if(!dev_array_rand)
                         {
-                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*N*''' + str(codeobj.rand_calls) + ''');
+                            printf("ERROR while allocating device memory with size %ld\\n", sizeof(float)*''' + number_elements + '''*''' + str(codeobj.rand_calls) + ''');
                         }
                         curandGenerator_t gen;
                         curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
-                        curandGenerateUniform(gen, dev_array_rand, N*''' + str(codeobj.randn_calls) + ''');''')
+                        curandGenerateUniform(gen, dev_array_rand, ''' + number_elements + '''*''' + str(codeobj.rand_calls) + ''');''')
                     line = "float* _array_{name}_rand".format(name=codeobj.name)
                     device_parameters[codeobj.name].append(line)
                     host_parameters[codeobj.name].append("dev_array_rand")
@@ -335,11 +341,11 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                             if v.dimensions == 1:
                                 dyn_array_name = self.dynamic_arrays[v]
                                 array_name = self.arrays[v]
-                                line = '{c_type}* const {array_name} = &{dyn_array_name}[0];'
+                                line = '{c_type}* const {array_name} = thrust::raw_pointer_cast(&dev{dyn_array_name}[0]);'
                                 line = line.format(c_type=c_data_type(v.dtype), array_name=array_name,
                                                    dyn_array_name=dyn_array_name)
                                 lines.append(line)
-                                line = 'const int _num{k} = {dyn_array_name}.size();'
+                                line = 'const int _num{k} = dev{dyn_array_name}.size();'
                                 line = line.format(k=k, dyn_array_name=dyn_array_name)
                                 lines.append(line)
                                 
@@ -348,12 +354,12 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                                 
                                 line = "{c_type}* par_{array_name}"
                                 device_parameters[codeobj.name].append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
-                                line = "int par_num{array_name}"
+                                line = "int par_num_{array_name}"
                                 device_parameters[codeobj.name].append(line.format(array_name=array_name))
                                 
                                 line = "{c_type}* _ptr{array_name} = par_{array_name};"
                                 kernel_variables[codeobj.name].append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
-                                line = "const int _num{array_name} = par_num{array_name};"
+                                line = "const int _num{array_name} = par_num_{array_name};"
                                 kernel_variables[codeobj.name].append(line.format(array_name=array_name))
                         else:
                             host_parameters[codeobj.name].append("dev"+self.get_array_name(v))
@@ -371,12 +377,20 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     code_object_defs[codeobj.name].append(line)
             for line in additional_code:
                 code_object_defs[codeobj.name].append(line)
-
+        
         # Generate the code objects
         for codeobj in self.code_objects.itervalues():
             ns = codeobj.variables
             # TODO: fix these freeze/CONSTANTS hacks somehow - they work but not elegant.
             code = freeze(codeobj.code.cu_file, ns)
+            if isinstance(codeobj.owner, StateMonitor):
+                for varname, var in codeobj.owner.recorded_variables.iteritems():
+                    record_var = codeobj.owner.variables[varname]
+                    _data = self.get_array_name(record_var, access_data=False)
+                    if record_var in self.dynamic_arrays:
+                        code = code.replace('%DATA_ARR%', 'thrust::raw_pointer_cast(&dev%s[0])' % (_data), 1)
+                    else:
+                        code = code.replace('%DATA_ARR%', 'dev%s' % (_data), 1)
             code = code.replace('%CONSTANTS%', '\n\t\t'.join(code_object_defs[codeobj.name]))
             code = code.replace('%HOST_PARAMETERS%', ',\n\t\t\t'.join(host_parameters[codeobj.name]))
             code = code.replace('%DEVICE_PARAMETERS%', ',\n\t'.join(device_parameters[codeobj.name]))

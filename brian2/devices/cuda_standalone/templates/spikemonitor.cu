@@ -3,14 +3,14 @@
                     _source_start, _source_stop} #}
 
 {% block extra_maincode %}
-unsigned int start_spikes = {{_dynamic_i}}.size();
+unsigned int start_spikes = dev{{_dynamic_i}}.size();
 int32_t num_spikes;
 cudaMemcpy(&num_spikes, &dev_array_{{owner.source.name}}__spikespace[{{owner.source.N}}], sizeof(int32_t), cudaMemcpyDeviceToHost);
 
 for(int i = 0; i < num_spikes; i++)
 {
-	{{_dynamic_i}}.push_back(0);	//push dummy value
-	{{_dynamic_t}}.push_back(_clock_t);
+	dev{{_dynamic_i}}.push_back(0);	//push dummy value
+	dev{{_dynamic_t}}.push_back(_clock_t);
 }
 {% endblock %}
 
@@ -19,7 +19,7 @@ _run_{{codeobj_name}}_kernel<<<1, 1>>>(
 		{{owner.source.N}},
 		num_blocks({{owner.source.N}}),
 		start_spikes,
-		thrust::raw_pointer_cast(&({{_dynamic_i}}[0])),
+		thrust::raw_pointer_cast(&(dev{{_dynamic_i}}[0])),
 		dev_array_{{owner.source.name}}__spikespace);
 {% endblock %}
 

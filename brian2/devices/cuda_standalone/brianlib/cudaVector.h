@@ -18,31 +18,6 @@ private:
 	int size_allocated;	//how much memory is allocated, should ALWAYS >= size_used
 	int size_used;		//how many elements are stored in this vector
 
-	__device__ void resize(int new_capacity)
-	{
-		if(new_capacity > size_allocated)
-		{
-			//realloc larger memory (deviceside realloc doesn't exist, so we write our own)
-			scalar* new_data = (scalar*)malloc(sizeof(scalar) * new_capacity);
-			if (new_data)
-			{
-				memcpy(new_data, data, sizeof(scalar)*size());
-				free(data);
-				data = new_data;
-				size_allocated = new_capacity;
-			}
-			else
-			{
-				printf("ERROR while resizing vector to size %d in cudaVector.h/resize()\n", sizeof(scalar)*new_capacity);
-			}
-		}
-		else if(new_capacity < size_used)
-		{
-			//kleiner reallocen?
-			size_used = new_capacity;
-		};
-	};
-
 public:
 	__device__ cudaVector()
 	{
@@ -97,6 +72,43 @@ public:
 		}
 	};
 
+	__device__ void update(unsigned int pos, scalar elem)
+	{
+		if(pos <= size_used)
+		{
+			data[pos] = elem;
+		}
+		else
+		{
+			printf("ERROR invalid index %d, must be in range 0 - %d\n", pos, size_used);
+		}
+	};
+
+	__device__ void resize(int new_capacity)
+	{
+		if(new_capacity > size_allocated)
+		{
+			//realloc larger memory (deviceside realloc doesn't exist, so we write our own)
+			scalar* new_data = (scalar*)malloc(sizeof(scalar) * new_capacity);
+			if (new_data)
+			{
+				memcpy(new_data, data, sizeof(scalar)*size());
+				free(data);
+				data = new_data;
+				size_allocated = new_capacity;
+			}
+			else
+			{
+				printf("ERROR while resizing vector to size %d in cudaVector.h/resize()\n", sizeof(scalar)*new_capacity);
+			}
+		}
+		else if(new_capacity < size_used)
+		{
+			//kleiner reallocen?
+			size_used = new_capacity;
+		};
+	};
+
 	//does not overwrite old data, just resets number of elements stored to 0
 	__device__ void reset()
 	{
@@ -110,4 +122,3 @@ public:
 };
 
 #endif
-

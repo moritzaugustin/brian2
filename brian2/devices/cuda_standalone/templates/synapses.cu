@@ -25,13 +25,21 @@
 		&post_neuron_queue);
 
 	int size = post_neuron_queue[bid].size();
-	for(int j = tid; j < size; j += THREADS_PER_BLOCK)
+	for(int j = tid; j < size; j++)
 	{
-		int32_t _pre_idx = post_neuron_queue[bid].at(j);
-		int32_t _syn_idx = synapses_queue[bid].at(j);
+		int32_t _pre_idx = pre_neuron_queue[bid].at(j);
+		int32_t _post_idx = post_neuron_queue[bid].at(j);
+		int32_t _idx = synapses_queue[bid].at(j);
 
 		{{vector_code|autoindent}}
 	}
+{% endblock %}
+
+{% block kernel_call %}
+kernel_{{codeobj_name}}<<<num_parallel_blocks,1>>>(
+		num_threads(N),
+		%HOST_PARAMETERS%
+	);
 {% endblock %}
 
 {% block extra_maincode %}

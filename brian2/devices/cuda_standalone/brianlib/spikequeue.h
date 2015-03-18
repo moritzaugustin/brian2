@@ -134,7 +134,7 @@ public:
 		char* _shared_mem)
 	{
 		unsigned int neuron_pre_id = _pre_id;
-		unsigned int right_offset = bid*neuron_N + neuron_pre_id;
+		unsigned int right_offset = neuron_pre_id*num_blocks + bid;
 		unsigned int num_connected_synapses = size_by_pre[right_offset];
 		//shared_mem is allocated in push_spikes
 		int32_t* shared_mem_synapses_id = (int32_t*)_shared_mem;

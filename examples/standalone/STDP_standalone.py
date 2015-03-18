@@ -8,7 +8,6 @@ C++ project in the directory ``STDP_standalone``.
 '''
 from brian2 import *
 
-BrianLogger.log_level_info()
 set_device('cuda_standalone')
 
 N = 1000
@@ -51,10 +50,10 @@ s_mon = SpikeMonitor(input)
 r_mon = PopulationRateMonitor(input)
 
 run(100*second, report='text')
-device.build(directory='STDP_standalone', compile=False,
-             run=False, debug=False)
 
-'''
+device.build(directory='STDP_standalone', compile=True,
+             run=True, debug=False)
+        
 subplot(311)
 plot(S.w / gmax, '.k')
 ylabel('Weight / gmax')
@@ -68,4 +67,3 @@ xlabel('Time (s)')
 ylabel('Weight / gmax')
 tight_layout()
 show()
-'''

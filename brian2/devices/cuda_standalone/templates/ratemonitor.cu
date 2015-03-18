@@ -3,34 +3,38 @@
                     _num_source_neurons, _source_start, _source_stop } #}
 
 {% block extra_maincode %}
-{{_dynamic_t}}.push_back(_clock_t);
-{{_dynamic_rate}}.push_back(0.0);	//push dummy value
-
-double* dev{{_dynamic_rate}} = thrust::raw_pointer_cast(&({{_dynamic_rate}}[0]));
-int index_last_element = {{_dynamic_rate}}.size() - 1;
+int num_iterations = {{owner.clock.name}}.i_end;
+int current_iteration = {{owner.clock.name}}.i;
+dev{{_dynamic_t}}.resize(num_iterations);
+dev{{_dynamic_rate}}.resize(num_iterations);
 {% endblock %}
 
 {% block kernel_call %}
 _run_{{codeobj_name}}_kernel<<<1,1>>>(
 	{{owner.source.N}},
+	_clock_t,
 	_clock_dt,
-	index_last_element,
+	current_iteration,
 	dev_array_{{owner.source.name}}__spikespace,
-	dev{{_dynamic_rate}});
+	thrust::raw_pointer_cast(&(dev{{_dynamic_rate}}[0])),
+	thrust::raw_pointer_cast(&(dev{{_dynamic_t}}[0])));
 {% endblock %}
 
 {% block kernel %}
 __global__ void _run_{{codeobj_name}}_kernel(
 	unsigned int N,
+	double _clock_t,
 	double _clock_dt,
-	int32_t index_last_element,
+	int32_t current_iteration,
 	int32_t* spikespace,
-	double* ratemonitor_rate
+	double* ratemonitor_rate,
+	double* ratemonitor_t
 	)
 {
 	using namespace brian;
 
 	unsigned int num_spikes = spikespace[N];
-	ratemonitor_rate[index_last_element] = 1.0*num_spikes/_clock_dt/N;
+	ratemonitor_rate[current_iteration] = 1.0*num_spikes/_clock_dt/N;
+	ratemonitor_t[current_iteration] = _clock_t;
 }
 {% endblock %}

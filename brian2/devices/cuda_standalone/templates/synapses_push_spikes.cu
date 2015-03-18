@@ -41,7 +41,7 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 		{
 			__syncthreads();
 			i++;
-			synapses_pre.queue->push(
+			{{owner.name}}.queue->push(
 				bid,
 				tid,
 				_num_threads,
@@ -50,8 +50,15 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 		}
 		else
 		{
-			//round to nearest multiple of N/num_blocks = start of next block
-			i += sourceN/_num_blocks - i % (sourceN/_num_blocks);
+			if(sourceN > _num_blocks)
+			{
+				//round to nearest multiple of N/num_blocks = start of next block
+				i += sourceN/_num_blocks - i % (sourceN/_num_blocks);
+			}
+			else
+			{
+				i++;
+			}
 		}
 	}
 }
@@ -62,17 +69,16 @@ void _run_{{codeobj_name}}()
     ///// CONSTANTS ///////////
 	%CONSTANTS%
 	///// POINTERS ////////////
-    {{pointers_lines|autoindent}}
 
-	_run_{{codeobj_name}}_advance_kernel<<<1, num_cuda_processors>>>();
+	_run_{{codeobj_name}}_advance_kernel<<<1, num_parallel_blocks>>>();
 
 	unsigned int num_threads = max_shared_mem_size / MEM_PER_THREAD;
 	num_threads = num_threads < max_threads_per_block? num_threads : max_threads_per_block;	// get min of both
-	_run_{{codeobj_name}}_push_kernel<<<num_cuda_processors, num_threads, num_threads*MEM_PER_THREAD>>>(
+	_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
 		_num_spikespace - 1,
-		num_cuda_processors,
+		num_parallel_blocks,
 		num_threads,
-		{{_spikespace}});
+		dev_array_{{owner.source.name}}__spikespace);
 
 }
 {% endmacro %}

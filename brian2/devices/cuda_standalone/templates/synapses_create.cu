@@ -37,10 +37,8 @@
 
 	{{pointers_lines|autoindent}}
 
-	int syn_id = {{_dynamic__synaptic_pre}}.size();
 	for(int _i = 0; _i < _num_all_pre; _i++)
 	{
-		synapses_by_pre_neuron.push_back(syn_id);
 		for(int _j = 0; _j < _num_all_post; _j++)
 		{
 			{% block maincode_inner %}
@@ -63,16 +61,14 @@
 					{{N_incoming}}[_post_idx] += 1;
 					temp_synaptic_pre.push_back(_pre_idx);
 					temp_synaptic_post.push_back(_post_idx);
-					syn_id++;
 				}
 			}
 			{% endblock %}
 		}
 	}
-	synapses_by_pre_neuron.push_back(syn_id);
 
-	dev{{_dynamic__synaptic_pre}} = temp_synaptic_post;
-	dev{{_dynamic__synaptic_post}} = temp_synaptic_pre;
+	dev{{_dynamic__synaptic_pre}} = temp_synaptic_pre;
+	dev{{_dynamic__synaptic_post}} = temp_synaptic_post;
     
 	// now we need to resize all registered variables
 	const int32_t newsize = dev{{_dynamic__synaptic_pre}}.size();
