@@ -78,9 +78,6 @@ class CUDACodeGenerator(CPPCodeGenerator):
 
     def __init__(self, *args, **kwds):
         super(CUDACodeGenerator, self).__init__(*args, **kwds)
-        self.restrict = prefs['codegen.generators.cuda.restrict_keyword'] + ' '
-        self.flush_denormals = prefs['codegen.generators.cuda.flush_denormals']
-        self.c_data_type = c_data_type
         
     def determine_keywords(self):
         # set up the restricted pointers, these are used so that the compiler

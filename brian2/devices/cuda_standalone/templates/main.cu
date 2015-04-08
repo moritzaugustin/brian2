@@ -20,7 +20,10 @@
 
 int main(int argc, char **argv)
 {
-
+	size_t limit = 500*1024*1024;	//500 MB should be enough for now
+	cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
+	cudaDeviceSynchronize();
+	
 	brian_start();
 
 	{

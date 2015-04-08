@@ -94,15 +94,13 @@ __global__ void {{path.name}}_init(
 
 //////////////random numbers//////////////////
 curandGenerator_t brian::random_float_generator;
-{% for co in code_objects | sort(attribute='name') %}
-{% if co.rand_calls > 0 and co.runs_every_tick == True %}
+{% for co in codeobj_with_rand | sort(attribute='name') %}
 float* brian::dev_{{co.name}}_random_uniform_floats;
 __device__ float* brian::_array_{{co.name}}_rand;
-{% endif %}
-{% if co.randn_calls > 0 and co.runs_every_tick == True %}
+{% endfor %}
+{% for co in codeobj_with_randn | sort(attribute='name') %}
 float* brian::dev_{{co.name}}_random_normal_floats;
 __device__ float* brian::_array_{{co.name}}_randn;
-{% endif %}
 {% endfor %}
 
 void _init_arrays()
@@ -115,20 +113,21 @@ void _init_arrays()
 	num_parallel_blocks = props.multiProcessorCount;
 	max_threads_per_block = props.maxThreadsPerBlock;
 	max_shared_mem_size = props.sharedMemPerBlock;
-
-	{% for co in code_objects %}
-	{% if co.rand_calls > 0 and co.runs_every_tick == True %}
-	cudaMalloc((void**)&dev_{{co.name}}_random_uniform_floats, sizeof(float)*{{co.owner._N}} * {{co.rand_calls}});
-	cudaMemcpyToSymbol(_array_{{co.name}}_rand, &dev_{{co.name}}_random_uniform_floats, sizeof(float*));
-	{% endif %}
-	{% if co.randn_calls > 0 and co.runs_every_tick == True %}
-	cudaMalloc((void**)&dev_{{co.name}}_random_normal_floats, sizeof(float)*{{co.owner._N}} * {{co.rand_calls}});
-	cudaMemcpyToSymbol(_array_{{co.name}}_randn, &dev_{{co.name}}_random_normal_floats, sizeof(float*));
-	{% endif %}
-	{% endfor %}
-
+	
 	curandCreateGenerator(&random_float_generator, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(random_float_generator, time(0));
+
+	//since random number generation is at the end of each clock_tick, also generate numbers for t = 0
+	{% for co in codeobj_with_rand | sort(attribute='name') %}
+	cudaMalloc((void**)&dev_{{co.name}}_random_uniform_floats, sizeof(float)*{{co.owner._N}} * {{co.rand_calls}});
+	cudaMemcpyToSymbol(_array_{{co.name}}_rand, &dev_{{co.name}}_random_uniform_floats, sizeof(float*));
+	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, {{co.owner._N}} * {{co.rand_calls}});
+	{% endfor %}
+	{% for co in codeobj_with_randn | sort(attribute='name') %}
+	cudaMalloc((void**)&dev_{{co.name}}_random_normal_floats, sizeof(float)*{{co.owner._N}} * {{co.randn_calls}});
+	cudaMemcpyToSymbol(_array_{{co.name}}_randn, &dev_{{co.name}}_random_normal_floats, sizeof(float*));
+	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.randn_calls}}, 0.0, 1.0);
+	{% endfor %}
 
 	{% for S in synapses | sort(attribute='name') %}
 	{% for path in S._pathways | sort(attribute='name') %}
@@ -153,7 +152,7 @@ void _init_arrays()
 	cudaMalloc((void**)&dev{{varname}}, sizeof({{c_data_type(var.dtype)}})*_num_{{varname}});
 	if(!dev{{varname}})
 	{
-		printf("ERROR while allocating device memory with size %ld\n", sizeof({{c_data_type(var.dtype)}})*_num_{{varname}});
+		printf("ERROR while allocating {{varname}} on device with size %ld\n", sizeof({{c_data_type(var.dtype)}})*_num_{{varname}});
 	}
 	cudaMemcpy(dev{{varname}}, {{varname}}, sizeof({{c_data_type(var.dtype)}})*_num_{{varname}}, cudaMemcpyHostToDevice);
 
@@ -167,7 +166,7 @@ void _init_arrays()
 	cudaMalloc((void**)&dev{{varname}}, sizeof({{c_data_type(var.dtype)}})*_num_{{varname}});
 	if(!dev{{varname}})
 	{
-		printf("ERROR while allocating device memory with size %ld\n", sizeof({{c_data_type(var.dtype)}})*_num_{{varname}});
+		printf("ERROR while allocating {{varname}} on device with size %ld\n", sizeof({{c_data_type(var.dtype)}})*_num_{{varname}});
 	}
 	cudaMemcpy(dev{{varname}}, {{varname}}, sizeof({{c_data_type(var.dtype)}})*_num_{{varname}}, cudaMemcpyHostToDevice);
 
@@ -179,7 +178,7 @@ void _init_arrays()
 	cudaMalloc((void**)&dev{{name}}, sizeof({{dtype_spec}})*{{N}});
 	if(!dev{{name}})
 	{
-		printf("ERROR while allocating device memory with size %ld\n", sizeof({{dtype_spec}})*{{N}});
+		printf("ERROR while allocating {{varname}} on device with size %ld\n", sizeof({{dtype_spec}})*{{N}});
 	}
 	{% endfor %}
 
@@ -245,7 +244,7 @@ void _write_arrays()
 		outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
 		if(outfile_{{varname}}.is_open())
 		{
-			thrust::host_vector<{{c_data_type(var.dtype)}}>* temp_array{{varname}} = new thrust::host_vector<{{c_data_type(var.dtype)}}>;
+			thrust::host_vector<{{c_data_type(var.dtype)}}>* temp_array{{varname}} = new thrust::host_vector<{{c_data_type(var.dtype)}}>[_num__array_{{var.owner.name}}__indices];
 	        for (int n=0; n<_num__array_{{var.owner.name}}__indices; n++)
 	        {
 	        	temp_array{{varname}}[n] = {{varname}}[n];
@@ -280,13 +279,11 @@ void _dealloc_arrays()
 {
 	using namespace brian;
 
-	{% for co in code_objects %}
-	{% if co.rand_calls > 0 and co.runs_every_tick == True %}
+	{% for co in codeobj_with_rand | sort(attribute='name') %}
 	cudaFree(dev_{{co.name}}_random_uniform_floats);
-	{% endif %}
-	{% if co.randn_calls > 0 and co.runs_every_tick == True %}
+	{% endfor %}
+	{% for co in codeobj_with_randn | sort(attribute='name') %}
 	cudaFree(dev_{{co.name}}_random_normal_floats);
-	{% endif %}
 	{% endfor %}
 
 	{% for S in synapses | sort(attribute='name') %}
@@ -412,15 +409,13 @@ extern __device__ SynapticPathway<double> {{path.name}};
 //////////////// random numbers /////////////////
 extern curandGenerator_t random_float_generator;
 
-{% for co in code_objects %}
-{% if co.rand_calls > 0 and co.runs_every_tick == True %}
+{% for co in codeobj_with_rand | sort(attribute='name') %}
 extern float* dev_{{co.name}}_random_uniform_floats;
 extern __device__ float* _array_{{co.name}}_rand;
-{% endif %}
-{% if co.randn_calls > 0 and co.runs_every_tick == True %}
+{% endfor %}
+{% for co in codeobj_with_randn | sort(attribute='name') %}
 extern float* dev_{{co.name}}_random_normal_floats;
 extern __device__ float* _array_{{co.name}}_randn;
-{% endif %}
 {% endfor %}
 
 //CUDA

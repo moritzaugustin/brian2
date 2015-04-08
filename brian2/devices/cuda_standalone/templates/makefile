@@ -5,7 +5,7 @@ OBJS_CPP = ${SRCS_CPP:.cpp=.o}
 OBJS_CU  = ${SRCS_CU:.cu=.o}
 CC = @nvcc
 DEBUG = -g -G -DTHRUST_DEBUG
-OPTIMISATIONS = --use_fast_math -arch=sm_20
+OPTIMISATIONS = --use_fast_math -arch=sm_20 {{ compiler_flags }}
 CFLAGS = -c $(OPTIMISATIONS) -I.
 LFLAGS = -lcurand
 

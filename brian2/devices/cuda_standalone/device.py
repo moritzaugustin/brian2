@@ -3,46 +3,30 @@ Module implementing the CUDA "standalone" device.
 '''
 import os
 import shutil
-import subprocess
 import inspect
 from collections import defaultdict
 
 import numpy as np
 
+from brian2.codegen.cpp_prefs import get_compiler_and_args
 from brian2.core.clocks import defaultclock
 from brian2.core.network import Network
-from brian2.devices.device import Device, all_devices
 from brian2.core.variables import *
+from brian2.devices.device import all_devices
 from brian2.synapses.synapses import Synapses
-from brian2.core.preferences import prefs, BrianPreference
-from brian2.utils.filetools import copy_directory, ensure_directory, in_directory
-from brian2.utils.stringtools import word_substitute
+from brian2.utils.filetools import copy_directory, ensure_directory
 from brian2.codegen.generators.cuda_generator import c_data_type
-from brian2.units.fundamentalunits import Quantity, have_same_dimensions
-from brian2.units import second
 from brian2.utils.logger import get_logger
+from brian2.units import second
 
 from .codeobject import CUDAStandaloneCodeObject
-from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice, freeze, invert_dict
+from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice, freeze
 from brian2.monitors.statemonitor import StateMonitor
 
 
 __all__ = []
 
 logger = get_logger(__name__)
-
-
-# Preferences
-prefs.register_preferences(
-    'devices.cuda_standalone',
-    'CUDA standalone preferences ',
-    optimisation_flags = BrianPreference(
-        default='-O3',
-        docs='''
-        Optimisation flags to pass to the compiler
-        '''
-        ),
-    )
 
 class CUDAWriter(CPPWriter):
     def __init__(self, project_dir):
@@ -86,136 +70,15 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                                                                template_kwds=template_kwds,
                                                                override_conditional_write=override_conditional_write,
                                                                )
-        self.code_objects[codeobj.name] = codeobj
         return codeobj
-
-    def build(self, directory='output', compile=True, run=False, debug=True,
-              optimisations='-O3 -ffast-math',
-              with_output=True, native=True,
-              additional_source_files=None, additional_header_files=None,
-              main_includes=None, run_includes=None,
-              run_args=None, **kwds):
-        '''
-        Build the project
+    
+    def check_OPENMP_compatible(self, nb_threads):
+        if nb_threads > 0:
+            raise NotImplementedError("Using OpenMP in an CUDA standalone project is not supported")
         
-        TODO: more details
-        
-        Parameters
-        ----------
-        directory : str
-            The output directory to write the project to, any existing files will be overwritten.
-        compile : bool
-            Whether or not to attempt to compile the project using GNU make.
-        run : bool
-            Whether or not to attempt to run the built project if it successfully builds.
-        debug : bool
-            Whether to compile in debug mode.
-        with_output : bool
-            Whether or not to show the ``stdout`` of the built program when run.
-        native : bool
-            Whether or not to compile natively using the ``--march=native`` gcc option.
-        additional_source_files : list of str
-            A list of additional ``.cpp`` files to include in the build.
-        additional_header_files : list of str
-            A list of additional ``.h`` files to include in the build.
-        main_includes : list of str
-            A list of additional header files to include in ``main.cpp``.
-        run_includes : list of str
-            A list of additional header files to include in ``run.cpp``.
-        '''
-        renames = {'project_dir': 'directory',
-                   'compile_project': 'compile',
-                   'run_project': 'run'}
-        if len(kwds):
-            msg = ''
-            for kwd in kwds:
-                if kwd in renames:
-                    msg += ("Keyword argument '%s' has been renamed to "
-                            "'%s'. ") % (kwd, renames[kwd])
-                else:
-                    msg += "Unknown keyword argument '%s'. " % kwd
-            raise TypeError(msg)
-
-        if additional_source_files is None:
-            additional_source_files = []
-        if additional_header_files is None:
-            additional_header_files = []
-        if main_includes is None:
-            main_includes = []
-        if run_includes is None:
-            run_includes = []
-        if run_args is None:
-            run_args = []
-        host_parameters = defaultdict(list)
-        device_parameters = defaultdict(list)
-        kernel_variables = defaultdict(list)
-        self.project_dir = directory
-        ensure_directory(directory)
-        
-        for d in ['code_objects', 'results', 'static_arrays']:
-            ensure_directory(os.path.join(directory, d))
-            
-        writer = CUDAWriter(directory)
-        
-
-        logger.debug("Writing CUDA standalone project to directory "+os.path.normpath(directory))
-        arange_arrays = sorted([(var, start)
-                                for var, start in self.arange_arrays.iteritems()],
-                               key=lambda (var, start): var.name)
-
-        # # Find np arrays in the namespaces and convert them into static
-        # # arrays. Hopefully they are correctly used in the code: For example,
-        # # this works for the namespaces for functions with C++ (e.g. TimedArray
-        # # treats it as a C array) but does not work in places that are
-        # # implicitly vectorized (state updaters, resets, etc.). But arrays
-        # # shouldn't be used there anyway.
-        for code_object in self.code_objects.itervalues():
-            for name, value in code_object.variables.iteritems():
-                if isinstance(value, np.ndarray):
-                    self.static_arrays[name] = value
-
-        # write the static arrays
-        logger.debug("static arrays: "+str(sorted(self.static_arrays.keys())))
-        static_array_specs = []
-        for name, arr in sorted(self.static_arrays.items()):
-            arr.tofile(os.path.join(directory, 'static_arrays', name))
-            static_array_specs.append((name, c_data_type(arr.dtype), arr.size, name))
-
-        # Write the global objects
-        networks = [net() for net in Network.__instances__()
-                    if net().name != '_fake_network']
-        synapses = []
-        for net in networks:
-            synapses.extend(s for s in net.objects if isinstance(s, Synapses))
-
-        # Not sure what the best place is to call Network.after_run -- at the
-        # moment the only important thing it does is to clear the objects stored
-        # in magic_network. If this is not done, this might lead to problems
-        # for repeated runs of standalone (e.g. in the test suite).
-        for net in networks:
-            net.after_run()
-            
-        #check how many random numbers are needed per step
-        for code_object in self.code_objects.itervalues():
-            num_occurences_rand = code_object.code.cu_file.count("_rand(")
-            num_occurences_randn = code_object.code.cu_file.count("_randn(")
-            if num_occurences_rand > 0:
-                #first one is alway the definition, so subtract 1
-                code_object.rand_calls = num_occurences_rand - 1
-                for i in range(0, code_object.rand_calls):
-                    if code_object.owner.N <> 0:
-                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
-                    else:
-                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * N)", 1)
-            if num_occurences_randn > 0:
-                #first one is alway the definition, so subtract 1
-                code_object.randn_calls = num_occurences_randn - 1
-                for i in range(0, code_object.randn_calls):
-                    if code_object.owner.N <> 0:
-                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
-                    else:
-                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " *N)", 1)
-                        
+    def generate_objects_source(self, writer, arange_arrays, synapses, static_array_specs, networks):
+        codeobj_with_rand = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.rand_calls > 0]
+        codeobj_with_randn = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.randn_calls > 0]
         arr_tmp = CUDAStandaloneCodeObject.templater.objects(
                         None, None,
                         array_specs=self.arrays,
@@ -227,15 +90,19 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         clocks=self.clocks,
                         static_array_specs=static_array_specs,
                         networks=networks,
-                        code_objects=self.code_objects.values())
+                        code_objects=self.code_objects.values(),
+                        codeobj_with_rand=codeobj_with_rand,
+                        codeobj_with_randn=codeobj_with_randn)
         writer.write('objects.*', arr_tmp)
 
+    def generate_main_source(self, writer, main_includes):
         main_lines = []
         procedures = [('', main_lines)]
         runfuncs = {}
         for func, args in self.main_queue:
             if func=='run_code_object':
                 codeobj, = args
+                codeobj.runs_every_tick = False
                 main_lines.append('_run_%s();' % codeobj.name)
             elif func=='run_network':
                 net, netcode = args
@@ -281,18 +148,55 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         for codeobj in self.code_objects.itervalues():
             if hasattr(codeobj.code, 'main_finalise'):
                 main_lines.append(codeobj.code.main_finalise)
+                
+        main_tmp = CUDAStandaloneCodeObject.templater.main(None, None,
+                                                          main_lines=main_lines,
+                                                          code_objects=self.code_objects.values(),
+                                                          report_func=self.report_func,
+                                                          dt=float(defaultclock.dt),
+                                                          additional_headers=main_includes,
+                                                          )
+        writer.write('main.cu', main_tmp)
+        
+    def generate_codeobj_source(self, writer):
+        #check how many random numbers are needed per step
+        for code_object in self.code_objects.itervalues():
+            num_occurences_rand = code_object.code.cu_file.count("_rand(")
+            num_occurences_randn = code_object.code.cu_file.count("_randn(")
+            if num_occurences_rand > 0:
+                #first one is alway the definition, so subtract 1
+                code_object.rand_calls = num_occurences_rand - 1
+                for i in range(0, code_object.rand_calls):
+                    if code_object.owner.N <> 0:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
+                    else:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * N)", 1)
+            if num_occurences_randn > 0:
+                #first one is alway the definition, so subtract 1
+                code_object.randn_calls = num_occurences_randn - 1
+                for i in range(0, code_object.randn_calls):
+                    if code_object.owner.N <> 0:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
+                    else:
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " *N)", 1)
 
-        # Generate data for non-constant values
         code_object_defs = defaultdict(list)
+        host_parameters = defaultdict(list)
+        device_parameters = defaultdict(list)
+        kernel_variables = defaultdict(list)
+        # Generate data for non-constant values
         for codeobj in self.code_objects.itervalues():
             lines = []
+            lines_1 = []
+            lines_2 = []
+            lines_3 = []
             additional_code = []
+            number_elements = ""
+            if hasattr(codeobj, 'owner') and hasattr(codeobj.owner, '_N') and codeobj.owner._N <> 0:
+                number_elements = str(codeobj.owner._N)
+            else:
+                number_elements = "N"
             for k, v in codeobj.variables.iteritems():
-                number_elements = ""
-                if codeobj.N == 0:
-                    number_elements = "N"
-                else:
-                    number_elements = str(codeobj.N) 
                 if k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
                     additional_code.append('''
                         //genenerate an array of random numbers on the device
@@ -307,8 +211,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
                         curandGenerateNormal(gen, dev_array_randn, ''' + number_elements + '''*''' + str(codeobj.randn_calls) + ''', 0, 1);''')
                     line = "float* _array_{name}_randn".format(name=codeobj.name)
-                    device_parameters[codeobj.name].append(line)
-                    host_parameters[codeobj.name].append("dev_array_randn")
+                    lines_2.append(line)
+                    lines_1.append("dev_array_randn")
                 elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
                     additional_code.append('''
                         //genenerate an array of random numbers on the device
@@ -323,18 +227,18 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
                         curandGenerateUniform(gen, dev_array_rand, ''' + number_elements + '''*''' + str(codeobj.rand_calls) + ''');''')
                     line = "float* _array_{name}_rand".format(name=codeobj.name)
-                    device_parameters[codeobj.name].append(line)
-                    host_parameters[codeobj.name].append("dev_array_rand")
+                    lines_2.append(line)
+                    lines_1.append("dev_array_rand")
                 elif isinstance(v, AttributeVariable):
                     # We assume all attributes are implemented as property-like methods
                     line = 'const {c_type} {varname} = {objname}.{attrname}();'
                     lines.append(line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
                                              attrname=v.attribute)) 
-                    host_parameters[codeobj.name].append(k)
+                    lines_3.append(k)
                     line = "{c_type} par_{varname}"
-                    device_parameters[codeobj.name].append(line.format(c_type=c_data_type(v.dtype), varname=k))
+                    lines_2.append(line.format(c_type=c_data_type(v.dtype), varname=k))
                     line = 'const {c_type} {varname} = par_{varname};'
-                    kernel_variables[codeobj.name].append(line.format(c_type=c_data_type(v.dtype), varname=k))
+                    lines_3.append(line.format(c_type=c_data_type(v.dtype), varname=k))
                 elif isinstance(v, ArrayVariable):
                     try:
                         if isinstance(v, DynamicArrayVariable):
@@ -349,25 +253,25 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                                 line = line.format(k=k, dyn_array_name=dyn_array_name)
                                 lines.append(line)
                                 
-                                host_parameters[codeobj.name].append(array_name)
-                                host_parameters[codeobj.name].append("_num" + k)
+                                lines_1.append(array_name)
+                                lines_1.append("_num" + k)
                                 
                                 line = "{c_type}* par_{array_name}"
-                                device_parameters[codeobj.name].append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
+                                lines_2.append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
                                 line = "int par_num_{array_name}"
-                                device_parameters[codeobj.name].append(line.format(array_name=array_name))
+                                lines_2.append(line.format(array_name=array_name))
                                 
                                 line = "{c_type}* _ptr{array_name} = par_{array_name};"
-                                kernel_variables[codeobj.name].append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
+                                lines_3.append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
                                 line = "const int _num{array_name} = par_num_{array_name};"
-                                kernel_variables[codeobj.name].append(line.format(array_name=array_name))
+                                lines_3.append(line.format(array_name=array_name))
                         else:
-                            host_parameters[codeobj.name].append("dev"+self.get_array_name(v))
-                            device_parameters[codeobj.name].append("%s* par_%s" % (c_data_type(v.dtype), self.get_array_name(v)))
-                            kernel_variables[codeobj.name].append("%s* _ptr%s = par_%s;" % (c_data_type(v.dtype),  self.get_array_name(v), self.get_array_name(v)))
+                            lines_1.append("dev"+self.get_array_name(v))
+                            lines_2.append("%s* par_%s" % (c_data_type(v.dtype), self.get_array_name(v)))
+                            lines_3.append("%s* _ptr%s = par_%s;" % (c_data_type(v.dtype),  self.get_array_name(v), self.get_array_name(v)))
 
-                            code_object_defs[codeobj.name].append('const int _num%s = %s;' % (k, v.size))
-                            kernel_variables[codeobj.name].append('const int _num%s = %s;' % (k, v.size))
+                            lines.append('const int _num%s = %s;' % (k, v.size))
+                            lines_3.append('const int _num%s = %s;' % (k, v.size))
                     except TypeError:
                         pass
             for line in lines:
@@ -375,6 +279,16 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 # dictionary -- make sure to never add a line twice
                 if not line in code_object_defs[codeobj.name]:
                     code_object_defs[codeobj.name].append(line)
+            for line in lines_1:
+                if not line in host_parameters[codeobj.name]:
+                    host_parameters[codeobj.name].append(line)
+            for line in lines_2:
+                if not line in device_parameters[codeobj.name]:
+                    device_parameters[codeobj.name].append(line)
+            for line in lines_3:
+                if not line in kernel_variables[codeobj.name]:
+                    kernel_variables[codeobj.name].append(line)
+                    
             for line in additional_code:
                 code_object_defs[codeobj.name].append(line)
         
@@ -400,35 +314,17 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             
             writer.write('code_objects/'+codeobj.name+'.cu', code)
             writer.write('code_objects/'+codeobj.name+'.h', codeobj.code.h_file)
-                    
-        # The code_objects are passed in the right order to run them because they were
-        # sorted by the Network object. To support multiple clocks we'll need to be
-        # smarter about that.
-        main_tmp = CUDAStandaloneCodeObject.templater.main(None, None,
-                                                          main_lines=main_lines,
-                                                          code_objects=self.code_objects.values(),
-                                                          report_func=self.report_func,
-                                                          dt=float(defaultclock.dt),
-                                                          additional_headers=main_includes,
-                                                          )
-        writer.write('main.cu', main_tmp)
-
-        main_tmp = CUDAStandaloneCodeObject.templater.network(None, None)
-        writer.write('network.*', main_tmp)
-
-        main_tmp = CUDAStandaloneCodeObject.templater.synapses_classes(None, None)
-        writer.write('synapses_classes.*', main_tmp)
-        
-        # Generate the run functions
-        run_tmp = CUDAStandaloneCodeObject.templater.run(None, None, run_funcs=runfuncs,
-                                                        code_objects=self.code_objects.values(),
-                                                        additional_headers=run_includes,
-                                                        )
-        writer.write('run.*', run_tmp)
-        
-        rand_tmp = CUDAStandaloneCodeObject.templater.rand(None, None, code_objects=self.code_objects.values())
+            
+    def generate_rand_source(self, writer):
+        codeobj_with_rand = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.rand_calls > 0]
+        codeobj_with_randn = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.randn_calls > 0]
+        rand_tmp = CUDAStandaloneCodeObject.templater.rand(None, None,
+                                                           code_objects=self.code_objects.values(),
+                                                           codeobj_with_rand=codeobj_with_rand,
+                                                           codeobj_with_randn=codeobj_with_randn)
         writer.write('rand.*', rand_tmp)
-
+    
+    def copy_source_files(self, writer, directory):
         # Copy the brianlibdirectory
         brianlib_dir = os.path.join(os.path.split(inspect.getsourcefile(CUDAStandaloneCodeObject))[0],
                                     'brianlib')
@@ -440,144 +336,189 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 writer.source_files.append('brianlib/'+file)
             elif file.lower().endswith('.h'):
                 writer.header_files.append('brianlib/'+file)
+        shutil.copy2(os.path.join(os.path.split(inspect.getsourcefile(Synapses))[0], 'stdint_compat.h'),
+                     os.path.join(directory, 'brianlib', 'stdint_compat.h'))
 
+    def generate_network_source(self, writer, compiler):
+        if compiler=='msvc':
+            std_move = 'std::move'
+        else:
+            std_move = ''
+        network_tmp = CUDAStandaloneCodeObject.templater.network(None, None,
+                                                             std_move=std_move)
+        writer.write('network.*', network_tmp)
+        
+    def generate_synapses_classes_source(self, writer):
+        synapses_classes_tmp = CUDAStandaloneCodeObject.templater.synapses_classes(None, None)
+        writer.write('synapses_classes.*', synapses_classes_tmp)
+        
+    def generate_run_source(self, writer, run_includes):
+        run_tmp = CUDAStandaloneCodeObject.templater.run(None, None, run_funcs=self.runfuncs,
+                                                        code_objects=self.code_objects.values(),
+                                                        additional_headers=run_includes,
+                                                        )
+        writer.write('run.*', run_tmp)
+        
+    def generate_makefile(self, writer, compiler, native, compiler_flags, nb_threads):
+        if compiler=='msvc':
+            if native:
+                arch_flag = ''
+                try:
+                    from cpuinfo import cpuinfo
+                    res = cpuinfo.get_cpu_info()
+                    if 'sse' in res['flags']:
+                        arch_flag = '/arch:SSE'
+                    if 'sse2' in res['flags']:
+                        arch_flag = '/arch:SSE2'
+                except ImportError:
+                    logger.warn('Native flag for MSVC compiler requires installation of the py-cpuinfo module')
+                compiler_flags += ' '+arch_flag
+            
+            if nb_threads>1:
+                openmp_flag = '/openmp'
+            else:
+                openmp_flag = ''
+            # Generate the visual studio makefile
+            source_bases = [fname.replace('.cpp', '').replace('/', '\\') for fname in writer.source_files]
+            win_makefile_tmp = CUDAStandaloneCodeObject.templater.win_makefile(
+                None, None,
+                source_bases=source_bases,
+                compiler_flags=compiler_flags,
+                openmp_flag=openmp_flag,
+                )
+            writer.write('win_makefile', win_makefile_tmp)
+        else:
+            # Generate the makefile
+            if os.name=='nt':
+                rm_cmd = 'del *.o /s\n\tdel main.exe $(DEPS)'
+            else:
+                rm_cmd = 'rm $(OBJS) $(PROGRAM) $(DEPS)'
+            makefile_tmp = CUDAStandaloneCodeObject.templater.makefile(None, None,
+                source_files=' '.join(writer.source_files),
+                header_files=' '.join(writer.header_files),
+                compiler_flags=compiler_flags,
+                rm_cmd=rm_cmd)
+            writer.write('makefile', makefile_tmp)
+
+
+    def build(self, directory='output',
+              compile=True, run=True, debug=False, clean=True,
+              with_output=True, native=True,
+              additional_source_files=None, additional_header_files=None,
+              main_includes=None, run_includes=None,
+              run_args=None, **kwds):
+        '''
+        Build the project
+        
+        TODO: more details
+        
+        Parameters
+        ----------
+        directory : str
+            The output directory to write the project to, any existing files will be overwritten.
+        compile : bool
+            Whether or not to attempt to compile the project
+        run : bool
+            Whether or not to attempt to run the built project if it successfully builds.
+        debug : bool
+            Whether to compile in debug mode.
+        with_output : bool
+            Whether or not to show the ``stdout`` of the built program when run.
+        native : bool
+            Whether or not to compile for the current machine's architecture (best for speed, but not portable)
+        clean : bool
+            Whether or not to clean the project before building
+        additional_source_files : list of str
+            A list of additional ``.cpp`` files to include in the build.
+        additional_header_files : list of str
+            A list of additional ``.h`` files to include in the build.
+        main_includes : list of str
+            A list of additional header files to include in ``main.cpp``.
+        run_includes : list of str
+            A list of additional header files to include in ``run.cpp``.
+        '''
+        renames = {'project_dir': 'directory',
+                   'compile_project': 'compile',
+                   'run_project': 'run'}
+        if len(kwds):
+            msg = ''
+            for kwd in kwds:
+                if kwd in renames:
+                    msg += ("Keyword argument '%s' has been renamed to "
+                            "'%s'. ") % (kwd, renames[kwd])
+                else:
+                    msg += "Unknown keyword argument '%s'. " % kwd
+            raise TypeError(msg)
+
+        if additional_source_files is None:
+            additional_source_files = []
+        if additional_header_files is None:
+            additional_header_files = []
+        if main_includes is None:
+            main_includes = []
+        if run_includes is None:
+            run_includes = []
+        if run_args is None:
+            run_args = []
+
+        compiler, extra_compile_args = get_compiler_and_args()
+        compiler_flags = ' '.join(extra_compile_args)
+        self.project_dir = directory
+        ensure_directory(directory)
+        
+        for d in ['code_objects', 'results', 'static_arrays']:
+            ensure_directory(os.path.join(directory, d))
+            
+        writer = CUDAWriter(directory)
+        
+        logger.debug("Writing CUDA standalone project to directory "+os.path.normpath(directory))
+        arange_arrays = sorted([(var, start)
+                                for var, start in self.arange_arrays.iteritems()],
+                               key=lambda (var, start): var.name)
+
+        self.write_static_arrays(directory)
+        self.find_synapses()
+
+        # Not sure what the best place is to call Network.after_run -- at the
+        # moment the only important thing it does is to clear the objects stored
+        # in magic_network. If this is not done, this might lead to problems
+        # for repeated runs of standalone (e.g. in the test suite).
+        for net in self.networks:
+            net.after_run()
+            
+        self.generate_main_source(writer, main_includes)
+        self.generate_codeobj_source(writer)        
+        self.generate_objects_source(writer, arange_arrays, self.net_synapses, self.static_array_specs, self.networks)
+        self.generate_network_source(writer, compiler)
+        self.generate_synapses_classes_source(writer)
+        self.generate_run_source(writer, run_includes)
+        self.generate_rand_source(writer)
+        self.copy_source_files(writer, directory)
+        
         writer.source_files.extend(additional_source_files)
         writer.header_files.extend(additional_header_files)
-
-        # Generate the makefile
-        if os.name=='nt':
-            rm_cmd = 'del'
-        else:
-            rm_cmd = 'rm'
-        makefile_tmp = CUDAStandaloneCodeObject.templater.makefile(None, None,
-            source_files=' '.join(writer.source_files),
-            header_files=' '.join(writer.header_files),
-            optimisations=prefs['devices.cuda_standalone.optimisation_flags'],
-            rm_cmd=rm_cmd)
-        writer.write('makefile', makefile_tmp)
-
-        # build the project
+        
+        self.generate_makefile(writer, compiler, native, compiler_flags, nb_threads=0)
+        
         if compile:
-            with in_directory(directory):
-                if debug:
-                    x = os.system('make debug')
-                elif native:
-                    x = os.system('make native')
-                else:
-                    x = os.system('make')
-                if x==0:
-                    if run:
-                        if not with_output:
-                            stdout = open(os.devnull, 'w')
-                        else:
-                            stdout = None
-                        if os.name=='nt':
-                            x = subprocess.call(['main'] + run_args, stdout=stdout)
-                        else:
-                            x = subprocess.call(['./main'] + run_args, stdout=stdout)
-                        if x:
-                            raise RuntimeError("Project run failed")
-                        self.has_been_run = True
-                else:
-                    raise RuntimeError("Project compilation failed")
+            self.compile_source(directory, compiler, debug, clean, native)
+            if run:
+                self.run(directory, with_output, run_args)
                 
     def network_run(self, net, duration, report=None, report_period=10*second,
-                        namespace=None, level=0):
-        net._clocks = [obj.clock for obj in net.objects]
-        # We have to use +2 for the level argument here, since this function is
-        # called through the device_override mechanism
-        net.before_run(namespace, level=level+2)
-            
-        self.clocks.update(net._clocks)
-
-        # We run a simplified "update loop" that only advances the clocks
-        # This can be useful because some Python code might use the t attribute
-        # of the Network or a NeuronGroup etc.
-        t_end = net.t+duration
-        for clock in net._clocks:
-            clock.set_interval(net.t, t_end)
-            # manually set the clock to the end, no need to run Clock.tick() in a loop
-            clock._i = clock._i_end
-        net.t_ = float(t_end)
-
-        # TODO: remove this horrible hack
-        for clock in self.clocks:
-            if clock.name=='clock':
-                clock._name = '_clock'
-            
-        # Extract all the CodeObjects
-        # Note that since we ran the Network object, these CodeObjects will be sorted into the right
-        # running order, assuming that there is only one clock
-        code_objects = []
-        for obj in net.objects:
-            for codeobj in obj._code_objects:
-                codeobj.runs_every_tick = True
-                code_objects.append((obj.clock, codeobj))
-
-        # Code for a progress reporting function
-        standard_code = '''
-        void report_progress(const double elapsed, const double completed, const double duration)
-        {
-            if (completed == 0.0)
-            {
-                %STREAMNAME% << "Starting simulation for duration " << duration << " s";
-            } else
-            {
-                %STREAMNAME% << completed*duration << " s (" << (int)(completed*100.) << "%) simulated in " << elapsed << " s";
-                if (completed < 1.0)
-                {
-                    const int remaining = (int)((1-completed)/completed*elapsed+0.5);
-                    %STREAMNAME% << ", estimated " << remaining << " s remaining.";
-                }
-            }
-
-            %STREAMNAME% << std::endl << std::flush;
-        }
-        '''
-        if report is None:
-            self.report_func = ''
-        elif report == 'text' or report == 'stdout':
-            self.report_func = standard_code.replace('%STREAMNAME%', 'std::cout')
-        elif report == 'stderr':
-            self.report_func = standard_code.replace('%STREAMNAME%', 'std::cerr')
-        elif isinstance(report, basestring):
-            self.report_func = '''
-            void report_progress(const double elapsed, const double completed, const double duration)
-            {
-            %REPORT%
-            }
-            '''.replace('%REPORT%', report)
-        else:
-            raise TypeError(('report argument has to be either "text", '
-                             '"stdout", "stderr", or the code for a report '
-                             'function'))
-
-        if report is not None:
-            report_call = 'report_progress'
-        else:
-            report_call = 'NULL'
-
-        # Generate the updaters
-        run_lines = ['{net.name}.clear();'.format(net=net)]
-        run_lines.append('{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net));
-        for clock, codeobj in code_objects:
-            run_lines.append('{net.name}.add(&{clock.name}, _run_{codeobj.name});'.format(clock=clock, net=net,
-                                                                                               codeobj=codeobj))
-        run_lines.append('{net.name}.run({duration}, {report_call}, {report_period});'.format(net=net,
-                                                                                              duration=float(duration),
-                                                                                              report_call=report_call,
-                                                                                              report_period=float(report_period)))
-        self.main_queue.append(('run_network', (net, run_lines)))
+                    namespace=None, profile=True, level=0, **kwds):
+        CPPStandaloneDevice.network_run(self, net, duration, report, report_period, namespace, profile, level+1)
+        clock = 0
+        for func, args in self.main_queue:
+            if func=='run_network':
+                net, netcode = args
+                clock = net._clocks[0]
+                run_action = netcode.pop()
+                netcode.append('{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net));
+                netcode.append(run_action)
 
 
-
-class RunFunctionContext(object):
-    def __enter__(self):
-        cuda_standalone_device.main_queue.append(('start_run_func', (self.name, self.include_in_parent)))
-    def __exit__(self, type, value, traceback):
-        cuda_standalone_device.main_queue.append(('end_run_func', (self.name, self.include_in_parent)))
-
-
+                        
 cuda_standalone_device = CUDAStandaloneDevice()
 
 all_devices['cuda_standalone'] = cuda_standalone_device

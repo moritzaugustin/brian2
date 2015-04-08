@@ -24,7 +24,7 @@ class CUDAStandaloneCodeObject(CPPStandaloneCodeObject):
     templater = Templater('brian2.devices.cuda_standalone',
                           env_globals={'c_data_type': c_data_type})
     generator_class = CUDACodeGenerator
-    runs_every_tick = False
+    runs_every_tick = True  #default True, set False in generate_main_source
     rand_calls = 0
     randn_calls = 0
 

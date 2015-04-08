@@ -17,13 +17,11 @@ void _run_random_number_generation()
 	float mean = 0.0;
 	float std_deviation = 1.0;
 
-	{% for co in code_objects %}
-	{% if co.rand_calls > 0 and co.runs_every_tick == True %}
+	{% for co in codeobj_with_rand %}
 	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, {{co.owner._N}} * {{co.rand_calls}});
-	{% endif %}
-	{% if co.randn_calls > 0 and co.runs_every_tick == True %}
+	{% endfor %}
+	{% for co in codeobj_with_randn %}
 	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.randn_calls}}, mean, std_deviation);
-	{% endif %}
 	{% endfor %}
 }
 {% endmacro %}

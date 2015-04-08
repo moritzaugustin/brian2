@@ -1,32 +1,46 @@
 {% extends 'common_group.cu' %}
 
-{% block maincode %}
-    {# USES_VARIABLES { _synaptic_post, _synaptic_pre, N_post } #}
+{% block kernel %}
+{# USES_VARIABLES { _synaptic_post, _synaptic_pre, N_post } #}
+__global__ void kernel_{{codeobj_name}}(
+	%DEVICE_PARAMETERS%
+	)
+{
     {% set _target_var_array = get_array_name(_target_var) %}
-	//// MAIN CODE ////////////
-	// Set all the target variable values to zero
-	std::vector<double> _local_sum;
-	_local_sum.resize(N_post, 0.0);
+    using namespace brian;
 
-	for (int _target_idx=0; _target_idx<N_post; _target_idx++)
+	unsigned int tid = threadIdx.x;
+	unsigned int bid = blockIdx.x;
+	unsigned int _idx = bid * THREADS_PER_BLOCK + tid;
+	unsigned int _vectorisation_idx = _idx;
+	%KERNEL_VARIABLES%
+
+	if(_idx >= N)
 	{
-	    {{_target_var_array}}[_target_idx] = 0.0;
+		return;
 	}
-
-	// scalar code
-	const int _vectorisation_idx = -1;
-	{{scalar_code|autoindent}}
+	
+	//// MAIN CODE ////////////
+	double _local_sum = 0.0;
 
 	for(int _idx=0; _idx<_num_synaptic_post; _idx++)
 	{
 		// vector code
-	    const int _vectorisation_idx = _idx;
+	    int _vectorisation_idx = tid;
+	    int post_id = {{_synaptic_post}}[_idx];
+	    
         {{vector_code|autoindent}}
-		_local_sum[{{_synaptic_post}}[_idx]] += _synaptic_var;
+        
+		_local_sum += _synaptic_var;
+		
 	}
+	
+    {{_target_var_array}}[tid] += _local_sum;
+}	
+{% endblock %}
 
-	for (int _target_idx=0; _target_idx<N_post; _target_idx++)
-	{
-	    {{_target_var_array}}[_target_idx] += _local_sum[_target_idx];	
-	}
+{% block kernel_call %}
+	kernel_{{codeobj_name}}<<<N_post,1>>>(
+			%HOST_PARAMETERS%
+		);
 {% endblock %}

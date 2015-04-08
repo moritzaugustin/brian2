@@ -18,7 +18,7 @@ int mem_per_thread(){
 	extern __shared__ bool spike_cache[];
 	{{scalar_code|autoindent}}
 
-	spike_cache[_idx] = false;
+	spike_cache[tid] = false;
 	{{_spikespace}}[_idx] = -1;
 
 	if(tid == 0 && bid == 0)
@@ -30,7 +30,7 @@ int mem_per_thread(){
 
 	{{vector_code|autoindent}}
 	if(_cond) {
-		spike_cache[_idx] = true;
+		spike_cache[tid] = true;
 		{% if _uses_refractory %}
 		// We have to use the pointer names directly here: The condition
 		// might contain references to not_refractory or lastspike and in
