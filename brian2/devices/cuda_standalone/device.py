@@ -234,7 +234,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     line = 'const {c_type} {varname} = {objname}.{attrname}();'
                     lines.append(line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
                                              attrname=v.attribute)) 
-                    lines_3.append(k)
+                    lines_1.append(k)
                     line = "{c_type} par_{varname}"
                     lines_2.append(line.format(c_type=c_data_type(v.dtype), varname=k))
                     line = 'const {c_type} {varname} = par_{varname};'
