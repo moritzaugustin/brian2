@@ -186,10 +186,10 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         kernel_variables = defaultdict(list)
         # Generate data for non-constant values
         for codeobj in self.code_objects.itervalues():
-            lines = []
-            lines_1 = []
-            lines_2 = []
-            lines_3 = []
+            code_object_defs_lines = []
+            host_parameters_lines = []
+            device_parameters_lines = []
+            kernel_variables_lines = []
             additional_code = []
             number_elements = ""
             if hasattr(codeobj, 'owner') and hasattr(codeobj.owner, '_N') and codeobj.owner._N <> 0:
@@ -197,6 +197,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             else:
                 number_elements = "N"
             for k, v in codeobj.variables.iteritems():
+                #code objects which only run once
                 if k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
                     additional_code.append('''
                         //genenerate an array of random numbers on the device
@@ -211,8 +212,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
                         curandGenerateNormal(gen, dev_array_randn, ''' + number_elements + '''*''' + str(codeobj.randn_calls) + ''', 0, 1);''')
                     line = "float* _array_{name}_randn".format(name=codeobj.name)
-                    lines_2.append(line)
-                    lines_1.append("dev_array_randn")
+                    device_parameters_lines.append(line)
+                    host_parameters_lines.append("dev_array_randn")
                 elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
                     additional_code.append('''
                         //genenerate an array of random numbers on the device
@@ -227,18 +228,18 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         curandSetPseudoRandomGeneratorSeed(gen, time(0));
                         curandGenerateUniform(gen, dev_array_rand, ''' + number_elements + '''*''' + str(codeobj.rand_calls) + ''');''')
                     line = "float* _array_{name}_rand".format(name=codeobj.name)
-                    lines_2.append(line)
-                    lines_1.append("dev_array_rand")
+                    device_parameters_lines.append(line)
+                    host_parameters_lines.append("dev_array_rand")
                 elif isinstance(v, AttributeVariable):
                     # We assume all attributes are implemented as property-like methods
                     line = 'const {c_type} {varname} = {objname}.{attrname}();'
-                    lines.append(line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
+                    code_object_defs_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
                                              attrname=v.attribute)) 
-                    lines_1.append(k)
+                    host_parameters_lines.append(k)
                     line = "{c_type} par_{varname}"
-                    lines_2.append(line.format(c_type=c_data_type(v.dtype), varname=k))
+                    device_parameters_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k))
                     line = 'const {c_type} {varname} = par_{varname};'
-                    lines_3.append(line.format(c_type=c_data_type(v.dtype), varname=k))
+                    kernel_variables_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k))
                 elif isinstance(v, ArrayVariable):
                     try:
                         if isinstance(v, DynamicArrayVariable):
@@ -248,47 +249,48 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                                 line = '{c_type}* const {array_name} = thrust::raw_pointer_cast(&dev{dyn_array_name}[0]);'
                                 line = line.format(c_type=c_data_type(v.dtype), array_name=array_name,
                                                    dyn_array_name=dyn_array_name)
-                                lines.append(line)
+                                code_object_defs_lines.append(line)
                                 line = 'const int _num{k} = dev{dyn_array_name}.size();'
                                 line = line.format(k=k, dyn_array_name=dyn_array_name)
-                                lines.append(line)
+                                code_object_defs_lines.append(line)
                                 
-                                lines_1.append(array_name)
-                                lines_1.append("_num" + k)
+                                host_parameters_lines.append(array_name)
+                                host_parameters_lines.append("_num" + k)
                                 
                                 line = "{c_type}* par_{array_name}"
-                                lines_2.append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
+                                device_parameters_lines.append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
                                 line = "int par_num_{array_name}"
-                                lines_2.append(line.format(array_name=array_name))
+                                device_parameters_lines.append(line.format(array_name=k))
                                 
                                 line = "{c_type}* _ptr{array_name} = par_{array_name};"
-                                lines_3.append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
+                                kernel_variables_lines.append(line.format(c_type=c_data_type(v.dtype), array_name=array_name))
                                 line = "const int _num{array_name} = par_num_{array_name};"
-                                lines_3.append(line.format(array_name=array_name))
+                                kernel_variables_lines.append(line.format(array_name=k))
                         else:
-                            lines_1.append("dev"+self.get_array_name(v))
-                            lines_2.append("%s* par_%s" % (c_data_type(v.dtype), self.get_array_name(v)))
-                            lines_3.append("%s* _ptr%s = par_%s;" % (c_data_type(v.dtype),  self.get_array_name(v), self.get_array_name(v)))
+                            host_parameters_lines.append("dev"+self.get_array_name(v))
+                            device_parameters_lines.append("%s* par_%s" % (c_data_type(v.dtype), self.get_array_name(v)))
+                            kernel_variables_lines.append("%s* _ptr%s = par_%s;" % (c_data_type(v.dtype),  self.get_array_name(v), self.get_array_name(v)))
 
-                            lines.append('const int _num%s = %s;' % (k, v.size))
-                            lines_3.append('const int _num%s = %s;' % (k, v.size))
+                            code_object_defs_lines.append('const int _num%s = %s;' % (k, v.size))
+                            kernel_variables_lines.append('const int _num%s = %s;' % (k, v.size))
                     except TypeError:
                         pass
-            for line in lines:
-                # Sometimes an array is referred to by to different keys in our
-                # dictionary -- make sure to never add a line twice
+                    
+            # Sometimes an array is referred to by to different keys in our
+            # dictionary -- make sure to never add a line twice
+            for line in code_object_defs_lines:
                 if not line in code_object_defs[codeobj.name]:
                     code_object_defs[codeobj.name].append(line)
-            for line in lines_1:
+            for line in host_parameters_lines:
                 if not line in host_parameters[codeobj.name]:
                     host_parameters[codeobj.name].append(line)
-            for line in lines_2:
+            for line in device_parameters_lines:
                 if not line in device_parameters[codeobj.name]:
                     device_parameters[codeobj.name].append(line)
-            for line in lines_3:
+            for line in kernel_variables_lines:
                 if not line in kernel_variables[codeobj.name]:
                     kernel_variables[codeobj.name].append(line)
-                    
+            
             for line in additional_code:
                 code_object_defs[codeobj.name].append(line)
         
@@ -305,6 +307,11 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         code = code.replace('%DATA_ARR%', 'thrust::raw_pointer_cast(&dev%s[0])' % (_data), 1)
                     else:
                         code = code.replace('%DATA_ARR%', 'dev%s' % (_data), 1)
+                        
+            if len(host_parameters[codeobj.name]) == 0:
+                host_parameters[codeobj.name].append("0")
+                device_parameters[codeobj.name].append("int dummy")
+                
             code = code.replace('%CONSTANTS%', '\n\t\t'.join(code_object_defs[codeobj.name]))
             code = code.replace('%HOST_PARAMETERS%', ',\n\t\t\t'.join(host_parameters[codeobj.name]))
             code = code.replace('%DEVICE_PARAMETERS%', ',\n\t'.join(device_parameters[codeobj.name]))
