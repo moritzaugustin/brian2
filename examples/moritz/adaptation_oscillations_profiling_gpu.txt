@@ -1,0 +1,54 @@
+==8123== NVPROF is profiling process 8123, command: ./main
+==8123== Profiling application: ./main
+==8123== Profiling result:
+Time(%)      Time     Calls       Avg       Min       Max  Name
+ 24.03%  4.41202s     10000  441.20us  28.447us  6.9153ms  _run_synapses_pre_push_spikes_push_kernel(unsigned int, unsigned int, unsigned int, int*)
+ 20.79%  3.81684s     10000  381.68us  378.84us  426.87us  kernel_neurongroup_thresholder_codeobject(unsigned int, int*, double, double*, double*, char*)
+ 20.13%  3.69492s    115009  32.127us  30.943us  904.07us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
+ 18.32%  3.36363s    105002  32.033us  30.847us  40.063us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<int>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<int>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(int)
+ 10.72%  1.96850s     10000  196.85us  7.1040us  654.90us  kernel_synapses_pre_codeobject(unsigned int, double*, int, double*, int, double, int*, int, double*, int*, int, char*)
+  2.56%  469.94ms     10000  46.993us  46.015us  52.447us  kernel_neurongroup_stateupdater_codeobject(unsigned int, double, double*, double*, double, double*, char*)
+  0.97%  178.61ms    180028     992ns     927ns  1.0192ms  [CUDA memcpy HtoD]
+  0.51%  94.538ms     10000  9.4530us  7.4550us  14.208us  _run_spikemonitor_codeobject_kernel(unsigned int, unsigned int, int, int*, int*)
+  0.43%  79.487ms     10000  7.9480us  7.0720us  9.2480us  _run_synapses_pre_push_spikes_advance_kernel(void)
+  0.32%  58.821ms     10001  5.8810us  5.2800us  7.0080us  void gen_sequenced<curandStateXORWOW, float2, normal_args_st, __operator_&__(float2 curand_normal_scaled2<curandStateXORWOW>(curandStateXORWOW*, normal_args_st))>(curandStateXORWOW*, float2*, unsigned long, unsigned long, normal_args_st)
+  0.30%  55.371ms     10000  5.5370us  4.4790us  7.7760us  _run_ratemonitor_codeobject_kernel(unsigned int, double, double, int, int*, double*, double*)
+  0.23%  42.189ms         5  8.4377ms  8.3864ms  8.4797ms  generate_seed_pseudo(__int64, __int64, __int64, curandOrdering, curandStateXORWOW*, unsigned int*)
+  0.23%  41.770ms     10000  4.1760us  3.7120us  4.8320us  kernel_neurongroup_resetter_codeobject(unsigned int, int*, double*, double*, char*)
+  0.20%  36.162ms     10000  3.6160us  3.2000us  4.4480us  _run_statemonitor_codeobject_kernel(int, int*, double**, double*, double**, double*, int)
+  0.19%  35.496ms     10026  3.5400us  1.9510us  2.8283ms  [CUDA memcpy DtoH]
+  0.05%  8.7202ms         1  8.7202ms  8.7202ms  8.7202ms  _run_synapses_pre_initialise_queue_kernel(unsigned int, unsigned int, unsigned int, double, unsigned int, unsigned int)
+  0.01%  956.68us         1  956.68us  956.68us  956.68us  synapses_pre_destroy(void)
+  0.00%  195.33us        48  4.0690us  3.5830us  8.6710us  [CUDA memcpy DtoD]
+  0.00%  99.838us         1  99.838us  99.838us  99.838us  _kernel_synapses_group_variable_set_conditional_codeobject(unsigned int, double*, int, float*, long)
+  0.00%  98.718us         1  98.718us  98.718us  98.718us  _kernel_synapses_group_variable_set_conditional_codeobject_1(unsigned int, double*, int, float*, long)
+  0.00%  94.494us         4  23.623us  6.2080us  41.407us  void gen_sequenced<curandStateXORWOW, float, int, __operator_&__(float curand_uniform_noargs<curandStateXORWOW>(curandStateXORWOW*, int))>(curandStateXORWOW*, float*, unsigned long, unsigned long, int)
+  0.00%  79.327us         2  39.663us  39.071us  40.256us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double*>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double*>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double*)
+  0.00%  68.510us         1  68.510us  68.510us  68.510us  _kernel_synapses_group_variable_set_conditional_codeobject_2(unsigned int, double*, int, long)
+  0.00%  22.239us         1  22.239us  22.239us  22.239us  synapses_pre_init(unsigned int, unsigned int, double*, int*, int*, double, int, int)
+  0.00%  5.2150us         1  5.2150us  5.2150us  5.2150us  _kernel_neurongroup_group_variable_set_conditional_codeobject(unsigned int, double*, float*, char*)
+  0.00%  4.9600us         1  4.9600us  4.9600us  4.9600us  _kernel_neurongroup_group_variable_set_conditional_codeobject_1(unsigned int, double*, float*, char*)
+
+==8123== API calls:
+Time(%)      Time     Calls       Avg       Min       Max  Name
+ 45.50%  11.9634s    410143  29.168us     285ns  23.597ms  cudaMemcpy
+ 30.03%  7.89619s    220018  35.888us  3.9570us  2.0199ms  cudaThreadSynchronize
+ 11.71%  3.07776s    320031  9.6170us  6.2380us  20.374ms  cudaLaunch
+  8.56%  2.25148s    180096  12.501us  6.9400us  1.0244ms  cudaMalloc
+  1.98%  520.10ms         1  520.10ms  520.10ms  520.10ms  cudaDeviceSetLimit
+  0.99%  260.06ms    650023     400ns     307ns  299.84us  cudaGetDevice
+  0.66%  172.59ms    800104     215ns     150ns  315.16us  cudaSetupArgument
+  0.33%  86.858ms    320031     271ns     209ns  296.34us  cudaConfigureCall
+  0.21%  55.186ms        84  656.98us     850ns  9.6473ms  cudaFree
+  0.02%  5.6079ms     20020     280ns     156ns  1.7430us  cudaGetLastError
+  0.01%  2.8687ms        13  220.67us  210.52us  240.93us  cudaGetDeviceProperties
+  0.00%  596.42us       166  3.5920us     175ns  154.46us  cuDeviceGetAttribute
+  0.00%  586.46us         5  117.29us  20.693us  160.48us  cudaMemcpyToSymbol
+  0.00%  85.639us         2  42.819us  35.281us  50.358us  cuDeviceTotalMem
+  0.00%  69.602us         2  34.801us  28.410us  41.192us  cuDeviceGetName
+  0.00%  13.396us         3  4.4650us  3.3010us  5.9960us  cudaFuncGetAttributes
+  0.00%  6.3760us         1  6.3760us  6.3760us  6.3760us  cudaDeviceSynchronize
+  0.00%  2.2650us         3     755ns     220ns  1.3640us  cuDeviceGetCount
+  0.00%  1.4240us         3     474ns     310ns     578ns  cuDeviceGet
+  0.00%     757ns         1     757ns     757ns     757ns  cuInit
+  0.00%     463ns         1     463ns     463ns     463ns  cuDriverGetVersion
