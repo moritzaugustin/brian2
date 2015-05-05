@@ -1,6 +1,17 @@
 {% extends 'common_group.cu' %}
-{% block extra_headers %}
-#include "cuda_functions.h"
+
+{% block extra_device_helper %}
+	//atomic add is currently not supported natively for double values
+__device__ double atomicAddDouble(double* address, double val)
+{
+    unsigned long long int* address_as_ull = (unsigned long long int*)address;
+    unsigned long long int old = *address_as_ull, assumed;
+    do {
+        assumed = old;
+		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+    } while (assumed != old);
+    return __longlong_as_double(old);
+}
 {% endblock %}
 
 {% block kernel %}
@@ -19,6 +30,10 @@ __global__ void kernel_{{codeobj_name}}(
 
 	//// MAIN CODE ////////////
 	double _local_sum = 0.0;
+	if(tid == 0)
+	{
+	    {{_target_var_array}}[bid] = 0.0;
+	}
 	
 	for(int _idx=tid; _idx<N_pre; _idx += num_blocks)
 	{
@@ -33,7 +48,7 @@ __global__ void kernel_{{codeobj_name}}(
 		}
 		
 	}
-	atomicAdd(&{{_target_var_array}}[bid], _local_sum);
+	atomicAddDouble(&{{_target_var_array}}[bid], _local_sum);
 }	
 {% endblock %}
 

@@ -53,7 +53,7 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 			if(sourceN > _num_blocks)
 			{
 				//round to nearest multiple of N/num_blocks = start of next block
-				i += sourceN/_num_blocks - i % (sourceN/_num_blocks);
+				i += _num_threads - i % (_num_threads);
 			}
 			else
 			{

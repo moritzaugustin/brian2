@@ -15,7 +15,7 @@ __all__ = ['FeatureTest', 'InaccuracyError', 'Configuration',
            'run_feature_tests', 'run_single_feature_test',
            'DefaultConfiguration', 'WeaveConfiguration',
            'CythonConfiguration', 'CPPStandaloneConfiguration',
-           'CPPStandaloneConfigurationOpenMP']
+           'CPPStandaloneConfigurationOpenMP', 'CUDAStandaloneConfiguration']
 
 class InaccuracyError(AssertionError):
     def __init__(self, error, *args):
@@ -91,7 +91,6 @@ class DefaultConfiguration(Configuration):
         brian2.prefs.reset_to_defaults()
         brian2.set_device('runtime')
 
-
 class WeaveConfiguration(Configuration):
     name = 'Weave'
     def before_run(self):
@@ -132,6 +131,18 @@ class CPPStandaloneConfigurationOpenMP(Configuration):
         if os.path.exists('cpp_standalone'):
             shutil.rmtree('cpp_standalone')
         brian2.device.build(directory='cpp_standalone', compile=True, run=True,
+                            with_output=False)
+        
+class CUDAStandaloneConfiguration(Configuration):
+    name = 'C++ CUDA standalone'
+    def before_run(self):
+        brian2.prefs.reset_to_defaults()
+        brian2.set_device('cuda_standalone')
+        
+    def after_run(self):
+        if os.path.exists('cuda_standalone'):
+            shutil.rmtree('cuda_standalone')
+        brian2.device.build(directory='cuda_standalone', compile=True, run=True,
                             with_output=False)
     
     
@@ -205,7 +216,8 @@ def run_feature_tests(configurations=None, feature_tests=None,
         feature_tests = FeatureTest.__subclasses__()
     if DefaultConfiguration in configurations:
         configurations.remove(DefaultConfiguration)
-    configurations = [DefaultConfiguration]+configurations
+    #configurations = [DefaultConfiguration]+configurations
+    configurations = [DefaultConfiguration]+[CUDAStandaloneConfiguration, CPPStandaloneConfiguration]
     feature_tests.sort(key=lambda ft: ft.fullname())
     if verbose:
         print 'Running feature tests'

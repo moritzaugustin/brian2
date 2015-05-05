@@ -25,7 +25,7 @@ _run_{{codeobj_name}}_kernel<<<1, _num__array_{{owner.name}}__indices>>>(
 	{% for varname, var in _recorded_variables | dictsort %}
 		{% set _recorded =  get_array_name(var, access_data=False) %}
 		thrust::raw_pointer_cast(&addresses_monitor_{{_recorded}}[0]),
-		%DATA_ARR%,
+		%DATA_{{varname}}%,
 	{% endfor %}
 	current_iteration);
 {% endblock %}

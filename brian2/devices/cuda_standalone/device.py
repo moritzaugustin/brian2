@@ -57,6 +57,10 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
     '''
     The `Device` used for CUDA standalone simulations.
     '''
+    
+    def __init__(self):
+        super(CUDAStandaloneDevice, self).__init__()
+        
     def code_object_class(self, codeobj_class=None):
         # Ignore the requested codeobj_class
         return CUDAStandaloneCodeObject
@@ -109,13 +113,19 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 main_lines.extend(netcode)
             elif func=='set_by_array':
                 arrayname, staticarrayname = args
+                size = "_num_" + arrayname
+                if arrayname in self.dynamic_arrays.values():
+                    arrayname = "dev" + arrayname
+                    size = arrayname + ".size()"
                 code = '''
                 for(int i=0; i<_num_{staticarrayname}; i++)
                 {{
                     {arrayname}[i] = {staticarrayname}[i];
-                }}
-                cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({arrayname}[0])*_num_{arrayname}, cudaMemcpyHostToDevice);
-                '''.format(arrayname=arrayname, staticarrayname=staticarrayname)
+                }}'''.format(arrayname=arrayname, staticarrayname=staticarrayname)
+                if arrayname in self.arrays.values():
+                    code = code + '''
+                    cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({arrayname}[0])*{size}, cudaMemcpyHostToDevice);
+                '''.format(arrayname=arrayname, size=size)
                 main_lines.extend(code.split('\n'))
             elif func=='set_array_by_array':
                 arrayname, staticarrayname_index, staticarrayname_value = args
@@ -303,10 +313,11 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 for varname, var in codeobj.owner.recorded_variables.iteritems():
                     record_var = codeobj.owner.variables[varname]
                     _data = self.get_array_name(record_var, access_data=False)
+                    placeholder = "%DATA_" + record_var.name + "%"
                     if record_var in self.dynamic_arrays:
-                        code = code.replace('%DATA_ARR%', 'thrust::raw_pointer_cast(&dev%s[0])' % (_data), 1)
+                        code = code.replace(placeholder, 'thrust::raw_pointer_cast(&dev%s[0])' % (_data), 1)
                     else:
-                        code = code.replace('%DATA_ARR%', 'dev%s' % (_data), 1)
+                        code = code.replace(placeholder, 'dev%s' % (_data), 1)
                         
             if len(host_parameters[codeobj.name]) == 0:
                 host_parameters[codeobj.name].append("0")
