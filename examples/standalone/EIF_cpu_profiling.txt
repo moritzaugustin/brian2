@@ -1,0 +1,359 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  us/call  us/call  name    
+ 60.51      1.47     1.47    20000    73.51    73.51  _run_neurongroup_stateupdater_codeobject()
+ 15.23      1.84     0.37    20000    18.50    18.50  _run_synapses_summed_variable_V_mean_post_codeobject()
+ 15.23      2.21     0.37    20000    18.50    18.50  _run_synapses_summed_variable_V_var_post_codeobject()
+  4.12      2.31     0.10    20000     5.00     5.00  _run_neurongroup_thresholder_codeobject()
+  3.29      2.39     0.08    20000     4.00     4.00  _run_neurongroup_custom_operation_codeobject()
+  0.41      2.40     0.01    60000     0.17     0.17  std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> >::_M_fill_insert(__gnu_cxx::__normal_iterator<std::vector<double, std::allocator<double> >**, std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> > >, unsigned long, std::vector<double, std::allocator<double> >* const&)
+  0.41      2.41     0.01    20001     0.50     0.50  Network::next_clocks()
+  0.41      2.42     0.01    20000     0.50     0.67  _run_statemonitor_codeobject()
+  0.41      2.43     0.01    20000     0.50     0.83  _run_statemonitor_1_codeobject()
+  0.00      2.43     0.00   100000     0.00     0.00  std::vector<double, std::allocator<double> >::_M_fill_insert(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, unsigned long, double const&)
+  0.00      2.43     0.00    20004     0.00     0.00  std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_erase(std::_Rb_tree_node<Clock*>*)
+  0.00      2.43     0.00    20001     0.00     0.00  std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_insert_unique(Clock* const&)
+  0.00      2.43     0.00    20000     0.00     0.00  _run_ratemonitor_codeobject()
+  0.00      2.43     0.00    20000     0.00     0.00  _run_spikemonitor_codeobject()
+  0.00      2.43     0.00    20000     0.00     0.00  _run_neurongroup_resetter_codeobject()
+  0.00      2.43     0.00    20000     0.00     0.00  _run_neurongroup_1_stateupdater_codeobject()
+  0.00      2.43     0.00       77     0.00     0.00  std::vector<double, std::allocator<double> >::_M_insert_aux(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const&)
+  0.00      2.43     0.00       37     0.00     0.00  std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&)
+  0.00      2.43     0.00       13     0.00     0.00  std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::vector<int, std::allocator<int> >*, std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > > >, std::vector<int, std::allocator<int> > const&)
+  0.00      2.43     0.00        5     0.00     0.00  std::vector<std::pair<Clock*, void (*)()>, std::allocator<std::pair<Clock*, void (*)()> > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::pair<Clock*, void (*)()>*, std::vector<std::pair<Clock*, void (*)()>, std::allocator<std::pair<Clock*, void (*)()> > > >, std::pair<Clock*, void (*)()> const&)
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z11brian_startv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z27_run_ratemonitor_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z28_run_spikemonitor_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z28_run_statemonitor_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z30_run_statemonitor_1_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z36_run_neurongroup_resetter_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z39_run_neurongroup_thresholder_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z40_run_neurongroup_stateupdater_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z40_run_synapses_synapses_create_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z42_run_neurongroup_1_stateupdater_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z44_run_neurongroup_custom_operation_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z51_run_synapses_summed_variable_V_var_post_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z52_run_synapses_summed_variable_V_mean_post_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z55_run_synapses_group_variable_set_conditional_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z58_run_neurongroup_group_variable_set_conditional_codeobjectv
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN5brian12defaultclockE
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN7NetworkC2Ev
+  0.00      2.43     0.00        1     0.00     0.00  _GLOBAL__sub_I_main
+  0.00      2.43     0.00        1     0.00     0.00  _init_arrays()
+  0.00      2.43     0.00        1     0.00     0.00  _load_arrays()
+  0.00      2.43     0.00        1     0.00     0.00  _write_arrays()
+  0.00      2.43     0.00        1     0.00     0.00  Network::compute_clocks()
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+ 
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this 
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 0.41% of 2.43 seconds
+
+index % time    self  children    called     name
+                                                 <spontaneous>
+[1]    100.0    0.00    2.43                 Network::run(double, void (*)(double, double, double), double) [1]
+                1.47    0.00   20000/20000       _run_neurongroup_stateupdater_codeobject() [2]
+                0.37    0.00   20000/20000       _run_synapses_summed_variable_V_mean_post_codeobject() [3]
+                0.37    0.00   20000/20000       _run_synapses_summed_variable_V_var_post_codeobject() [4]
+                0.10    0.00   20000/20000       _run_neurongroup_thresholder_codeobject() [5]
+                0.08    0.00   20000/20000       _run_neurongroup_custom_operation_codeobject() [6]
+                0.01    0.01   20000/20000       _run_statemonitor_1_codeobject() [7]
+                0.01    0.00   20000/20000       _run_statemonitor_codeobject() [8]
+                0.01    0.00   20001/20001       Network::next_clocks() [10]
+                0.00    0.00   20000/20000       _run_spikemonitor_codeobject() [22]
+                0.00    0.00   20000/20000       _run_ratemonitor_codeobject() [21]
+                0.00    0.00   20000/20000       _run_neurongroup_resetter_codeobject() [23]
+                0.00    0.00   20000/20000       _run_neurongroup_1_stateupdater_codeobject() [24]
+                0.00    0.00       1/1           Network::compute_clocks() [50]
+-----------------------------------------------
+                1.47    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[2]     60.5    1.47    0.00   20000         _run_neurongroup_stateupdater_codeobject() [2]
+-----------------------------------------------
+                0.37    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[3]     15.2    0.37    0.00   20000         _run_synapses_summed_variable_V_mean_post_codeobject() [3]
+                0.00    0.00   20000/100000      std::vector<double, std::allocator<double> >::_M_fill_insert(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, unsigned long, double const&) [18]
+-----------------------------------------------
+                0.37    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[4]     15.2    0.37    0.00   20000         _run_synapses_summed_variable_V_var_post_codeobject() [4]
+                0.00    0.00   20000/100000      std::vector<double, std::allocator<double> >::_M_fill_insert(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, unsigned long, double const&) [18]
+-----------------------------------------------
+                0.10    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[5]      4.1    0.10    0.00   20000         _run_neurongroup_thresholder_codeobject() [5]
+-----------------------------------------------
+                0.08    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[6]      3.3    0.08    0.00   20000         _run_neurongroup_custom_operation_codeobject() [6]
+-----------------------------------------------
+                0.01    0.01   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[7]      0.7    0.01    0.01   20000         _run_statemonitor_1_codeobject() [7]
+                0.01    0.00   40000/60000       std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> >::_M_fill_insert(__gnu_cxx::__normal_iterator<std::vector<double, std::allocator<double> >**, std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> > >, unsigned long, std::vector<double, std::allocator<double> >* const&) [9]
+                0.00    0.00   39999/100000      std::vector<double, std::allocator<double> >::_M_fill_insert(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, unsigned long, double const&) [18]
+                0.00    0.00      16/77          std::vector<double, std::allocator<double> >::_M_insert_aux(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const&) [25]
+-----------------------------------------------
+                0.01    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[8]      0.5    0.01    0.00   20000         _run_statemonitor_codeobject() [8]
+                0.00    0.00   20000/60000       std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> >::_M_fill_insert(__gnu_cxx::__normal_iterator<std::vector<double, std::allocator<double> >**, std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> > >, unsigned long, std::vector<double, std::allocator<double> >* const&) [9]
+                0.00    0.00   20000/100000      std::vector<double, std::allocator<double> >::_M_fill_insert(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, unsigned long, double const&) [18]
+                0.00    0.00      16/77          std::vector<double, std::allocator<double> >::_M_insert_aux(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const&) [25]
+-----------------------------------------------
+                0.00    0.00   20000/60000       _run_statemonitor_codeobject() [8]
+                0.01    0.00   40000/60000       _run_statemonitor_1_codeobject() [7]
+[9]      0.4    0.01    0.00   60000         std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> >::_M_fill_insert(__gnu_cxx::__normal_iterator<std::vector<double, std::allocator<double> >**, std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> > >, unsigned long, std::vector<double, std::allocator<double> >* const&) [9]
+-----------------------------------------------
+                0.01    0.00   20001/20001       Network::run(double, void (*)(double, double, double), double) [1]
+[10]     0.4    0.01    0.00   20001         Network::next_clocks() [10]
+                0.00    0.00   20001/20004       std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_erase(std::_Rb_tree_node<Clock*>*) [19]
+                0.00    0.00   20001/20001       std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_insert_unique(Clock* const&) [20]
+-----------------------------------------------
+                0.00    0.00       1/100000      _run_synapses_synapses_create_codeobject() [54]
+                0.00    0.00   20000/100000      _run_synapses_summed_variable_V_mean_post_codeobject() [3]
+                0.00    0.00   20000/100000      _run_statemonitor_codeobject() [8]
+                0.00    0.00   20000/100000      _run_synapses_summed_variable_V_var_post_codeobject() [4]
+                0.00    0.00   39999/100000      _run_statemonitor_1_codeobject() [7]
+[18]     0.0    0.00    0.00  100000         std::vector<double, std::allocator<double> >::_M_fill_insert(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, unsigned long, double const&) [18]
+-----------------------------------------------
+                0.00    0.00       1/20004       Network::compute_clocks() [50]
+                0.00    0.00       2/20004       Network::~Network() [63]
+                0.00    0.00   20001/20004       Network::next_clocks() [10]
+[19]     0.0    0.00    0.00   20004         std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_erase(std::_Rb_tree_node<Clock*>*) [19]
+-----------------------------------------------
+                0.00    0.00   20001/20001       Network::next_clocks() [10]
+[20]     0.0    0.00    0.00   20001         std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_insert_unique(Clock* const&) [20]
+-----------------------------------------------
+                0.00    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[21]     0.0    0.00    0.00   20000         _run_ratemonitor_codeobject() [21]
+                0.00    0.00      32/77          std::vector<double, std::allocator<double> >::_M_insert_aux(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const&) [25]
+-----------------------------------------------
+                0.00    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[22]     0.0    0.00    0.00   20000         _run_spikemonitor_codeobject() [22]
+                0.00    0.00      13/77          std::vector<double, std::allocator<double> >::_M_insert_aux(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const&) [25]
+                0.00    0.00      13/37          std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&) [26]
+-----------------------------------------------
+                0.00    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[23]     0.0    0.00    0.00   20000         _run_neurongroup_resetter_codeobject() [23]
+-----------------------------------------------
+                0.00    0.00   20000/20000       Network::run(double, void (*)(double, double, double), double) [1]
+[24]     0.0    0.00    0.00   20000         _run_neurongroup_1_stateupdater_codeobject() [24]
+-----------------------------------------------
+                0.00    0.00      13/77          _run_spikemonitor_codeobject() [22]
+                0.00    0.00      16/77          _run_statemonitor_1_codeobject() [7]
+                0.00    0.00      16/77          _run_statemonitor_codeobject() [8]
+                0.00    0.00      32/77          _run_ratemonitor_codeobject() [21]
+[25]     0.0    0.00    0.00      77         std::vector<double, std::allocator<double> >::_M_insert_aux(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const&) [25]
+-----------------------------------------------
+                0.00    0.00      13/37          _run_spikemonitor_codeobject() [22]
+                0.00    0.00      24/37          _run_synapses_synapses_create_codeobject() [54]
+[26]     0.0    0.00    0.00      37         std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&) [26]
+-----------------------------------------------
+                0.00    0.00      13/13          Synapses<double>::Synapses(int, int) [64]
+[27]     0.0    0.00    0.00      13         std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::vector<int, std::allocator<int> >*, std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > > >, std::vector<int, std::allocator<int> > const&) [27]
+-----------------------------------------------
+                0.00    0.00       5/5           Network::add(Clock*, void (*)()) [60]
+[28]     0.0    0.00    0.00       5         std::vector<std::pair<Clock*, void (*)()>, std::allocator<std::pair<Clock*, void (*)()> > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::pair<Clock*, void (*)()>*, std::vector<std::pair<Clock*, void (*)()>, std::allocator<std::pair<Clock*, void (*)()> > > >, std::pair<Clock*, void (*)()> const&) [28]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[29]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z11brian_startv [29]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[30]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z27_run_ratemonitor_codeobjectv [30]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[31]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z28_run_spikemonitor_codeobjectv [31]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[32]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z28_run_statemonitor_codeobjectv [32]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[33]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z30_run_statemonitor_1_codeobjectv [33]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[34]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z36_run_neurongroup_resetter_codeobjectv [34]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[35]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z39_run_neurongroup_thresholder_codeobjectv [35]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[36]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z40_run_neurongroup_stateupdater_codeobjectv [36]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[37]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z40_run_synapses_synapses_create_codeobjectv [37]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[38]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z42_run_neurongroup_1_stateupdater_codeobjectv [38]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[39]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z44_run_neurongroup_custom_operation_codeobjectv [39]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[40]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z51_run_synapses_summed_variable_V_var_post_codeobjectv [40]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[41]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z52_run_synapses_summed_variable_V_mean_post_codeobjectv [41]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[42]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z55_run_synapses_group_variable_set_conditional_codeobjectv [42]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[43]     0.0    0.00    0.00       1         _GLOBAL__sub_I__Z58_run_neurongroup_group_variable_set_conditional_codeobjectv [43]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[44]     0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN5brian12defaultclockE [44]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[45]     0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN7NetworkC2Ev [45]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [76]
+[46]     0.0    0.00    0.00       1         _GLOBAL__sub_I_main [46]
+-----------------------------------------------
+                0.00    0.00       1/1           brian_start() [51]
+[47]     0.0    0.00    0.00       1         _init_arrays() [47]
+-----------------------------------------------
+                0.00    0.00       1/1           brian_start() [51]
+[48]     0.0    0.00    0.00       1         _load_arrays() [48]
+-----------------------------------------------
+                0.00    0.00       1/1           brian_end() [57]
+[49]     0.0    0.00    0.00       1         _write_arrays() [49]
+-----------------------------------------------
+                0.00    0.00       1/1           Network::run(double, void (*)(double, double, double), double) [1]
+[50]     0.0    0.00    0.00       1         Network::compute_clocks() [50]
+                0.00    0.00       1/20004       std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_erase(std::_Rb_tree_node<Clock*>*) [19]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [29] _GLOBAL__sub_I__Z11brian_startv (run.cpp) [43] _GLOBAL__sub_I__Z58_run_neurongroup_group_variable_set_conditional_codeobjectv (neurongroup_group_variable_set_conditional_codeobject.cpp) [24] _run_neurongroup_1_stateupdater_codeobject()
+  [30] _GLOBAL__sub_I__Z27_run_ratemonitor_codeobjectv (ratemonitor_codeobject.cpp) [44] _GLOBAL__sub_I__ZN5brian12defaultclockE (objects.cpp) [6] _run_neurongroup_custom_operation_codeobject()
+  [31] _GLOBAL__sub_I__Z28_run_spikemonitor_codeobjectv (spikemonitor_codeobject.cpp) [45] _GLOBAL__sub_I__ZN7NetworkC2Ev (network.cpp) [4] _run_synapses_summed_variable_V_var_post_codeobject()
+  [32] _GLOBAL__sub_I__Z28_run_statemonitor_codeobjectv (statemonitor_codeobject.cpp) [46] _GLOBAL__sub_I_main (main.cpp) [3] _run_synapses_summed_variable_V_mean_post_codeobject()
+  [33] _GLOBAL__sub_I__Z30_run_statemonitor_1_codeobjectv (statemonitor_1_codeobject.cpp) [47] _init_arrays() [10] Network::next_clocks()
+  [34] _GLOBAL__sub_I__Z36_run_neurongroup_resetter_codeobjectv (neurongroup_resetter_codeobject.cpp) [48] _load_arrays() [50] Network::compute_clocks()
+  [35] _GLOBAL__sub_I__Z39_run_neurongroup_thresholder_codeobjectv (neurongroup_thresholder_codeobject.cpp) [49] _write_arrays() [9] std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> >::_M_fill_insert(__gnu_cxx::__normal_iterator<std::vector<double, std::allocator<double> >**, std::vector<std::vector<double, std::allocator<double> >*, std::allocator<std::vector<double, std::allocator<double> >*> > >, unsigned long, std::vector<double, std::allocator<double> >* const&)
+  [36] _GLOBAL__sub_I__Z40_run_neurongroup_stateupdater_codeobjectv (neurongroup_stateupdater_codeobject.cpp) [21] _run_ratemonitor_codeobject() [27] std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::vector<int, std::allocator<int> >*, std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > > >, std::vector<int, std::allocator<int> > const&)
+  [37] _GLOBAL__sub_I__Z40_run_synapses_synapses_create_codeobjectv (synapses_synapses_create_codeobject.cpp) [22] _run_spikemonitor_codeobject() [28] std::vector<std::pair<Clock*, void (*)()>, std::allocator<std::pair<Clock*, void (*)()> > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::pair<Clock*, void (*)()>*, std::vector<std::pair<Clock*, void (*)()>, std::allocator<std::pair<Clock*, void (*)()> > > >, std::pair<Clock*, void (*)()> const&)
+  [38] _GLOBAL__sub_I__Z42_run_neurongroup_1_stateupdater_codeobjectv (neurongroup_1_stateupdater_codeobject.cpp) [8] _run_statemonitor_codeobject() [25] std::vector<double, std::allocator<double> >::_M_insert_aux(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const&)
+  [39] _GLOBAL__sub_I__Z44_run_neurongroup_custom_operation_codeobjectv (neurongroup_custom_operation_codeobject.cpp) [7] _run_statemonitor_1_codeobject() [18] std::vector<double, std::allocator<double> >::_M_fill_insert(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, unsigned long, double const&)
+  [40] _GLOBAL__sub_I__Z51_run_synapses_summed_variable_V_var_post_codeobjectv (synapses_summed_variable_V_var_post_codeobject.cpp) [23] _run_neurongroup_resetter_codeobject() [26] std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&)
+  [41] _GLOBAL__sub_I__Z52_run_synapses_summed_variable_V_mean_post_codeobjectv (synapses_summed_variable_V_mean_post_codeobject.cpp) [5] _run_neurongroup_thresholder_codeobject() [20] std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_insert_unique(Clock* const&)
+  [42] _GLOBAL__sub_I__Z55_run_synapses_group_variable_set_conditional_codeobjectv (synapses_group_variable_set_conditional_codeobject.cpp) [2] _run_neurongroup_stateupdater_codeobject() [19] std::_Rb_tree<Clock*, Clock*, std::_Identity<Clock*>, std::less<Clock*>, std::allocator<Clock*> >::_M_erase(std::_Rb_tree_node<Clock*>*)
