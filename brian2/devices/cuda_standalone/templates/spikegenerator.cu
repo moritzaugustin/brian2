@@ -32,7 +32,7 @@ int mem_per_thread(){
 	}
 	__syncthreads();
 
-	for(int spike_idx={{_lastindex}}[0] + _idx; spike_idx < _numspike_time; spike_idx+=THREADS_PER_BLOCK)
+	for(int spike_idx={{_lastindex}}[0] + tid; spike_idx < _numspike_time; spike_idx+=THREADS_PER_BLOCK)
 	{
 		if (not_end_period)
 		{
@@ -74,6 +74,7 @@ int mem_per_thread(){
 	}
 	//add number of spikes of all blocks together
 	//last element of spikespace holds total number of spikes
+	__syncthreads();
 	atomicAdd(&{{_spikespace}}[N], num_spikes_in_block);
 	atomicAdd(&{{_lastindex}}[0], num_spikes_in_block);
 {% endblock %}

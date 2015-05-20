@@ -183,7 +183,7 @@ void _init_arrays()
 	{% endfor %}
 
 	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
-	{{varname}} = new thrust::device_vector<{{c_data_type(var.dtype)}}>[_num__array_statemonitor__indices];
+	{{varname}} = new thrust::device_vector<{{c_data_type(var.dtype)}}>[_num__array_{{var.owner.name}}__indices];
 	{% endfor %}
 }
 

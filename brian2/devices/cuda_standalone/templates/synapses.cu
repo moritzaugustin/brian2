@@ -25,7 +25,10 @@
 		&post_neuron_queue);
 
 	int size = post_neuron_queue[bid].size();
-	for(int j = tid; j < size; j++)
+	
+	{{scalar_code|autoindent}}
+	
+	for(int j = tid; j < size; j+=THREADS_PER_BLOCK)
 	{
 		int32_t _pre_idx = pre_neuron_queue[bid].at(j);
 		int32_t _post_idx = post_neuron_queue[bid].at(j);
@@ -37,7 +40,7 @@
 
 {% block kernel_call %}
 kernel_{{codeobj_name}}<<<num_parallel_blocks,1>>>(
-		num_threads(N),
+		1,
 		%HOST_PARAMETERS%
 	);
 {% endblock %}

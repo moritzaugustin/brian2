@@ -3,10 +3,17 @@
                     _num_source_neurons, _source_start, _source_stop } #}
 
 {% block extra_maincode %}
-int num_iterations = {{owner.clock.name}}.i_end;
 int current_iteration = {{owner.clock.name}}.i;
-dev{{_dynamic_t}}.resize(num_iterations);
-dev{{_dynamic_rate}}.resize(num_iterations);
+static unsigned int start_offset = current_iteration;
+static bool first_run = true;
+if(first_run)
+{
+	int num_iterations = {{owner.clock.name}}.i_end;
+	unsigned int size_till_now = dev{{_dynamic_t}}.size();
+	dev{{_dynamic_t}}.resize(num_iterations + size_till_now - start_offset);
+	dev{{_dynamic_rate}}.resize(num_iterations + size_till_now - start_offset);
+	first_run = false;
+}
 {% endblock %}
 
 {% block kernel_call %}
@@ -14,7 +21,7 @@ _run_{{codeobj_name}}_kernel<<<1,1>>>(
 	{{owner.source.N}},
 	_clock_t,
 	_clock_dt,
-	current_iteration,
+	current_iteration - start_offset,
 	dev_array_{{owner.source.name}}__spikespace,
 	thrust::raw_pointer_cast(&(dev{{_dynamic_rate}}[0])),
 	thrust::raw_pointer_cast(&(dev{{_dynamic_t}}[0])));

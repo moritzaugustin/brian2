@@ -10,6 +10,33 @@
 #include<stdint.h>
 #include "brianlib/common_math.h"
 
+namespace {
+	int _num_blocks(int num_objects)
+    {
+		static int needed_num_block = -1;
+	    if(needed_num_block == -1)
+		{
+			needed_num_block = brian::num_parallel_blocks;
+			while(needed_num_block * brian::max_threads_per_block < num_objects)
+			{
+				needed_num_block *= 2;
+			}
+		}
+		return needed_num_block;
+    }
+
+	int _num_threads(int num_objects)
+    {
+		static int needed_num_threads = -1;
+		if(needed_num_threads == -1)
+		{
+			int needed_num_block = _num_blocks(num_objects);
+			needed_num_threads = min(brian::max_threads_per_block, (int)ceil(num_objects/(double)needed_num_block));
+		}
+		return needed_num_threads;
+	}
+}
+
 #define MEM_PER_THREAD (2*sizeof(int32_t) + sizeof(unsigned int))
 
 __global__ void _run_{{codeobj_name}}_advance_kernel()
@@ -25,6 +52,7 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 	unsigned int sourceN,
 	unsigned int _num_blocks,
 	unsigned int _num_threads,
+	unsigned int block_size,
 	int32_t* {{_spikespace}})
 {
 	using namespace brian;
@@ -53,7 +81,7 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 			if(sourceN > _num_blocks)
 			{
 				//round to nearest multiple of N/num_blocks = start of next block
-				i += _num_threads - i % (_num_threads);
+				i += block_size - (i % block_size);
 			}
 			else
 			{
@@ -78,6 +106,7 @@ void _run_{{codeobj_name}}()
 		_num_spikespace - 1,
 		num_parallel_blocks,
 		num_threads,
+		_num_threads(_num_spikespace - 1),
 		dev_array_{{owner.source.name}}__spikespace);
 
 }

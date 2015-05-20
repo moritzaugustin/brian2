@@ -10,16 +10,36 @@
 
 ////// SUPPORT CODE ///////
 namespace {
-	int num_blocks(int num_objects){
-		return ceil(num_objects / (double)brian::max_threads_per_block);
-	}
-	int num_threads(int num_objects){
-		return brian::max_threads_per_block;
+	int num_blocks(int num_objects)
+    {
+		static int needed_num_block = -1;
+	    if(needed_num_block == -1)
+		{
+			needed_num_block = brian::num_parallel_blocks;
+			while(needed_num_block * brian::max_threads_per_block < num_objects)
+			{
+				needed_num_block *= 2;
+			}
+		}
+		return needed_num_block;
+    }
+
+	int num_threads(int num_objects)
+    {
+		static int needed_num_threads = -1;
+		if(needed_num_threads == -1)
+		{
+			int needed_num_block = num_blocks(num_objects);
+			needed_num_threads = min(brian::max_threads_per_block, (int)ceil(num_objects/(double)needed_num_block));
+		}
+		return needed_num_threads;
 	}
 	{% block extra_device_helper %}
 	{% endblock %}
 	{{support_code_lines|autoindent}}
 }
+
+{{hashdefine_lines|autoindent}}
 
 {% block kernel %}
 __global__ void kernel_{{codeobj_name}}(
@@ -53,9 +73,6 @@ __global__ void kernel_{{codeobj_name}}(
 	{% endblock %}
 }
 {% endblock %}
-
-////// HASH DEFINES ///////
-{{hashdefine_lines|autoindent}}
 
 void _run_{{codeobj_name}}()
 {	

@@ -15,8 +15,9 @@
 	{# USES_VARIABLES { _synaptic_pre, _synaptic_post, rand,
 	                    N_incoming, N_outgoing } #}
 
-	{{scalar_code|autoindent}}
 	unsigned int MAX_SYN_N = _num_all_pre*_num_all_post;
+	
+	{{scalar_code|autoindent}}
 
 	//generate MAX_SYN_N random numbers
 	float* _array_random_float_numbers;
@@ -25,10 +26,10 @@
 	{
 		printf("ERROR while allocating memory with size %ld()\n", sizeof(float)*MAX_SYN_N);
 	}
-	curandGenerator_t gen;
-	curandCreateGeneratorHost(&gen, CURAND_RNG_PSEUDO_DEFAULT);
-	curandSetPseudoRandomGeneratorSeed(gen, time(0));
-	curandGenerateUniform(gen, _array_random_float_numbers, MAX_SYN_N);
+	curandGenerator_t syn_random_gen;
+	curandCreateGeneratorHost(&syn_random_gen, CURAND_RNG_PSEUDO_DEFAULT);
+	curandSetPseudoRandomGeneratorSeed(syn_random_gen, time(0));
+	curandGenerateUniform(syn_random_gen, _array_random_float_numbers, MAX_SYN_N);
 
 	//these two vectors just cache everything on the CPU-side
 	//data is copied to GPU at the end
@@ -42,7 +43,7 @@
 		for(int _j = 0; _j < _num_all_post; _j++)
 		{
 			{% block maincode_inner %}
-		    const int _vectorisation_idx = _j;
+		    const int _vectorisation_idx = _i*_num_all_post  + _j;
 			{{vector_code|autoindent}}
 			// Add to buffer
 			if(_cond)

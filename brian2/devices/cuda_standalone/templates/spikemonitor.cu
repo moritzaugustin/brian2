@@ -52,7 +52,7 @@ else
 	cudaMemcpyFromSymbol(&num_spikes, dev_num_spikes, sizeof(num_spikes), 0, cudaMemcpyDeviceToHost);
 }
 
-dev{{_dynamic_i}}.resize(dev{{_dynamic_i}}.size() + num_spikes, 0);	//push dummy value
+dev{{_dynamic_i}}.resize(dev{{_dynamic_i}}.size() + num_spikes);	//push dummy value
 dev{{_dynamic_t}}.resize(dev{{_dynamic_t}}.size() + num_spikes, _clock_t);
 {% endblock %}
 
