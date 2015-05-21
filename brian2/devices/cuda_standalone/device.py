@@ -338,15 +338,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             ns = codeobj.variables
             # TODO: fix these freeze/CONSTANTS hacks somehow - they work but not elegant.
             code = freeze(codeobj.code.cu_file, ns)
-            if isinstance(codeobj.owner, StateMonitor):
-                for varname, var in codeobj.owner.recorded_variables.iteritems():
-                    record_var = codeobj.owner.variables[varname]
-                    _data = self.get_array_name(record_var, access_data=False)
-                    placeholder = "%DATA_" + record_var.name + "%"
-                    if record_var in self.dynamic_arrays:
-                        code = code.replace(placeholder, 'thrust::raw_pointer_cast(&dev%s[0])' % (_data), 1)
-                    else:
-                        code = code.replace(placeholder, 'dev%s' % (_data), 1)
                         
             if len(host_parameters[codeobj.name]) == 0:
                 host_parameters[codeobj.name].append("0")

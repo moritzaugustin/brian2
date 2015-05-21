@@ -64,6 +64,7 @@ _run_{{codeobj_name}}_kernel<<<1, 1>>>(
 		num_threads(_num_spikespace-1),
 		start_spikes,
 		thrust::raw_pointer_cast(&(dev{{_dynamic_i}}[0])),
+		dev_array_{{owner.name}}__count,
 		dev{{spikespace_name}});
 {% endblock %}
 
@@ -74,6 +75,7 @@ __global__ void _run_{{codeobj_name}}_kernel(
 	unsigned int block_size,
 	int32_t index_last_element,
 	int32_t* spikemonitor_i,
+	int32_t* count,
 	int32_t* spikespace
 	)
 {
@@ -88,6 +90,7 @@ __global__ void _run_{{codeobj_name}}_kernel(
 			if(spiking_neuron >= _source_start && spiking_neuron < _source_stop)
 			{
 				spikemonitor_i[index_last_element++] = spiking_neuron;
+				count[spiking_neuron-_source_start]++;
 			}
 			i++;
 		}

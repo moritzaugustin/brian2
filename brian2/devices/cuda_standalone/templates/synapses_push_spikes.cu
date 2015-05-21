@@ -62,10 +62,11 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 	int tid = threadIdx.x;
 
 	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
-	for(int i = 0; i < sourceN;)
+	unsigned int start_index = {{owner.name}}.spikes_start - ({{owner.name}}.spikes_start % block_size);	//find start of last block
+	for(int i = 0; i < {{owner.name}}.spikes_stop;)
 	{
 		int32_t spiking_neuron = {{_spikespace}}[i];
-		if(spiking_neuron != -1)
+		if(spiking_neuron != -1 && spiking_neuron >= {{owner.name}}.spikes_start)
 		{
 			__syncthreads();
 			i++;
@@ -107,7 +108,8 @@ void _run_{{codeobj_name}}()
 		num_parallel_blocks,
 		num_threads,
 		_num_threads(_num_spikespace - 1),
-		dev_array_{{owner.source.name}}__spikespace);
+		{% set _spike_space = get_array_name(owner.variables['_spikespace'], access_data=False) %}
+		dev{{_spike_space}});
 
 }
 {% endmacro %}

@@ -28,6 +28,7 @@ Network brian::{{net.name}};
 {% if not var in dynamic_array_specs %}
 {{c_data_type(var.dtype)}} * brian::{{varname}};
 {{c_data_type(var.dtype)}} * brian::dev{{varname}};
+__device__ {{c_data_type(var.dtype)}} * brian::d{{varname}};
 const int brian::_num_{{varname}} = {{var.size}};
 
 {% endif %}
@@ -50,6 +51,7 @@ thrust::device_vector<{{c_data_type(var.dtype)}}>* brian::{{varname}};
 {% if not name in array_specs.values() %}
 {{dtype_spec}} * brian::{{name}};
 {{dtype_spec}} * brian::dev{{name}};
+__device__ {{dtype_spec}} * brian::d{{name}};
 const int brian::_num_{{name}} = {{N}};
 {% endif %}
 {% endfor %}
@@ -58,6 +60,8 @@ const int brian::_num_{{name}} = {{N}};
 {% for S in synapses | sort(attribute='name') %}
 // {{S.name}}
 Synapses<double> brian::{{S.name}}({{S.source|length}}, {{S.target|length}});
+int32_t {{S.name}}_source_start_index;
+int32_t {{S.name}}_source_stop_index;
 {% for path in S._pathways | sort(attribute='name') %}
 // {{path.name}}
 __device__ unsigned int* brian::{{path.name}}_size_by_pre;
@@ -118,15 +122,20 @@ void _init_arrays()
 	curandSetPseudoRandomGeneratorSeed(random_float_generator, time(0));
 
 	//since random number generation is at the end of each clock_tick, also generate numbers for t = 0
+	unsigned int needed_random_numbers;
 	{% for co in codeobj_with_rand | sort(attribute='name') %}
-	cudaMalloc((void**)&dev_{{co.name}}_random_uniform_floats, sizeof(float)*{{co.owner._N}} * {{co.rand_calls}});
+	//curand calls always need a even number for some reason
+	needed_random_numbers = {{co.owner._N}} % 2 == 0?{{co.owner._N}}:{{co.owner._N}}+1;
+	cudaMalloc((void**)&dev_{{co.name}}_random_uniform_floats, sizeof(float)*needed_random_numbers * {{co.rand_calls}});
 	cudaMemcpyToSymbol(_array_{{co.name}}_rand, &dev_{{co.name}}_random_uniform_floats, sizeof(float*));
-	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, {{co.owner._N}} * {{co.rand_calls}});
+	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, needed_random_numbers * {{co.rand_calls}});
 	{% endfor %}
 	{% for co in codeobj_with_randn | sort(attribute='name') %}
-	cudaMalloc((void**)&dev_{{co.name}}_random_normal_floats, sizeof(float)*{{co.owner._N}} * {{co.randn_calls}});
+		//curand calls always need a even number for some reason
+	needed_random_numbers = {{co.owner._N}} % 2 == 0?{{co.owner._N}}:{{co.owner._N}}+1;
+	cudaMalloc((void**)&dev_{{co.name}}_random_normal_floats, sizeof(float)*needed_random_numbers * {{co.randn_calls}});
 	cudaMemcpyToSymbol(_array_{{co.name}}_randn, &dev_{{co.name}}_random_normal_floats, sizeof(float*));
-	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.randn_calls}}, 0.0, 1.0);
+	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, needed_random_numbers * {{co.randn_calls}}, 0.0, 1.0);
 	{% endfor %}
 
 	{% for S in synapses | sort(attribute='name') %}
@@ -180,6 +189,7 @@ void _init_arrays()
 	{
 		printf("ERROR while allocating {{varname}} on device with size %ld\n", sizeof({{dtype_spec}})*{{N}});
 	}
+	cudaMemcpyToSymbol(d{{name}}, &dev{{name}}, sizeof({{dtype_spec}}*));
 	{% endfor %}
 
 	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
@@ -373,6 +383,7 @@ extern thrust::device_vector<{{c_data_type(var.dtype)}}> dev{{varname}};
 {% if not var in dynamic_array_specs %}
 extern {{c_data_type(var.dtype)}} * {{varname}};
 extern {{c_data_type(var.dtype)}} * dev{{varname}};
+extern __device__ {{c_data_type(var.dtype)}} *d{{varname}};
 extern const int _num_{{varname}};
 {% endif %}
 {% endfor %}
@@ -389,6 +400,7 @@ extern thrust::device_vector<{{c_data_type(var.dtype)}}>* {{varname}};
 {% if not name in array_specs.values() %}
 extern {{dtype_spec}} *{{name}};
 extern {{dtype_spec}} *dev{{name}};
+extern __device__ {{dtype_spec}} *d{{name}};
 extern const int _num_{{name}};
 {% endif %}
 {% endfor %}

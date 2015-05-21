@@ -16,12 +16,18 @@ void _run_random_number_generation()
 
 	float mean = 0.0;
 	float std_deviation = 1.0;
+	
+	unsigned int needed_random_numbers;
 
 	{% for co in codeobj_with_rand %}
-	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, {{co.owner._N}} * {{co.rand_calls}});
+	//curand calls always need a even number for some reason
+	needed_random_numbers = {{co.owner._N}} % 2 == 0?{{co.owner._N}}:{{co.owner._N}}+1;
+	curandGenerateUniform(random_float_generator, dev_{{co.name}}_random_uniform_floats, needed_random_numbers * {{co.rand_calls}});
 	{% endfor %}
 	{% for co in codeobj_with_randn %}
-	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, {{co.owner._N}} * {{co.randn_calls}}, mean, std_deviation);
+	//curand calls always need a even number for some reason
+	needed_random_numbers = {{co.owner._N}} % 2 == 0?{{co.owner._N}}:{{co.owner._N}}+1;
+	curandGenerateNormal(random_float_generator, dev_{{co.name}}_random_normal_floats, needed_random_numbers * {{co.randn_calls}}, mean, std_deviation);
 	{% endfor %}
 }
 {% endmacro %}

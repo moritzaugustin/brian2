@@ -2,8 +2,8 @@
 
 {% block extra_maincode %}
 int current_iteration = {{owner.clock.name}}.i;
-static unsigned int start_offset = current_iteration;
-dev_dynamic_array_{{owner.name}}_t.push_back({{owner.clock.name}}.t_() - start_offset);
+static unsigned int start_offset = current_iteration - dev_dynamic_array_{{owner.name}}_t.size();
+dev_dynamic_array_{{owner.name}}_t.push_back({{owner.clock.name}}.t_());
 static bool first_run = true;
 if(first_run)
 {
@@ -29,23 +29,24 @@ if(first_run)
 _run_{{codeobj_name}}_kernel<<<1, _num__array_{{owner.name}}__indices>>>(
 	_num__array_{{owner.name}}__indices,
 	dev_array_{{owner.name}}__indices,
+	current_iteration - start_offset,
 	{% for varname, var in _recorded_variables | dictsort %}
 		{% set _recorded =  get_array_name(var, access_data=False) %}
 		thrust::raw_pointer_cast(&addresses_monitor_{{_recorded}}[0]),
-		%DATA_{{varname}}%,
 	{% endfor %}
-	current_iteration - start_offset);
+	%HOST_PARAMETERS%
+	);
 {% endblock %}
 
 {% block kernel %}
 __global__ void _run_{{codeobj_name}}_kernel(
 	int _num_indices,
 	int32_t* indices,
+	int current_iteration,
 	{% for varname, var in _recorded_variables | dictsort %}
 		{{c_data_type(var.dtype)}}** monitor_{{varname}},
-		{{c_data_type(var.dtype)}}* data_{{varname}},
 	{% endfor %}
-	int current_iteration
+	%DEVICE_PARAMETERS%
 	)
 {
 	unsigned int tid = threadIdx.x;
@@ -53,11 +54,16 @@ __global__ void _run_{{codeobj_name}}_kernel(
 	{
 		return;
 	}
+	int32_t _idx = indices[tid];
+	
+	%KERNEL_VARIABLES%
+	
+	{{scalar_code|autoindent}}
+	{{vector_code|autoindent}}
 
-	int32_t neuron_id = indices[tid];
 	{% for varname, var in _recorded_variables | dictsort %}
 		{% set _recorded =  get_array_name(var, access_data=False) %}
-		monitor_{{varname}}[tid][current_iteration] = data_{{varname}}[neuron_id];
+		monitor_{{varname}}[tid][current_iteration] = _to_record_{{varname}};
 	{% endfor %}
 }
 {% endblock %}

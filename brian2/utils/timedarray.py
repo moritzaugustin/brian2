@@ -161,9 +161,39 @@ class TimedArray(Function, Nameable):
             return {'_%s_num_values' % self.name: len(self.values),
                     '_%s_values' % self.name: self.values}
 
+        def create_cuda_implementation(owner):
+            group_dt = owner.clock.dt_
+            K = _find_K(group_dt, dt)
+            support_code = '''
+            __device__ inline double _timedarray_%NAME%(const double t, const int _num_values, const double* _values)
+            {
+                const double epsilon = %DT% / %K%;
+                int i = (int)((t/epsilon + 0.5)/%K%); // rounds to nearest int for positive values
+                if(i<0)
+                   i = 0;
+                if(i>=_num_values)
+                    i = _num_values-1;
+                return _values[i];
+            }
+            '''.replace('%NAME%', self.name).replace('%DT%', '%.18f' % dt).replace('%K%', str(K))
+            cpp_code = {'support_code': support_code,
+                        'hashdefine_code': '''
+            #define %NAME%(t) _timedarray_%NAME%(t, _%NAME%_num_values, d_%NAME%_values)
+            '''.replace('%NAME%', self.name)}
+
+            return cpp_code
+
+        def create_cuda_namespace(owner):
+            return {'_%s_num_values' % self.name: len(self.values),
+                    '_%s_values' % self.name: self.values}
+
         self.implementations.add_dynamic_implementation('cpp',
                                                         create_cpp_implementation,
                                                         create_cpp_namespace,
+                                                        name=self.name)
+        self.implementations.add_dynamic_implementation('cuda',
+                                                        create_cuda_implementation,
+                                                        create_cuda_namespace,
                                                         name=self.name)
 
     def _init_2d(self):

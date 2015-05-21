@@ -23,6 +23,8 @@ public:
 	scalar* dev_delay;
 	int32_t* dev_sources;
 	int32_t* dev_targets;
+	unsigned int spikes_start;
+	unsigned int spikes_stop;
 	scalar dt;
 	CSpikeQueue<scalar>* queue;
 
@@ -36,6 +38,8 @@ public:
 		dev_sources = _sources;
 		dev_targets = _targets;
 		dt = _dt;
+		spikes_start = _spikes_start;
+		spikes_stop = _spikes_stop;
 		queue = new CSpikeQueue<scalar>;
     };
 

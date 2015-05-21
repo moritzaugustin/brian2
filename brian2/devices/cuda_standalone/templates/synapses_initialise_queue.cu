@@ -65,8 +65,8 @@ void _run_{{pathobj}}_initialise_queue()
 	unsigned int max_delay = 0;
 	for(int syn_id = 0; syn_id < syn_N; syn_id++)
 	{
-		int32_t pre_neuron_id = h_synapses__synaptic_pre[syn_id];
-		int32_t post_neuron_id = h_synapses__synaptic_post[syn_id];
+		int32_t pre_neuron_id = h_synapses__synaptic_pre[syn_id] - {{owner.source.start}};
+		int32_t post_neuron_id = h_synapses__synaptic_post[syn_id]  - {{owner.target.start}};
 		unsigned int delay = (int)(h_{{pathobj}}_delay[syn_id] / dt + 0.5);
 		if(delay > max_delay)
 		{
