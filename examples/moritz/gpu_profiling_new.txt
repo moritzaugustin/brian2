@@ -1,57 +1,32 @@
-total runtime: 32.3s
-
-==22434== NVPROF is profiling process 22434, command: ./main
-==22434== Profiling application: ./main
-==22434== Profiling result:
+==3921== NVPROF is profiling process 3921, command: ./main
+==3921== Profiling application: ./main
+==3921== Profiling result:
 Time(%)      Time     Calls       Avg       Min       Max  Name
- 56.75%  15.0307s     10000  1.5031ms  17.504us  24.473ms  _run_synapses_pre_push_spikes_push_kernel(unsigned int, unsigned int, unsigned int, unsigned int, int*)
- 30.37%  8.04302s     10000  804.30us  7.8070us  6.0195ms  kernel_synapses_pre_codeobject(unsigned int, double*, int, double*, int, double, int*, int, double*, int*, int, char*)
-  3.90%  1.03173s     10000  103.17us  101.85us  115.10us  kernel_neurongroup_thresholder_codeobject(unsigned int, int*, double, double*, double*, char*)
-  2.61%  692.51ms     20003  34.620us  31.423us  902.12us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
-  1.55%  410.84ms     11710  35.084us  31.200us  39.487us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<int>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<int>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(int)
-  1.49%  394.89ms     10000  39.489us  35.487us  43.519us  kernel_neurongroup_stateupdater_codeobject(unsigned int, double, double*, double*, double, double*, char*)
-  0.89%  236.33ms     10000  23.633us  14.176us  73.022us  _run_spikemonitor_codeobject_kernel(unsigned int, unsigned int, unsigned int, int, int*, int*)
-  0.68%  179.03ms    180028     994ns     927ns  1.0218ms  [CUDA memcpy HtoD]
-  0.50%  131.18ms      3622  36.217us  34.687us  39.519us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<__int64>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<__int64>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(__int64)
-  0.29%  77.433ms     10000  7.7430us  6.8800us  8.8320us  _run_synapses_pre_push_spikes_advance_kernel(void)
-  0.23%  61.026ms     10001  6.1010us  5.5350us  7.2320us  void gen_sequenced<curandStateXORWOW, float2, normal_args_st, __operator_&__(float2 curand_normal_scaled2<curandStateXORWOW>(curandStateXORWOW*, normal_args_st))>(curandStateXORWOW*, float2*, unsigned long, unsigned long, normal_args_st)
-  0.19%  50.738ms     10000  5.0730us  4.7040us  7.6160us  _run_ratemonitor_codeobject_kernel(unsigned int, double, double, int, int*, double*, double*)
-  0.16%  41.976ms         5  8.3952ms  8.3872ms  8.4032ms  generate_seed_pseudo(__int64, __int64, __int64, curandOrdering, curandStateXORWOW*, unsigned int*)
-  0.15%  40.628ms     10000  4.0620us  2.9440us  4.5440us  kernel_neurongroup_resetter_codeobject(unsigned int, int*, double*, double*, char*)
-  0.12%  32.085ms     10000  3.2080us  2.9760us  3.9360us  _run_statemonitor_codeobject_kernel(int, int*, double**, double*, double**, double*, int)
-  0.09%  24.103ms     10003  2.4090us  1.9510us  2.3218ms  [CUDA memcpy DtoH]
-  0.03%  8.7273ms         1  8.7273ms  8.7273ms  8.7273ms  _run_synapses_pre_initialise_queue_kernel(unsigned int, unsigned int, unsigned int, double, unsigned int, unsigned int)
-  0.00%  172.83us        40  4.3200us  3.4240us  10.143us  [CUDA memcpy DtoD]
-  0.00%  100.09us         1  100.09us  100.09us  100.09us  _kernel_synapses_group_variable_set_conditional_codeobject(unsigned int, double*, int, float*, long)
-  0.00%  98.974us         1  98.974us  98.974us  98.974us  _kernel_synapses_group_variable_set_conditional_codeobject_1(unsigned int, double*, int, float*, long)
-  0.00%  94.814us         4  23.703us  6.2720us  40.991us  void gen_sequenced<curandStateXORWOW, float, int, __operator_&__(float curand_uniform_noargs<curandStateXORWOW>(curandStateXORWOW*, int))>(curandStateXORWOW*, float*, unsigned long, unsigned long, int)
-  0.00%  79.966us         2  39.983us  39.263us  40.703us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double*>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double*>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double*)
-  0.00%  68.638us         1  68.638us  68.638us  68.638us  _kernel_synapses_group_variable_set_conditional_codeobject_2(unsigned int, double*, int, long)
-  0.00%  22.111us         1  22.111us  22.111us  22.111us  synapses_pre_init(unsigned int, unsigned int, double*, int*, int*, double, int, int)
-  0.00%  5.1520us         1  5.1520us  5.1520us  5.1520us  _kernel_neurongroup_group_variable_set_conditional_codeobject(unsigned int, double*, float*, char*)
-  0.00%  4.9600us         1  4.9600us  4.9600us  4.9600us  _kernel_neurongroup_group_variable_set_conditional_codeobject_1(unsigned int, double*, float*, char*)
+ 57.42%  5.88350s     10000  588.35us  6.9760us  5.6354ms  _run_synapses_pre_push_spikes_push_kernel(unsigned int, unsigned int, unsigned int, unsigned int, int*)
+ 37.97%  3.89054s     10000  389.05us  1.5040us  2.2605ms  kernel_synapses_pre_codeobject(unsigned int, double*, int, double*, int, double, int*, int, double*, int*, int, char*)
+  1.25%  128.11ms     10000  12.811us  4.1600us  58.718us  _run_spikemonitor_codeobject_kernel(unsigned int, unsigned int, unsigned int, int, int*, int*, int*)
+  1.22%  125.29ms     10000  12.529us  10.848us  13.920us  kernel_neurongroup_stateupdater_codeobject(unsigned int, double, double*, double*, double, double*, char*)
+  0.59%  60.134ms     10000  6.0130us  5.5350us  6.7840us  void gen_sequenced<curandStateXORWOW, float2, normal_args_st, __operator_&__(float2 curand_normal_scaled2<curandStateXORWOW>(curandStateXORWOW*, normal_args_st))>(curandStateXORWOW*, float2*, unsigned long, unsigned long, normal_args_st)
+  0.25%  25.111ms     10000  2.5110us  2.2720us  3.5840us  _run_ratemonitor_codeobject_kernel(unsigned int, double, double, int, int*, double*, double*)
+  0.24%  24.494ms     10000  2.4490us  1.3120us  4.1280us  kernel_neurongroup_resetter_codeobject(unsigned int, int*, double*, double*, char*)
+  0.20%  20.528ms     10000  2.0520us  1.7910us  2.5920us  _run_synapses_pre_push_spikes_advance_kernel(void)
+  0.19%  19.091ms     20003     954ns     831ns  1.4720us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double)
+  0.18%  18.753ms     10000  1.8750us  1.5990us  2.4320us  _run_statemonitor_codeobject_kernel(int, int*, int, double**, double**, double*, double*, char*)
+  0.17%  17.203ms     10000  1.7200us  1.5040us  2.2080us  kernel_neurongroup_thresholder_codeobject(unsigned int, int*, double, double*, double*, char*)
+  0.16%  16.366ms     10000  1.6360us  1.5040us  10.464us  [CUDA memcpy DtoH]
+  0.12%  12.623ms     12048  1.0470us     832ns  1.3440us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<int>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<int>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(int)
+  0.04%  4.5690ms      4311  1.0590us     896ns  1.2480us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<__int64>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<__int64>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(__int64)
+  0.00%  129.63us        40  3.2400us  2.3680us  11.232us  [CUDA memcpy DtoD]
+  0.00%  2.1440us         2  1.0720us     960ns  1.1840us  void thrust::system::cuda::detail::detail::launch_closure_by_value<thrust::system::cuda::detail::for_each_n_detail::for_each_n_closure<thrust::device_ptr<double*>, unsigned int, thrust::detail::device_generate_functor<thrust::detail::fill_functor<double*>>, thrust::system::cuda::detail::detail::blocked_thread_array>>(double*)
 
-==22434== API calls:
+==3921== API calls:
 Time(%)      Time     Calls       Avg       Min       Max  Name
- 69.25%  25.6737s    210076  122.21us     299ns  25.905ms  cudaMemcpy
- 16.93%  6.27549s         1  6.27549s  6.27549s  6.27549s  cudaDeviceSetLimit
-  5.95%  2.20763s    180088  12.258us  6.9760us  981.47us  cudaMalloc
-  4.11%  1.52561s     35342  43.166us  3.7160us  8.0018ms  cudaThreadSynchronize
-  3.04%  1.12618s    135354  8.3200us  6.4270us  977.74us  cudaLaunch
-  0.34%  125.51ms    635428     197ns     152ns  964.79us  cudaSetupArgument
-  0.14%  52.477ms        50  1.0495ms     907ns  9.3389ms  cudaFree
-  0.11%  42.538ms    135354     314ns     220ns  279.23us  cudaConfigureCall
-  0.10%  36.723ms     80682     455ns     310ns  320.03us  cudaGetDevice
-  0.02%  5.7273ms     20020     286ns     159ns  154.53us  cudaGetLastError
-  0.01%  3.2873ms        14  234.81us  210.44us  304.91us  cudaGetDeviceProperties
-  0.00%  626.85us       166  3.7760us     181ns  154.23us  cuDeviceGetAttribute
-  0.00%  586.39us         5  117.28us  20.497us  160.45us  cudaMemcpyToSymbol
-  0.00%  191.72us         2  95.859us  50.879us  140.84us  cuDeviceTotalMem
-  0.00%  171.09us         2  85.544us  42.169us  128.92us  cuDeviceGetName
-  0.00%  20.459us         1  20.459us  20.459us  20.459us  cudaProfilerStart
-  0.00%  16.997us         4  4.2490us  3.1940us  6.1550us  cudaFuncGetAttributes
-  0.00%  6.0780us         1  6.0780us  6.0780us  6.0780us  cudaDeviceSynchronize
-  0.00%  2.2640us         3     754ns     214ns  1.3590us  cuDeviceGetCount
-  0.00%  1.3490us         3     449ns     314ns     524ns  cuDeviceGet
-  0.00%     676ns         1     676ns     676ns     676ns  cuInit
-  0.00%     403ns         1     403ns     403ns     403ns  cuDriverGetVersion
+ 89.31%  10.3389s     30050  344.06us     329ns  6.8026ms  cudaMemcpy
+  8.42%  974.21ms    136364  7.1440us  5.7350us  7.4442ms  cudaLaunch
+  1.46%  168.96ms    656364     257ns     181ns  653.17us  cudaSetupArgument
+  0.38%  43.790ms     82727     529ns     367ns  614.58us  cudaGetDevice
+  0.36%  41.600ms    136364     305ns     216ns  614.72us  cudaConfigureCall
+  0.05%  5.2734ms     20000     263ns     215ns  8.8960us  cudaGetLastError
+  0.02%  2.1338ms        49  43.546us  10.289us  197.70us  cudaMalloc
+  0.02%  1.8074ms        40  45.184us  9.2210us  469.40us  cudaFree
+  0.00%  9.1100us         3  3.0360us  2.5450us  3.9490us  cudaFuncGetAttributes
