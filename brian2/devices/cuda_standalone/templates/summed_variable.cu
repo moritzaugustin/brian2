@@ -20,6 +20,7 @@ __device__ double atomicAddDouble(double* address, double val)
 {% block kernel %}
 {# USES_VARIABLES { _synaptic_post, _synaptic_pre, N_post, N_pre } #}
 __global__ void kernel_{{codeobj_name}}(
+	int num_blocks_per_neuron,
 	int num_threads,
 	%DEVICE_PARAMETERS%
 	)
@@ -30,31 +31,31 @@ __global__ void kernel_{{codeobj_name}}(
 	extern __shared__ char shared_mem[];
 	unsigned int tid = threadIdx.x;
 	unsigned int bid = blockIdx.x;
-	unsigned int neuron_id = bid/N_post;
-	unsigned int num_block_for_neuron = bid % N_post;
+	unsigned int neuron_id = bid/num_blocks_per_neuron;
+	unsigned int num_block_for_neuron = bid % num_blocks_per_neuron;
+	unsigned int _idx = num_block_for_neuron*num_threads + tid;
 	double* shared_double_mem = (double*) shared_mem;
 	%KERNEL_VARIABLES%
 
 	//// MAIN CODE ////////////
 	double _local_sum = 0.0;
 	shared_double_mem[tid] = 0.0;
-	if(tid == 0)
+	if(tid == 0 && num_block_for_neuron == 0)
 	{
-	    {{_target_var_array}}[bid] = 0.0;
+	    {{_target_var_array}}[neuron_id] = 0.0;
 	}
 	
-	for(int _idx=tid; _idx<N_pre; _idx += num_threads)
-	{
-		// vector code
-	    int _vectorisation_idx = bid;
-	    int post_id = {{_synaptic_post}}[_idx];
-	    
-		if(post_id == neuron_id)
-        {
-            {{vector_code|autoindent}}
-			shared_double_mem[tid] += _synaptic_var;
-		}
+	// vector code
+    int _vectorisation_idx = bid;
+    int post_id = {{_synaptic_post}}[_idx];
+    
+	if(post_id == neuron_id)
+    {
+        {{vector_code|autoindent}}
+		shared_double_mem[tid] += _synaptic_var;
 	}
+	
+	__syncthreads();
 	if(tid != 0)
 	{
 		return;
@@ -68,11 +69,11 @@ __global__ void kernel_{{codeobj_name}}(
 {% endblock %}
 
 {% block kernel_call %}
-	int num_blocks = num_parallel_blocks * N_post;
-	unsigned int num_threads = max_shared_mem_size / MEM_PER_THREAD;
-	num_threads = num_threads < max_threads_per_block? num_threads : max_threads_per_block;	// get min of both
-	kernel_{{codeobj_name}}<<<num_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
-			num_threads,
+	int _num_blocks = num_blocks(N_pre) * N_post;
+	unsigned int _num_threads = num_threads(N_pre);
+	kernel_{{codeobj_name}}<<<_num_blocks, _num_threads, _num_threads*MEM_PER_THREAD>>>(
+			_num_blocks,
+			_num_threads,
 			%HOST_PARAMETERS%
 		);
 {% endblock %}

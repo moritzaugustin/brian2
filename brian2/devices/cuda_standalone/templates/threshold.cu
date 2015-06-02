@@ -15,10 +15,9 @@ int mem_per_thread(){
 
 	//// MAIN CODE ////////////
 	// scalar code
-	extern __shared__ bool spike_cache[];
+	__shared__ int spikes_in_block;
 	{{scalar_code|autoindent}}
 
-	spike_cache[tid] = false;
 	{{_spikespace}}[_idx] = -1;
 
 	if(tid == 0 && bid == 0)
@@ -30,7 +29,8 @@ int mem_per_thread(){
 
 	{{vector_code|autoindent}}
 	if(_cond) {
-		spike_cache[tid] = true;
+		int32_t spike_index = atomicAdd(&{{_spikespace}}[N], 1);
+		{{_spikespace}}[spike_index] = _idx;
 		{% if _uses_refractory %}
 		// We have to use the pointer names directly here: The condition
 		// might contain references to not_refractory or lastspike and in
@@ -39,27 +39,6 @@ int mem_per_thread(){
 		{{lastspike}}[_idx] = t;
 		{% endif %}
 	}
-
-	if(tid != 0)
-	{
-		return;
-	}
-
-	int first_neuron_in_block = _idx;	//tid = 0, so neuron_id = bid*num_threads_per_block = start of block no. bid
-	int num_spikes_in_block = 0;
-	for(int i = 0; (i < THREADS_PER_BLOCK) && (first_neuron_in_block + i < N); i++)
-	{
-		if(spike_cache[i])
-		{
-			//spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
-			int spiking_neuron = first_neuron_in_block + i;
-			{{_spikespace}}[first_neuron_in_block + num_spikes_in_block] = spiking_neuron;
-			num_spikes_in_block++;
-		}
-	}
-	//add number of spikes of all blocks together
-	//last element of spikespace holds total number of spikes
-	atomicAdd(&{{_spikespace}}[N], num_spikes_in_block);
 {% endblock %}
 
 {% block kernel_call %}

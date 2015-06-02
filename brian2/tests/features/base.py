@@ -216,8 +216,7 @@ def run_feature_tests(configurations=None, feature_tests=None,
         feature_tests = FeatureTest.__subclasses__()
     if DefaultConfiguration in configurations:
         configurations.remove(DefaultConfiguration)
-    #configurations = [DefaultConfiguration]+configurations
-    configurations = [DefaultConfiguration]+[CUDAStandaloneConfiguration, CPPStandaloneConfiguration]
+    configurations = [DefaultConfiguration]+configurations
     feature_tests.sort(key=lambda ft: ft.fullname())
     if verbose:
         print 'Running feature tests'

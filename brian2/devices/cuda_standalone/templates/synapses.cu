@@ -15,23 +15,17 @@
 	// This is only needed for the _debugmsg function below	
 	{# USES_VARIABLES { _synaptic_pre } #}	
 	
-	cudaVector<int32_t>* pre_neuron_queue;
 	cudaVector<int32_t>* synapses_queue;
-	cudaVector<int32_t>* post_neuron_queue;
 	
 	{{pathway.name}}.queue->peek(
-		&synapses_queue,
-		&pre_neuron_queue,
-		&post_neuron_queue);
+		&synapses_queue);
 
-	int size = post_neuron_queue[bid].size();
+	int size = synapses_queue[bid].size();
 	
 	{{scalar_code|autoindent}}
 	
 	for(int j = tid; j < size; j+=THREADS_PER_BLOCK)
 	{
-		int32_t _pre_idx = pre_neuron_queue[bid].at(j);
-		int32_t _post_idx = post_neuron_queue[bid].at(j);
 		int32_t _idx = synapses_queue[bid].at(j);
 
 		{{vector_code|autoindent}}

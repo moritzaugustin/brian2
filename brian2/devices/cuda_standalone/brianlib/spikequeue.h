@@ -18,8 +18,6 @@ class CSpikeQueue
 {
 public:
 	//these vectors should ALWAYS be the same size, since each index refers to a triple of (pre_id, syn_id, post_id)
-	cudaVector<DTYPE_int>** pre_neuron_queue;
-	cudaVector<DTYPE_int>** post_neuron_queue;
 	cudaVector<DTYPE_int>** synapses_queue;
 
 	//our connectivity matrix with dimensions (num_blocks) * neuron_N
@@ -38,26 +36,15 @@ public:
 	//Since we can't have a destructor, we need to call this function manually
 	__device__ void destroy()
 	{
-		if(pre_neuron_queue)
-		{
-			delete [] pre_neuron_queue;
-			pre_neuron_queue = 0;
-		}
 		if(synapses_queue)
 		{
 			delete [] synapses_queue;
 			synapses_queue = 0;
 		}
-		if(post_neuron_queue)
-		{
-			delete [] post_neuron_queue;
-			post_neuron_queue = 0;
-		}
 	}
 	
 	/* this function also initiliases all variables, allocs arrays, etc.
 	 * so we need to call it before using the queue
-	 * also call prepare_connect_matrix!
 	 */
 	__device__ void prepare(
 		int tid,
@@ -85,18 +72,8 @@ public:
 			post_id_by_pre = _post_id_by_pre;
 			delay_by_pre = _delay_by_pre;
 
-			pre_neuron_queue = new cudaVector<DTYPE_int>*[max_delay];
-			if(!pre_neuron_queue)
-			{
-				printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>*)*max_delay);
-			}
 			synapses_queue = new cudaVector<DTYPE_int>*[max_delay];
 			if(!synapses_queue)
-			{
-				printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>*)*max_delay);
-			}
-			post_neuron_queue = new cudaVector<DTYPE_int>*[max_delay];
-			if(!post_neuron_queue)
 			{
 				printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>*)*max_delay);
 			}
@@ -109,18 +86,8 @@ public:
 			return;
 		}
 
-		pre_neuron_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-		if(!pre_neuron_queue[tid])
-		{
-			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
-		}
 		synapses_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
 		if(!synapses_queue[tid])
-		{
-			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
-		}
-		post_neuron_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-		if(!post_neuron_queue[tid])
 		{
 			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
 		}
@@ -138,8 +105,7 @@ public:
 		unsigned int num_connected_synapses = size_by_pre[right_offset];
 		//shared_mem is allocated in push_spikes
 		int32_t* shared_mem_synapses_id = (int32_t*)_shared_mem;
-		unsigned int* shared_mem_synapses_delay = (unsigned int*)((int32_t*)shared_mem_synapses_id + num_connected_synapses);
-		int32_t* shared_mem_post_id = (int32_t*)((unsigned int*)shared_mem_synapses_delay + num_connected_synapses);
+		unsigned int* shared_mem_synapses_delay = (unsigned int*)((int32_t*)shared_mem_synapses_id + num_threads);
 
 		//ignore invalid pre_ids
 		if(neuron_pre_id >= neuron_N)
@@ -153,25 +119,19 @@ public:
 			shared_mem_synapses_id[tid] = syn_id;
 			unsigned int delay = delay_by_pre[right_offset][i];
 			shared_mem_synapses_delay[tid] = delay;
-			unsigned int post_id = post_id_by_pre[right_offset][i];
-			shared_mem_post_id[tid] = post_id;
 
 			if(tid < max_delay)
 			{
 				for(int j = 0; j < num_threads && (i-tid)+j < num_connected_synapses; j++)
 				{
-					int32_t queue_pre_id = neuron_pre_id;
 					int32_t queue_syn_id = shared_mem_synapses_id[j];
-					int32_t queue_post_id = shared_mem_post_id[j];
 					unsigned int queue_delay = shared_mem_synapses_delay[j];
 					unsigned int adjusted_delay = (current_offset + queue_delay)%max_delay;
 					unsigned int queue_id = bid;
 
 					if(tid == adjusted_delay)
 					{
-						pre_neuron_queue[adjusted_delay][queue_id].push(queue_pre_id);
 						synapses_queue[adjusted_delay][queue_id].push(queue_syn_id);
-						post_neuron_queue[adjusted_delay][queue_id].push(queue_post_id);
 					}
 				}
 			}
@@ -186,9 +146,7 @@ public:
 		{
 			return;
 		}
-		pre_neuron_queue[current_offset][tid].reset();
 		synapses_queue[current_offset][tid].reset();
-		post_neuron_queue[current_offset][tid].reset();
 		__syncthreads();
 		if(tid == 0)
 		{
@@ -197,13 +155,8 @@ public:
 	}
 
 	__device__  void peek(
-		cudaVector<DTYPE_int>** _synapses_queue,
-		cudaVector<DTYPE_int>** _pre_neuron_queue,
-		cudaVector<DTYPE_int>** _post_neuron_queue)
+		cudaVector<DTYPE_int>** _synapses_queue)
 	{
 		*(_synapses_queue) =  &(synapses_queue[current_offset][0]);
-		*(_pre_neuron_queue) =  &(pre_neuron_queue[current_offset][0]);
-		*(_post_neuron_queue) =  &(post_neuron_queue[current_offset][0]);
 	}
 };
-
