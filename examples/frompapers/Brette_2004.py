@@ -12,6 +12,7 @@ almost always phase locks (in a measure-theoretical sense).
 '''
 from brian2 import *
 
+set_device("cuda_standalone")
 # defaultclock.dt = 0.01*ms  # for a more precise picture
 N = 2000
 tau = 100*ms
@@ -28,6 +29,8 @@ neurons.a = linspace(2, 4, N)
 run(5*second, report='text')  # discard the first spikes (wait for convergence)
 S = SpikeMonitor(neurons)
 run(5*second, report='text')
+
+device.build(directory='Brette_2004_cuda', compile=True, run=True, debug=False)
 
 i, t = S.it
 plot((t % tau)/tau, neurons.a[i], '.')

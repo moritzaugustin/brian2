@@ -54,8 +54,8 @@ if timestep > warnbelow_dt:
           .format(**globals()))
 
 if standalone:
-    set_device('cpp_standalone')
-    build_dir = 'cpp'
+    set_device('cuda_standalone')
+    build_dir = 'eif_cuda'
 
 defaultclock.dt = timestep
 
@@ -105,12 +105,12 @@ Net = Network(netlist)
 
 t_start = time()
 
-Net.run(runtime)
+Net.run(runtime, report="text")
 
 #run(runtime)
 
 if standalone:
-    device.build(directory=build_dir, compile=True, run=True, debug=True)
+    device.build(directory=build_dir, compile=True, run=True, debug=False)
 
 t_duration = time()-t_start
 comp_str = ''

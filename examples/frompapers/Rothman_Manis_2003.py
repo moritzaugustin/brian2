@@ -12,6 +12,8 @@ Adapted from their Neuron implementation by Romain Brette
 """
 from brian2 import *
 
+#set_device('cuda_standalone')
+
 #defaultclock.dt=0.025*ms # for better precision
 
 '''
@@ -135,6 +137,7 @@ M = StateMonitor(neuron, 'v', record=0)
 neuron.I = Ipulse
 
 run(100*ms, report='text')
+#device.build(directory='rothman_manis_2003_cuda', compile=True, run=True)
 
 plot(M.t / ms, M[0].v / mV)
 xlabel('t (ms)')

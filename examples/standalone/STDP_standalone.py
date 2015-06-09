@@ -50,9 +50,8 @@ r_mon = PopulationRateMonitor(input)
 
 run(100*second, report='text')
 
-device.build(directory='STDP_standalone', compile=True,
-             run=True, debug=False)
-        
+device.build(directory='STDP_standalone_cuda', compile=True, run=True, debug=False)
+
 subplot(311)
 plot(S.w / gmax, '.k')
 ylabel('Weight / gmax')

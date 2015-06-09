@@ -4,8 +4,8 @@ Run the ``cuba.py`` example with OpenMP threads.
 """
 from brian2 import *
 
-set_device('cpp_standalone')
-prefs.devices.cpp_standalone.openmp_threads = 4
+set_device('cuda_standalone')
+prefs.devices.cpp_standalone.openmp_threads = 1
 
 taum = 20*ms
 taue = 5*ms
@@ -34,8 +34,8 @@ Ci.connect('i>=3200', p=0.02)
 
 s_mon = SpikeMonitor(P)
 
-run(1 * second)
-device.build(directory='CUBA', compile=True, run=True, debug=True)
+run(1 * second, report="text")
+device.build(directory='CUBA_cuda', compile=True, run=True, debug=False)
 
 plot(s_mon.t/ms, s_mon.i, '.k')
 xlabel('Time (ms)')

@@ -11,6 +11,8 @@ Romain Brette
 '''
 from brian2 import *
 
+set_device('cuda_standalone')
+
 # Parameters
 degree = 2 * pi / 360.
 duration = 500*ms
@@ -60,11 +62,14 @@ dy/dt = -y/taus : 1
 '''
 neurons = NeuronGroup(8, model=eqs_neuron, threshold='v>1', reset='v=0')
 synapses_ex = Synapses(legs, neurons, pre='y+=wex', connect='i==j')
-synapses_inh = Synapses(legs, neurons, pre='y+=winh', delay=deltaI)
+synapses_inh = Synapses(legs, neurons, pre='y+=winh')
+synapses_inh.delay=deltaI
 synapses_inh.connect('abs(((j - i) % N_post) - N_post/2) <= 1')
 spikes = SpikeMonitor(neurons)
 
 run(duration, report='text')
+
+device.build(directory='sturzl_2000_cuda', compile=True, run=True)
 
 nspikes = spikes.count
 x = sum(nspikes * exp(gamma * 1j))

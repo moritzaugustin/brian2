@@ -7,6 +7,8 @@ neural networks. Nature 402, 529-533.
 '''
 from brian2 import *
 
+set_device("cuda_standalone")
+
 duration = 100*ms
 
 # Neuron model parameters
@@ -41,7 +43,8 @@ Mgp = SpikeMonitor(P)
 Minput = SpikeMonitor(Pinput)
 # Setup the network, and run it
 P.V = 'Vr + rand() * (Vt - Vr)'
-run(duration)
+run(duration, report="text")
+device.build(directory='Diesmann_1999_cuda', compile=True, run=True, debug=False)
 
 plot(Mgp.t/ms, 1.0*Mgp.i/group_size, '.')
 plot([0, duration/ms], np.arange(n_groups).repeat(2).reshape(-1, 2).T, 'k-')

@@ -13,6 +13,8 @@ Science (November 10, 2011).
 
 from brian2 import *
 
+set_device("cuda_standalone")
+
 # ###########################################
 # Defining network model parameters
 # ###########################################
@@ -93,13 +95,15 @@ sm = SpikeMonitor(Pe)
 # Run without plasticity
 # ###########################################
 eta = 0          # Learning rate
-run(1*second)
+run(1*second, report="text")
 
 # ###########################################
 # Run with plasticity
 # ###########################################
 eta = 1e-2          # Learning rate
 run(simtime-1*second, report='text')
+
+device.build(directory='vogels_2001_cuda', compile=True, run=True)
 
 # ###########################################
 # Make plots

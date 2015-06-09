@@ -21,6 +21,7 @@ varies across neurons. This shows:
 """
 from brian2 import *
 
+set_device("cuda_standalone")
 N = 500
 tau = 33*ms
 taux = 20*ms
@@ -48,6 +49,8 @@ M = StateMonitor(neurons, 'B', record=0)
 S = SpikeMonitor(neurons)
 
 run(1000*ms, report='text')
+
+device.build(directory='Brette_Guigon_2003_cuda', compile=True, run=True, debug=False)
 
 subplot(211)  # The input
 plot(M.t/ms, M[0].B)

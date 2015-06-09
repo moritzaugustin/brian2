@@ -10,6 +10,7 @@ J. Neurophysiol. 94: 3637 - 3642.
 from brian2 import *
 
 # Parameters
+set_device("cuda_standalone")
 C = 281 * pF
 gL = 30 * nS
 taum = C / gL
@@ -35,11 +36,14 @@ neuron.vm = EL
 trace = StateMonitor(neuron, 'vm', record=0)
 spikes = SpikeMonitor(neuron)
 
-run(20 * ms)
+run(20 * ms, report='text')
 neuron.I = 1*nA
-run(100 * ms)
+run(100 * ms, report='text')
 neuron.I = 0*nA
-run(20 * ms)
+run(20 * ms, report='text')
+
+device.build(directory='Brette_Gerstner_2005_cuda', compile=True,
+             run=True, debug=False)
 
 # We draw nicer spikes
 vm = trace[0].vm[:]

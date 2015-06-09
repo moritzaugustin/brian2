@@ -12,6 +12,8 @@ simulation is rather slow.
 """
 from brian2 import *
 
+set_device("cuda_standalone")
+
 defaultclock.dt = 0.01*ms
 
 Cm = 1*uF # /cm**2
@@ -42,6 +44,8 @@ neuron.h = 1
 M = StateMonitor(neuron, 'v', record=0)
 
 run(100*ms, report='text')
+
+device.build(directory='Wang_Buszaki_1996_cuda', compile=True, run=True, debug=False)
 
 plot(M.t/ms, M[0].v/mV)
 show()

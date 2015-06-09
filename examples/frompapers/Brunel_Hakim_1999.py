@@ -14,6 +14,8 @@ Reference:
 
 from brian2 import *
 
+set_device('cuda_standalone')
+
 N = 5000
 Vr = 10*mV
 theta = 20*mV
@@ -35,11 +37,14 @@ group = NeuronGroup(N, eqs, threshold='V>theta',
                     reset='V=Vr', refractory=taurefr)
 group.V = Vr
 conn = Synapses(group, group, pre='V += -J',
-                connect='rand()<sparseness', delay=delta)
+                connect='rand()<sparseness')
+conn.delay = delta
 M = SpikeMonitor(group)
 LFP = PopulationRateMonitor(group)
 
-run(duration)
+run(duration, report="text")
+
+device.build(directory='brunel_hakim_1999_cuda', compile=True, run=True)
 
 subplot(211)
 plot(M.t/ms, M.i, '.')

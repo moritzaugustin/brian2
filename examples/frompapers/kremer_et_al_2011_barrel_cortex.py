@@ -17,12 +17,12 @@ import time
 #prefs.codegen.target = 'cython'
 # Set this to True to run in standalone mode (much faster, but requires a
 # C++ compiler to be installed).
-standalone = False
+standalone = True
 # Change this to use multiple OpenMP threads
 #prefs.codegen.cpp_standalone.openmp_threads = 1
 
 if standalone:
-    set_device('cpp_standalone')
+    set_device('cuda_standalone')
 
 t1 = time.time()
 
@@ -159,7 +159,7 @@ if not standalone:
     print "Construction time: %.1fs" % (t2 - t1)
 
 run(5*second, report='text')
-device.build(directory='barrelcortex', compile=True, run=True)
+device.build(directory='barrelcortex_cuda', compile=True, run=True)
 
 # Calculate the preferred direction of each cell in layer23 by doing a
 # vector average of the selectivity of the projecting layer4 cells, weighted

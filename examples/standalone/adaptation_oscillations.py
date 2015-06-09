@@ -12,7 +12,7 @@ import time
 standalone = True
 build_dir = 'adaptation_oscillations_standalone_cuda'
 
-N_neurons = 4000
+N_neurons = 40000
 sparsity = 0.05 # each neuron receives approx. N_neurons*sparsity connections => 0: uncoupled network
 runtime = 1000*ms
 
@@ -28,10 +28,8 @@ v_r = 0 * mV # reset voltage
 dw = 0.1 * mV # spike-triggered adaptation increment
 Tref = 2.5 * ms # refractory period
 if sparsity>0:
-    syn_weight_mean = 1.06/(N_neurons*sparsity) * mV
-    syn_weight_std = syn_weight_mean/2
-    syn_delay_mean = 2 * ms
-    syn_delay_std = syn_delay_mean/2
+    syn_weight = 1.03/(N_neurons*sparsity) * mV # currently: constant synaptic weights
+    syn_delay = 2 * ms  # currently: constant synaptic delays
 # input noise:
 input_mean = 0.14 * mV/ms
 input_std = 0.07 * mV/ms**.5
@@ -60,8 +58,8 @@ neurons.w = 'rand()*10*dw'
 if sparsity>0:
     synapses = Synapses(neurons, neurons, 'c: volt', pre='v += c')
     synapses.connect('i!=j', p=sparsity)
-    synapses.c[:] = 'syn_weight_mean + rand()*syn_weight_std - syn_weight_std/2' 
-    synapses.delay[:] = 'syn_delay_mean + rand()*syn_delay_std - syn_delay_std/2' 
+    synapses.c[:] = 'syn_weight' 
+    synapses.delay[:] = 'syn_delay' 
     # BUG in brian2?: 
     # distributed delays do not work + rand()*0.1*ms'# len(synapses))*defaultclock.dt*1   #'syn_delay'
 #     print(defaultclock.dt)
@@ -80,14 +78,17 @@ rateMon = PopulationRateMonitor(neurons)
 
 t_start = time.time()
 
-run(runtime)
+run(runtime, report="text")
 
 print('run() took {s}s'.format(s=time.time()-t_start))
 
-print('starting standalone build and simulation')
-device.build(directory=build_dir, 
-	compile=True, run=True, debug=True)
-    
+if standalone:
+    t_start = time.time()
+    print('starting standalone build and simulation')
+    device.build(directory=build_dir, 
+                 compile=True, run=True, debug=False)
+    print('run() took {s}s'.format(s=time.time()-t_start))
+
 rateMon_t = rateMon.t
 rateMon_rate = rateMon.rate
 spikeMon_i, spikeMon_t = spikeMon.it
@@ -135,7 +136,7 @@ title('adaptation  dynamics of the first neuron')
 plot(stateMon_t/ms, stateMon_w/mV)
 xlabel('time (ms)')
 xlim(0, runtime/ms)
-ylabel('adaptation voltage w (mV)')
+ylabel('membrane voltage w (mV)')
 # POPULATION AVERAGED ADAPTATION:
 # plot(stateMon.t/ms, (stateMon.w/mV).mean(axis=0))
 

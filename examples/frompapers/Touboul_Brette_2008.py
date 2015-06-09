@@ -12,6 +12,8 @@ Vr).
 '''
 from brian2 import *
 
+set_device("cuda_standalone")
+
 defaultclock.dt = 0.01*ms
 
 C = 281*pF
@@ -35,7 +37,6 @@ Vr:volt
 neuron = NeuronGroup(N, model=eqs, threshold='vm > Vcut',
                      reset="vm = Vr; w += b")
 neuron.vm = EL
-neuron.w = a * (neuron.vm - EL)
 neuron.Vr = linspace(-48.3 * mV, -47.7 * mV, N)  # bifurcation parameter
 
 init_time = 3*second
@@ -44,6 +45,8 @@ run(init_time, report='text')  # we discard the first spikes
 states = StateMonitor(neuron, "w", record=True, when='start')
 spikes = SpikeMonitor(neuron)
 run(1 * second, report='text')
+
+device.build(directory='touboul_brette_2008_cuda', compile=True, run=True)
 
 # Get the values of Vr and w for each spike
 Vr = neuron.Vr[spikes.i]
