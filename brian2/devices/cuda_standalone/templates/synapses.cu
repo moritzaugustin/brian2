@@ -8,13 +8,24 @@
     {% endif %}
 {% endfor %}
 
-{% block num_thread_check %}
-{% endblock %}
+{% block kernel %}
+__global__ void kernel_{{codeobj_name}}(
+	unsigned int bid_offset,
+	unsigned int THREADS_PER_BLOCK,
+	%DEVICE_PARAMETERS%
+	)
+{
+	{# USES_VARIABLES { N, _synaptic_pre } #}
+	using namespace brian;
 
-{% block maincode %}
-	// This is only needed for the _debugmsg function below	
-	{# USES_VARIABLES { _synaptic_pre } #}	
-	
+	unsigned int tid = threadIdx.x;
+	unsigned int bid = blockIdx.x + bid_offset;
+	unsigned int _idx = bid * THREADS_PER_BLOCK + tid;
+	unsigned int _vectorisation_idx = _idx;
+	%KERNEL_VARIABLES%
+	{% block additional_variables %}
+	{% endblock %}
+
 	cudaVector<int32_t>* synapses_queue;
 	
 	{{pathway.name}}.queue->peek(
@@ -30,17 +41,37 @@
 
 		{{vector_code|autoindent}}
 	}
+}
 {% endblock %}
 
 {% block kernel_call %}
+{% if serializing_mode == "syn" %}
+kernel_{{codeobj_name}}<<<num_parallel_blocks,max_threads_per_block>>>(
+	0,
+	max_threads_per_block,
+	%HOST_PARAMETERS%
+);
+{% endif %}
+{% if serializing_mode == "post" %}
 kernel_{{codeobj_name}}<<<num_parallel_blocks,1>>>(
+	0,
+	1,
+	%HOST_PARAMETERS%
+);
+{% endif %}
+{% if serializing_mode == "pre" %}
+for(int i = 0; i < num_parallel_blocks; i++)
+{
+	kernel_{{codeobj_name}}<<<1,1>>>(
+		i,
 		1,
 		%HOST_PARAMETERS%
 	);
+}
+{% endif %}
 {% endblock %}
 
 {% block extra_maincode %}
-unsigned int N = {{owner.name}}._N();
 {% endblock %}
 
 {% block extra_functions_cu %}

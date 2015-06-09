@@ -68,12 +68,21 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
     def code_object(self, owner, name, abstract_code, variables, template_name,
                     variable_indices, codeobj_class=None, template_kwds=None,
                     override_conditional_write=None):
+        if template_name == "synapses":
+            serializing_mode = "syn"    #no serializing
+            for varname in variables.iterkeys():
+                if variable_indices[varname] == "_postsynaptic_idx":
+                    if serializing_mode == "syn":
+                        serializing_mode = "post"
+                if variable_indices[varname] == "_presynaptic_idx":
+                    serializing_mode = "pre"
+            template_kwds["serializing_mode"] = serializing_mode
         codeobj = super(CUDAStandaloneDevice, self).code_object(owner, name, abstract_code, variables,
                                                                template_name, variable_indices,
                                                                codeobj_class=codeobj_class,
                                                                template_kwds=template_kwds,
                                                                override_conditional_write=override_conditional_write,
-                                                               )
+                                                                )
         return codeobj
     
     def check_OPENMP_compatible(self, nb_threads):
@@ -81,8 +90,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             raise NotImplementedError("Using OpenMP in an CUDA standalone project is not supported")
         
     def generate_objects_source(self, writer, arange_arrays, synapses, static_array_specs, networks):
-        codeobj_with_rand = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.rand_calls > 0]
-        codeobj_with_randn = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.randn_calls > 0]
+        codeobj_with_rand = [co for co in self.code_objects.values() if co.runs_every_tick and co.rand_calls > 0]
+        codeobj_with_randn = [co for co in self.code_objects.values() if co.runs_every_tick and co.randn_calls > 0]
         arr_tmp = CUDAStandaloneCodeObject.templater.objects(
                         None, None,
                         array_specs=self.arrays,
@@ -177,7 +186,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 #first one is alway the definition, so subtract 1
                 code_object.rand_calls = num_occurences_rand - 1
                 for i in range(0, code_object.rand_calls):
-                    if code_object.owner.N <> 0:
+                    if code_object.owner.N != 0:
                         code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
                     else:
                         code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * N)", 1)
@@ -185,7 +194,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 #first one is alway the definition, so subtract 1
                 code_object.randn_calls = num_occurences_randn - 1
                 for i in range(0, code_object.randn_calls):
-                    if code_object.owner.N <> 0:
+                    if code_object.owner.N != 0:
                         code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
                     else:
                         code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " *N)", 1)
@@ -202,13 +211,13 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             kernel_variables_lines = []
             additional_code = []
             number_elements = ""
-            if hasattr(codeobj, 'owner') and hasattr(codeobj.owner, '_N') and codeobj.owner._N <> 0:
+            if hasattr(codeobj, 'owner') and hasattr(codeobj.owner, '_N') and codeobj.owner._N != 0:
                 number_elements = str(codeobj.owner._N)
             else:
                 number_elements = "N"
             for k, v in codeobj.variables.iteritems():
                 #code objects which only run once
-                if k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
+                if k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name != "synapses_create":
                     additional_code.append('''
                         //genenerate an array of random numbers on the device
                         float* dev_array_randn;
@@ -238,7 +247,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         curandCreateGeneratorHost(&normal_gen, CURAND_RNG_PSEUDO_DEFAULT);
                         curandSetPseudoRandomGeneratorSeed(normal_gen, time(0));
                         curandGenerateNormal(normal_gen, _array_''' + codeobj.name + '''_randn, ''' + number_elements + '''*''' + str(codeobj.randn_calls) + ''', 0, 1);''')
-                elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name <> "synapses_create":
+                elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name != "synapses_create":
                     additional_code.append('''
                         //genenerate an array of random numbers on the device
                         float* dev_array_rand;
@@ -354,8 +363,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             writer.write('code_objects/'+codeobj.name+'.h', codeobj.code.h_file)
             
     def generate_rand_source(self, writer):
-        codeobj_with_rand = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.rand_calls > 0]
-        codeobj_with_randn = [co for co in self.code_objects.values() if co.runs_every_tick == True and co.randn_calls > 0]
+        codeobj_with_rand = [co for co in self.code_objects.values() if co.runs_every_tick and co.rand_calls > 0]
+        codeobj_with_randn = [co for co in self.code_objects.values() if co.runs_every_tick and co.randn_calls > 0]
         rand_tmp = CUDAStandaloneCodeObject.templater.rand(None, None,
                                                            code_objects=self.code_objects.values(),
                                                            codeobj_with_rand=codeobj_with_rand,
@@ -551,9 +560,11 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             if func=='run_network':
                 net, netcode = args
                 clock = net._clocks[0]
-                run_action = netcode.pop()
-                netcode.append('{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net));
-                netcode.append(run_action)
+                line = '{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net)
+                if line not in netcode:
+                    run_action = netcode.pop()
+                    netcode.append(line);
+                    netcode.append(run_action)
 
 
                         

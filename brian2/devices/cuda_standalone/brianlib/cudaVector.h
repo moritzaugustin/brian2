@@ -84,7 +84,7 @@ public:
 		}
 	};
 
-	__device__ void resize(int new_capacity)
+	__device__ void resize(unsigned int new_capacity)
 	{
 		if(new_capacity > size_allocated)
 		{
@@ -96,13 +96,14 @@ public:
 				free(data);
 				data = new_data;
 				size_allocated = new_capacity;
+                size_used = new_capacity;
 			}
 			else
 			{
 				printf("ERROR while resizing vector to size %d in cudaVector.h/resize()\n", sizeof(scalar)*new_capacity);
 			}
 		}
-		else if(new_capacity < size_used)
+		else
 		{
 			//kleiner reallocen?
 			size_used = new_capacity;

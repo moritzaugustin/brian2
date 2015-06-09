@@ -2,7 +2,6 @@
 //// MAIN CODE /////////////////////////////////////////////////////////////
 
 {% macro cu_file() %}
-
 {# USES_VARIABLES { _spikespace } #}
 
 #include "code_objects/{{codeobj_name}}.h"
@@ -36,8 +35,6 @@ namespace {
 		return needed_num_threads;
 	}
 }
-
-#define MEM_PER_THREAD (sizeof(int32_t) + sizeof(unsigned int))
 
 __global__ void _run_{{codeobj_name}}_advance_kernel()
 {
@@ -101,9 +98,8 @@ void _run_{{codeobj_name}}()
 
 	_run_{{codeobj_name}}_advance_kernel<<<1, num_parallel_blocks>>>();
 
-	unsigned int num_threads = max_shared_mem_size / MEM_PER_THREAD;
-	num_threads = num_threads < max_threads_per_block? num_threads : max_threads_per_block; // get min of both
-	_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
+	unsigned int num_threads = max_threads_per_block;
+	_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, max_shared_mem_size>>>(
 		_num_spikespace - 1,
 		num_parallel_blocks,
 		num_threads,
