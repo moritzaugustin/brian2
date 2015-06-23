@@ -129,11 +129,13 @@ class SynapticPathway(CodeRunner, Group):
             self.target = synapses.target
             self.synapse_sources = synapses.variables['_synaptic_pre']
             self.synapse_targets = synapses.variables['_synaptic_post']
+            order = -1
         elif prepost == 'post':
             self.source = synapses.target
             self.target = synapses.source
             self.synapse_sources = synapses.variables['_synaptic_post']
             self.synapse_targets = synapses.variables['_synaptic_pre']
+            order = 1
         else:
             raise ValueError('prepost argument has to be either "pre" or '
                              '"post"')
@@ -147,7 +149,7 @@ class SynapticPathway(CodeRunner, Group):
                             code=code,
                             clock=self.source.clock,
                             when='synapses',
-                            order=0,
+                            order=order,
                             name=synapses.name + '_' + objname,
                             template_kwds={'pathway': self})
 
@@ -1193,4 +1195,3 @@ class Synapses(Group):
                                             run_namespace=namespace,
                                             level=level+1)
             codeobj()
-

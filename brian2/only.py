@@ -37,10 +37,12 @@ from brian2.core.namespace import *
 from brian2.groups import *
 from brian2.synapses import *
 from brian2.monitors import *
+from brian2.input import *
 from brian2.spatialneuron import *
 from brian2.devices import set_device, get_device, device
 import brian2.devices.cpp_standalone as _cpp_standalone
 import brian2.devices.cuda_standalone as _cuda_standalone
+import brian2.devices.genn as genn
 
 # preferences
 from brian2.core.core_preferences import *

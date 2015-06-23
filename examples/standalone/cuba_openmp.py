@@ -35,7 +35,7 @@ Ci.connect('i>=3200', p=0.02)
 s_mon = SpikeMonitor(P)
 
 run(1 * second, report="text")
-device.build(directory='CUBA_cuda', compile=True, run=True, debug=False)
+device.build(directory='CUBA_cuda', compile=True, run=True)
 
 plot(s_mon.t/ms, s_mon.i, '.k')
 xlabel('Time (ms)')

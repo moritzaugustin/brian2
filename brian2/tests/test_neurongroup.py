@@ -109,6 +109,8 @@ def test_scalar_variable():
     net = Network(G)
     net.run(defaultclock.dt)
 
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
 def test_referred_scalar_variable():
     '''
     Test the correct handling of referred scalar variables in subexpressions
@@ -434,7 +436,7 @@ def test_linked_variable_indexed_incorrect():
                   lambda: setattr(G, 'y',
                                   linked_var(G.x, index=np.arange(10)+1)))
 
-
+@attr('codegen-independent')
 def test_linked_synapses():
     '''
     Test linking to a synaptic variable (should raise an error).
@@ -564,7 +566,9 @@ def test_namespace_warnings():
     # conflicting variables in equations
     y = 5*Hz
     G = NeuronGroup(1, '''y : Hz
-                          dx/dt = y : 1''', name='group_2')
+                          dx/dt = y : 1''',
+                    # unique names to get warnings every time:
+                    name='neurongroup_'+str(uuid.uuid4()).replace('-', '_'))
 
     net = Network(G)
     with catch_logs() as l:
@@ -575,7 +579,9 @@ def test_namespace_warnings():
 
     i = 5
     # i is referring to the neuron number:
-    G = NeuronGroup(1, '''dx/dt = i*Hz : 1''', name='group_3')
+    G = NeuronGroup(1, '''dx/dt = i*Hz : 1''',
+                    # unique names to get warnings every time:
+                    name='neurongroup_'+str(uuid.uuid4()).replace('-', '_'))
     net = Network(G)
     with catch_logs() as l:
         net.run(0*ms)
@@ -588,7 +594,9 @@ def test_namespace_warnings():
     N = 3
     i = 5
     dt = 1*ms
-    G = NeuronGroup(1, '''dx/dt = x/(10*ms) : 1''', name='group_4')
+    G = NeuronGroup(1, '''dx/dt = x/(10*ms) : 1''',
+                    # unique names to get warnings every time:
+                    name='neurongroup_'+str(uuid.uuid4()).replace('-', '_'))
     net = Network(G)
     with catch_logs() as l:
         net.run(0*ms)

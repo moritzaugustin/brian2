@@ -46,11 +46,11 @@ S = Synapses(input, neurons,
 S.w = 'rand() * gmax'
 mon = StateMonitor(S, 'w', record=[0, 1])
 s_mon = SpikeMonitor(input)
-r_mon = PopulationRateMonitor(input)
+#r_mon = PopulationRateMonitor(input)
 
 run(100*second, report='text')
 
-device.build(directory='STDP_standalone_cuda', compile=True, run=True, debug=False)
+device.build(directory='STDP_standalone_cuda', compile=True, run=True)
 
 subplot(311)
 plot(S.w / gmax, '.k')

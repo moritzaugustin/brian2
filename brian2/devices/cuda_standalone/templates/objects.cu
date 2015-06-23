@@ -224,7 +224,7 @@ void _write_arrays()
 	{% if not (var in dynamic_array_specs or var in dynamic_array_2d_specs) %}
 	cudaMemcpy({{varname}}, dev{{varname}}, sizeof({{c_data_type(var.dtype)}})*_num_{{varname}}, cudaMemcpyDeviceToHost);
 	ofstream outfile_{{varname}};
-	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
+	outfile_{{varname}}.open("{{get_array_filename(var) | replace('\\', '\\\\')}}", ios::binary | ios::out);
 	if(outfile_{{varname}}.is_open())
 	{
 		outfile_{{varname}}.write(reinterpret_cast<char*>({{varname}}), {{var.size}}*sizeof({{c_data_type(var.dtype)}}));
@@ -239,7 +239,7 @@ void _write_arrays()
 	{% for var, varname in dynamic_array_specs | dictsort(by='value') %}
 	thrust::host_vector<{{c_data_type(var.dtype)}}> temp{{varname}} = dev{{varname}};
 	ofstream outfile_{{varname}};
-	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
+	outfile_{{varname}}.open("{{get_array_filename(var) | replace('\\', '\\\\')}}", ios::binary | ios::out);
 	if(outfile_{{varname}}.is_open())
 	{
 		outfile_{{varname}}.write(reinterpret_cast<char*>(thrust::raw_pointer_cast(&temp{{varname}}[0])), dev{{varname}}.size()*sizeof({{c_data_type(var.dtype)}}));
@@ -252,7 +252,7 @@ void _write_arrays()
 
 	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
 		ofstream outfile_{{varname}};
-		outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
+		outfile_{{varname}}.open("{{get_array_filename(var) | replace('\\', '\\\\')}}", ios::binary | ios::out);
 		if(outfile_{{varname}}.is_open())
 		{
 			thrust::host_vector<{{c_data_type(var.dtype)}}>* temp_array{{varname}} = new thrust::host_vector<{{c_data_type(var.dtype)}}>[_num__array_{{var.owner.name}}__indices];

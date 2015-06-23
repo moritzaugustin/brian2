@@ -10,8 +10,8 @@ print run_feature_tests().tables_and_exceptions
 #                                    WeaveConfiguration]).tables_and_exceptions
 
 # Specific testing
-#from brian2.tests.features.synapses import SynapsesSTDP
-#print run_feature_tests(feature_tests=[SynapsesSTDP]).tables_and_exceptions
+#from brian2.tests.features.synapses import SynapsesSTDP, SynapsesPost
+#print run_feature_tests(feature_tests=[SynapsesPost]).tables_and_exceptions
 #print run_feature_tests(feature_tests=[SynapsesPost],
 #                        configurations=[DefaultConfiguration,
 #                                        WeaveConfiguration]).exceptions

@@ -12,7 +12,7 @@ from brian2.codegen.cpp_prefs import get_compiler_and_args
 from brian2.core.clocks import defaultclock
 from brian2.core.network import Network
 from brian2.core.variables import *
-from brian2.devices.device import all_devices
+from brian2.devices.device import all_devices, get_device, set_device
 from brian2.synapses.synapses import Synapses
 from brian2.utils.filetools import copy_directory, ensure_directory
 from brian2.codegen.generators.cuda_generator import c_data_type
@@ -104,6 +104,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         static_array_specs=static_array_specs,
                         networks=networks,
                         code_objects=self.code_objects.values(),
+                        get_array_filename=self.get_array_filename,
                         codeobj_with_rand=codeobj_with_rand,
                         codeobj_with_randn=codeobj_with_randn)
         writer.write('objects.*', arr_tmp)

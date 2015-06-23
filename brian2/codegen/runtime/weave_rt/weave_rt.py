@@ -10,8 +10,12 @@ try:
     from scipy import weave
     from scipy.weave.c_spec import num_to_c_types
 except ImportError:
-    # No weave for Python 3
-    weave = None
+    try:  # weave as an independent package
+        import weave
+        from weave.c_spec import num_to_c_types
+    except ImportError:
+        # No weave for Python 3
+        weave = None
 
 from brian2.core.variables import (DynamicArrayVariable, ArrayVariable,
                                    AttributeVariable, AuxiliaryVariable,
@@ -57,16 +61,6 @@ class WeaveCodeGenerator(CPPCodeGenerator):
         self.c_data_type = weave_data_type
 
 
-def compiler_defines(compiler):
-    if compiler == 'msvc':
-        return '''
-#define INFINITY (std::numeric_limits<double>::infinity())
-#define NAN (std::numeric_limits<double>::quiet_NaN())
-#define M_PI 3.14159265358979323846
-        '''
-    return ''
-
-
 class WeaveCodeObject(CodeObject):
     '''
     Weave code object
@@ -92,32 +86,40 @@ class WeaveCodeObject(CodeObject):
                                               template_name, template_source,
                                               name=name)
         self.compiler, self.extra_compile_args = get_compiler_and_args()
+        self.define_macros = list(prefs['codegen.cpp.define_macros'])
+        if self.compiler == 'msvc':
+            self.define_macros.extend([
+                ('INFINITY', '(std::numeric_limits<double>::infinity())'),
+                ('NAN', '(std::numeric_limits<double>::quiet_NaN())'),
+                ('M_PI', '3.14159265358979323846')
+            ])
+        self.extra_link_args = list(prefs['codegen.cpp.extra_link_args'])
         self.include_dirs = list(prefs['codegen.cpp.include_dirs'])
         self.include_dirs += [os.path.join(sys.prefix, 'include')]
-        self.code.support_code = compiler_defines(self.compiler)+self.code.support_code
-        self.annotated_code = compiler_defines(self.compiler)+self.code.main+'''
+        self.library_dirs = list(prefs['codegen.cpp.library_dirs'])
+        self.runtime_library_dirs = list(prefs['codegen.cpp.runtime_library_dirs'])
+        self.libraries = list(prefs['codegen.cpp.libraries'])
+        self.headers = ['<algorithm>', '<limits>'] + prefs['codegen.cpp.headers']
+        self.annotated_code = self.code.main+'''
 /*
 The following code is just compiler options for the call to weave.inline.
 By including them here, we force a recompile if the compiler options change,
 which is a good thing (e.g. switching -ffast-math on and off).
 
 support_code:
-{support_code}
+{self.code.support_code}
 
-compiler:
-{compiler}
-
-extra_compile_args:
-{extra_compile_args}
-
-include_dirs:
-{include_dirs}
+compiler: {self.compiler}
+define_macros: {self.define_macros}
+extra_compile_args: {self.extra_compile_args}
+extra_link_args: {self.extra_link_args}
+include_dirs: {self.include_dirs}
+library_dirs: {self.library_dirs}
+runtime_library_dirs: {self.runtime_library_dirs}
+libraries: {self.libraries}
 */
-        '''.format(support_code=self.code.support_code,
-                   compiler=self.compiler,
-                   extra_compile_args=self.extra_compile_args,
-                   include_dirs=self.include_dirs)
-            
+        '''.format(self=self)
+
         self.python_code_namespace = {'_owner': owner}
         self.variables_to_namespace()
 
@@ -213,9 +215,13 @@ include_dirs:
                                    local_dict=self.namespace,
                                    support_code=self.code.support_code,
                                    compiler=self.compiler,
-                                   headers=['<algorithm>', '<limits>'],
+                                   headers=self.headers,
+                                   define_macros=self.define_macros,
+                                   libraries=self.libraries,
                                    extra_compile_args=self.extra_compile_args,
+                                   extra_link_args=self.extra_link_args,
                                    include_dirs=self.include_dirs,
+                                   library_dirs=self.library_dirs,
                                    verbose=0)
         self._done_first_run = True
         if self.compiled_python_post is not None:
@@ -238,7 +244,10 @@ randn_code = {'support_code': '''
         // function), because this is otherwise only available in
         // compiled_function (where is is automatically handled by weave).
         //
-        double _call_randn(py::object& numpy_randn) {
+        double _randn(const int _vectorisation_idx) {
+            // the _vectorisation_idx argument is unused for now, it could in
+            // principle be used to get reproducible random numbers when using
+            // OpenMP etc.
             static PyArrayObject *randn_buffer = NULL;
             static double *buf_pointer = NULL;
             static npy_int curbuffer = 0;
@@ -247,7 +256,8 @@ randn_code = {'support_code': '''
                 if(randn_buffer) Py_DECREF(randn_buffer);
                 py::tuple args(1);
                 args[0] = BUFFER_SIZE;
-                randn_buffer = (PyArrayObject *)PyArray_FromAny(numpy_randn.call(args), NULL, 1, 1, 0, NULL);
+                randn_buffer = (PyArrayObject *)PyArray_FromAny(_namespace_numpy_randn.call(args),
+                                                                NULL, 1, 1, 0, NULL);
                 buf_pointer = (double*)PyArray_GETPTR1(randn_buffer, 0);
             }
             double number = buf_pointer[curbuffer];
@@ -258,10 +268,11 @@ randn_code = {'support_code': '''
                 curbuffer = 0;
             return number;
         }
-        ''', 'hashdefine_code': '#define _randn(_vectorisation_idx) _call_randn(_python_randn)'}
+        '''}
 DEFAULT_FUNCTIONS['randn'].implementations.add_implementation(WeaveCodeObject,
                                                               code=randn_code,
-                                                              name='_randn')
+                                                              name='_randn',
+                                                              namespace={'_numpy_randn': numpy.random.randn})
 
 # Also use numpy for rand
 rand_code = {'support_code': '''
@@ -274,7 +285,10 @@ rand_code = {'support_code': '''
         // function), because this is otherwise only available in
         // compiled_function (where is is automatically handled by weave).
         //
-        double _call_rand(py::object& numpy_rand) {
+        double _rand(const int _vectorisation_idx) {
+            // the _vectorisation_idx argument is unused for now, it could in
+            // principle be used to get reproducible random numbers when using
+            // OpenMP etc.
             static PyArrayObject *rand_buffer = NULL;
             static double *buf_pointer = NULL;
             static npy_int curbuffer = 0;
@@ -283,7 +297,8 @@ rand_code = {'support_code': '''
                 if(rand_buffer) Py_DECREF(rand_buffer);
                 py::tuple args(1);
                 args[0] = BUFFER_SIZE;
-                rand_buffer = (PyArrayObject *)PyArray_FromAny(numpy_rand.call(args), NULL, 1, 1, 0, NULL);
+                rand_buffer = (PyArrayObject *)PyArray_FromAny(_namespace_numpy_rand.call(args),
+                                                               NULL, 1, 1, 0, NULL);
                 buf_pointer = (double*)PyArray_GETPTR1(rand_buffer, 0);
             }
             double number = buf_pointer[curbuffer];
@@ -294,7 +309,8 @@ rand_code = {'support_code': '''
                 curbuffer = 0;
             return number;
         }
-        ''', 'hashdefine_code': '#define _rand(_vectorisation_idx) _call_rand(_python_rand)'}
+        '''}
 DEFAULT_FUNCTIONS['rand'].implementations.add_implementation(WeaveCodeObject,
                                                              code=rand_code,
+                                                             namespace={'_numpy_rand': numpy.random.rand},
                                                              name='_rand')

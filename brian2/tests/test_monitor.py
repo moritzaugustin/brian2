@@ -1,9 +1,12 @@
+import uuid
+
 from numpy.testing.utils import assert_allclose, assert_array_equal, assert_raises
 from nose import with_setup
 from nose.plugins.attrib import attr
 
 from brian2 import *
 from brian2.devices.device import restore_device
+from brian2.utils.logger import catch_logs
 
 
 @attr('standalone-compatible')
@@ -56,11 +59,13 @@ def test_synapses_state_monitor():
 @attr('standalone-compatible')
 @with_setup(teardown=restore_device)
 def test_state_monitor():
+    # Unique name to get the warning even for repeated runs of the test
+    unique_name = 'neurongroup_' + str(uuid.uuid4()).replace('-', '_')
     # Check that all kinds of variables can be recorded
     G = NeuronGroup(2, '''dv/dt = -v / (10*ms) : 1
                           f = clip(v, 0.1, 0.9) : 1
                           rate: Hz''', threshold='v>1', reset='v=0',
-                    refractory=2*ms)
+                    refractory=2*ms, name=unique_name)
     G.rate = [100, 1000] * Hz
     G.v = 1
 
@@ -71,6 +76,12 @@ def test_state_monitor():
     # A bit peculiar, but in principle one should be allowed to record
     # nothing except for the time
     nothing_mon = StateMonitor(G, [], record=True)
+
+    # A more common case is that the user forgets the record argument (which
+    # defaults to ``None``) -- raise a warning in this case
+    with catch_logs() as l:
+        no_record = StateMonitor(G, 'v')
+        assert len(l) == 1
 
     # Use a single StateMonitor
     v_mon = StateMonitor(G, 'v', record=True)
@@ -86,7 +97,8 @@ def test_state_monitor():
     # Record synapses with explicit indices (the only way allowed in standalone)
     synapse_mon = StateMonitor(S, 'w', record=np.arange(len(G)**2))
 
-    net = Network(G, S, nothing_mon,
+    net = Network(G, S,
+                  nothing_mon, no_record,
                   v_mon, v_mon1,
                   multi_mon, multi_mon1,
                   all_mon,
@@ -99,6 +111,7 @@ def test_state_monitor():
     assert_array_equal(nothing_mon.t_, v_mon.t_)
     assert_allclose(nothing_mon.t,
                     np.arange(len(nothing_mon.t)) * defaultclock.dt)
+    assert_array_equal(no_record.t, v_mon.t)
 
     # Check v recording
     assert_allclose(v_mon.v.T,
@@ -110,6 +123,7 @@ def test_state_monitor():
     assert_array_equal(v_mon.v, all_mon.v)
     assert_array_equal(v_mon.v[1:2], v_mon1.v)
     assert_array_equal(multi_mon.v[1:2], multi_mon1.v)
+    assert len(no_record.v) == 0
 
     # Other variables
     assert_array_equal(multi_mon.rate_.T, np.tile(np.atleast_2d(G.rate_),

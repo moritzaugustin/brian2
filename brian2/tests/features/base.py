@@ -13,34 +13,43 @@ from collections import defaultdict
 
 __all__ = ['FeatureTest', 'InaccuracyError', 'Configuration',
            'run_feature_tests', 'run_single_feature_test',
+           'run_speed_tests',
            'DefaultConfiguration', 'WeaveConfiguration',
            'CythonConfiguration', 'CPPStandaloneConfiguration',
-           'CPPStandaloneConfigurationOpenMP', 'CUDAStandaloneConfiguration']
+           'CPPStandaloneConfigurationOpenMP',
+           'CUDAStandaloneConfiguration']
 
 class InaccuracyError(AssertionError):
     def __init__(self, error, *args):
         self.error = error
         AssertionError.__init__(self, *args)
-
-class FeatureTest(object):
+        
+class BaseTest(object):
     '''
     '''
     
     category = None # a string with the category of features
     name = None # a string with the particular feature name within the category
     tags = None # a list of tags (strings) of features used
+    # whether or not to allow the device to override the time: this can be used to remove the
+    # compilation overheads on certain devices (but some tests might want to include this)
+    allow_time_override = True
 
     @classmethod
     def fullname(cls):
         return cls.category+': '+cls.name
-    
+
     def run(self):
         '''
         Runs the feature test but do not return results (some devices may 
         require an extra step before results are available).
         '''
         raise NotImplementedError
-    
+
+class FeatureTest(BaseTest):
+    '''
+    '''
+        
     def results(self):
         '''
         Return the results after a run call.
@@ -67,10 +76,37 @@ class FeatureTest(object):
         '''
         Often you just want to compare the values of some arrays, this does that.
         '''
-        err = numpy.amax(numpy.abs(v_base-v_test)/v_base)
-        if err>maxrelerr:
-            raise InaccuracyError(err)
+        if isinstance(v_base, dict):
+            for k in v_base.keys():
+                self.compare_arrays(maxrelerr, v_base[k], v_test[k])
+        else:
+            I = (v_base!=0)
+            err = numpy.amax(numpy.abs(v_base[I]-v_test[I])/v_base[I])
+            if err>maxrelerr:
+                raise InaccuracyError(err)
+            if (v_test[-I]!=0).any():
+                raise InaccuracyError(numpy.inf)
+
+class SpeedTest(BaseTest):
+    n_range = [1]
+    n_label = 'n'
+    n_axis_log = True
+    time_axis_log = True
     
+    def __init__(self, n):
+        self.n = n
+            
+    def results(self):
+        return self.n
+    
+    def compare(self, maxrelerr, results_base, results_test):
+        pass
+    
+    def check(self, maxrelerr, results):
+        pass
+    
+    def __call__(self):
+        return self
 
 class Configuration(object):
     '''
@@ -90,6 +126,7 @@ class DefaultConfiguration(Configuration):
     def before_run(self):
         brian2.prefs.reset_to_defaults()
         brian2.set_device('runtime')
+
 
 class WeaveConfiguration(Configuration):
     name = 'Weave'
@@ -134,7 +171,7 @@ class CPPStandaloneConfigurationOpenMP(Configuration):
                             with_output=False)
         
 class CUDAStandaloneConfiguration(Configuration):
-    name = 'C++ CUDA standalone'
+    name = 'CUDA standalone'
     def before_run(self):
         brian2.prefs.reset_to_defaults()
         brian2.set_device('cuda_standalone')
@@ -144,31 +181,47 @@ class CUDAStandaloneConfiguration(Configuration):
             shutil.rmtree('cuda_standalone')
         brian2.device.build(directory='cuda_standalone', compile=True, run=True,
                             with_output=False)
+        
+class GeNNConfiguration(Configuration):
+    name = 'GeNN'
+    def before_run(self):
+        brian2.prefs.reset_to_defaults()
+        brian2.prefs.codegen.loop_invariant_optimisations = False
+        brian2.set_device('genn')
+        
+    def after_run(self):
+        if os.path.exists('GeNNworkspace'):
+            shutil.rmtree('GeNNworkspace')
+        brian2.device.build(directory='GeNNworkspace', compile=True, run=True,
+                            use_GPU=True)
     
     
-def results(configuration, feature):
+def results(configuration, feature, n):
     tempfilename = tempfile.mktemp('exception')
     code_string = '''
 __file__ = '{fname}'
 from {config_module} import {config_name}
 from {feature_module} import {feature_name}
 configuration = {config_name}()
-feature = {feature_name}()
-import warnings, traceback, pickle, sys, os
+feature = {feature_name}({n})
+import warnings, traceback, pickle, sys, os, time
 warnings.simplefilter('ignore')
 try:
+    start_time = time.time()
     configuration.before_run()
     feature.run()
     configuration.after_run()
+    runtime=time.time() - start_time
     results = feature.results()
     f = open(r'{tempfname}', 'wb')
-    pickle.dump((None, results), f, -1)
+    pickle.dump((None, results, runtime), f, -1)
     f.close()
 except Exception, ex:
     #traceback.print_exc(file=sys.stdout)
     tb = traceback.format_exc()
     f = open(r'{tempfname}', 'wb')
-    pickle.dump((tb, ex), f, -1)
+    runtime = 0
+    pickle.dump((tb, ex, runtime), f, -1)
     f.close()
     '''.format(config_module=configuration.__module__,
                config_name=configuration.__name__,
@@ -176,6 +229,7 @@ except Exception, ex:
                feature_name=feature.__name__,
                tempfname=tempfilename,
                fname=__file__,
+               n=str(n)
                )
     args = [sys.executable, '-c',
             code_string]
@@ -187,8 +241,8 @@ except Exception, ex:
     #sys.stdout.write(stdout)
     #sys.stderr.write(stderr)
     f = open(tempfilename, 'rb')
-    tb, res = pickle.load(f)
-    return tb, res
+    tb, res, runtime = pickle.load(f)
+    return tb, res, runtime
     
 
 def check_or_compare(feature, res, baseline, maxrelerr):
@@ -232,7 +286,7 @@ def run_feature_tests(configurations=None, feature_tests=None,
             txt = 'OK'
             sym = '.'
             exc = None
-            tb, res = results(configuration, ft)
+            tb, res, runtime = results(configuration, ft, 0)
             if isinstance(res, Exception):
                 if isinstance(res, NotImplementedError):
                     sym = 'N'
@@ -409,3 +463,83 @@ def normalize_row(row, max_cols):
         r += row[i] + (max_col  - len(row[i]) + 1) * " "
 
     return r + "\n"
+
+def run_speed_tests(configurations=None, speed_tests=None, run_twice=True, verbose=True,
+                    n_slice=slice(None)):
+    if configurations is None:
+        # some configurations to attempt to import
+        try:
+            import brian2genn.correctness_testing
+        except:
+            pass
+        configurations = Configuration.__subclasses__()
+    if speed_tests is None:
+        speed_tests = SpeedTest.__subclasses__()
+    speed_tests.sort(key=lambda ft: ft.fullname())
+    if verbose:
+        print 'Running speed tests'
+        print 'Configurations:', ', '.join(c.name for c in configurations)
+
+    full_results = {}
+    tag_results = defaultdict(lambda:defaultdict(list))
+    for ft in speed_tests:
+        if verbose:
+            print ft.fullname()+': ',
+        for n in ft.n_range[n_slice]:
+            if verbose:
+                print 'n=%d [' % n,
+            for configuration in configurations:
+                sym = '.'
+                for _ in xrange(1+int(run_twice)):
+                    tb, res, runtime = results(configuration, ft, n)
+                if isinstance(res, Exception):
+                    if isinstance(res, NotImplementedError):
+                        sym = 'N'
+                    else:
+                        sym = 'E'
+                    if configuration is DefaultConfiguration:
+                        raise res
+                    runtime = numpy.NAN
+                sys.stdout.write(sym)
+                full_results[configuration.name, ft.fullname(), n] = runtime
+            if verbose:
+                print ']',
+        if verbose:
+            print
+        
+    return SpeedTestResults(full_results, configurations, speed_tests)
+
+
+class SpeedTestResults(object):
+    def __init__(self, full_results, configurations, speed_tests):
+        self.full_results = full_results
+        self.configurations = configurations
+        self.speed_tests = speed_tests
+        
+    def get_ns(self, fullname):
+        L = [(cn, fn, n) for cn, fn, n in self.full_results.keys() if fn==fullname]
+        confignames, fullnames, n = zip(*L)
+        return numpy.array(sorted(list(set(n))))
+    
+    def plot_all_tests(self):
+        import pylab
+        for st in self.speed_tests:
+            fullname = st.fullname()
+            pylab.figure()
+            ns = self.get_ns(fullname)
+            for config in self.configurations:
+                configname = config.name
+                runtimes = []
+                for n in ns:
+                    runtimes.append(self.full_results[configname, fullname, n])
+                runtimes = numpy.array(runtimes)
+                pylab.plot(ns, runtimes, label=configname)
+            pylab.title(fullname)
+            pylab.legend(loc='best', fontsize='x-small')
+            pylab.xlabel(st.n_label)
+            if st.n_axis_log:
+                pylab.gca().set_xscale('log')
+            if st.time_axis_log:
+                pylab.gca().set_yscale('log')
+            pylab.savefig(fullname)
+    
