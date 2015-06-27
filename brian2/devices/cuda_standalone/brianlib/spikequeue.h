@@ -77,20 +77,23 @@ public:
 			{
 				printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>*)*max_delay);
 			}
-		};
+		}
 		__syncthreads();
 
-		//only the first few threads can work now
-		if(tid >= max_delay)
-		{
-			return;
-		}
+        for(int i = tid; i < max_delay; i+=num_threads)
+        {
+		    //only the first few threads can work now
+    		if(tid >= max_delay)
+    		{
+    			return;
+    		}
 
-		synapses_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-		if(!synapses_queue[tid])
-		{
-			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
-		}
+	    	synapses_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
+    		if(!synapses_queue[tid])
+	    	{
+    			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
+    		}
+        }
 	};
 
 	__device__ void push(

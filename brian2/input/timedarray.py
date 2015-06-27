@@ -179,7 +179,7 @@ class TimedArray(Function, Nameable):
                    i = 0;
                 if(i >= _num_values)
                     i = _num_values-1;
-                return d_%NAME%_values[i];
+                return _values[i];
             }
             '''.replace('%NAME%', self.name).replace('%DT%', '%.18f' % dt).replace('%K%', str(K))
             cuda_code = {'support_code': support_code,
@@ -296,6 +296,44 @@ class TimedArray(Function, Nameable):
         self.implementations.add_dynamic_implementation('cpp',
                                                         code=create_cpp_implementation,
                                                         namespace=create_cpp_namespace,
+                                                        name=self.name)
+        
+        def create_cuda_implementation(owner):
+            group_dt = owner.clock.dt_
+            K = _find_K(group_dt, dt)
+            support_code = '''
+            __device__ inline double timedarray_%NAME%(const double t, const int i, const double* _values)
+            {
+                using namespace brian;
+                const double epsilon = %DT% / %K%;
+                if (i < 0 || i >= %COLS%)
+                    return NAN;
+                int timestep = (int)((t/epsilon + 0.5)/%K%);
+                if(timestep < 0)
+                   timestep = 0;
+                else if(timestep >= %ROWS%)
+                    timestep = %ROWS%-1;
+                return _values[timestep*%COLS% + i];
+            }
+            '''
+            support_code = replace(support_code, {'%NAME%': self.name,
+                                                  '%DT%': '%.18f' % dt,
+                                                  '%K%': str(K),
+                                                  '%COLS%': str(self.values.shape[1]),
+                                                  '%ROWS%': str(self.values.shape[0])})
+            cuda_code = {'support_code': support_code,
+                         'hashdefine_code': '''#define %NAME%(t, i) timedarray_%NAME%(t, i, d%NAME%_values)'''.replace('%NAME%', self.name)}
+
+            return cuda_code
+
+        def create_cuda_namespace(owner):
+            return {'%s_values' % self.name: self.values.astype(np.double,
+                                                                order='C',
+                                                                copy=False).ravel()}
+
+        self.implementations.add_dynamic_implementation('cuda',
+                                                        code=create_cuda_implementation,
+                                                        namespace=create_cuda_namespace,
                                                         name=self.name)
 
         def create_cython_implementation(owner):

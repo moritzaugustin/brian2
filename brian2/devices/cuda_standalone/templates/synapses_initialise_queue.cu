@@ -44,7 +44,7 @@ void _run_{{pathobj}}_initialise_queue()
 {
 	using namespace brian;
 
-	double dt = defaultclock.dt_();
+	double dt = {{owner._clock._name}}.dt_();
 	unsigned int syn_N = dev_dynamic_array_{{pathobj}}_delay.size();
 	unsigned int source_N = {{owner.source.N}};
 	unsigned int target_N = {{owner.target.N}};
@@ -128,7 +128,12 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMemcpy(temp4, temp_delay_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol({{pathobj}}_delay_by_pre, &temp4, sizeof(unsigned int**));
 
-	_run_{{codeobj_name}}_kernel<<<1, max_delay>>>(
+	unsigned int num_threads = max_delay;
+	if(num_threads >= max_threads_per_block)
+	{
+		num_threads = max_threads_per_block;
+	}
+	_run_{{codeobj_name}}_kernel<<<1, num_threads>>>(
 		source_N,
 		num_parallel_blocks,
 		max_threads_per_block,
