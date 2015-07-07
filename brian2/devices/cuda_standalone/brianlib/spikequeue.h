@@ -24,7 +24,6 @@ public:
 	//each element
 	unsigned int* size_by_pre;
 	DTYPE_int** synapses_id_by_pre;
-	DTYPE_int** post_id_by_pre;
 	unsigned int** delay_by_pre;
 
 	unsigned int current_offset;
@@ -56,7 +55,6 @@ public:
 		unsigned int _max_delay,
 		unsigned int* _size_by_pre,
 		DTYPE_int** _synapses_by_pre,
-		DTYPE_int** _post_id_by_pre,
 		unsigned int** _delay_by_pre)
 	{
 		if(tid == 0)
@@ -69,7 +67,6 @@ public:
 
 			size_by_pre = _size_by_pre;
 			synapses_id_by_pre = _synapses_by_pre;
-			post_id_by_pre = _post_id_by_pre;
 			delay_by_pre = _delay_by_pre;
 
 			synapses_queue = new cudaVector<DTYPE_int>*[max_delay];
@@ -107,7 +104,8 @@ public:
 		unsigned int right_offset = neuron_pre_id*num_blocks + bid;
 		unsigned int num_connected_synapses = size_by_pre[right_offset];
 		//shared_mem is allocated in push_spikes
-		unsigned int* num_elements_per_delay = (unsigned int*)_shared_mem;
+		int32_t* shared_mem_synapses_id = (int32_t*)_shared_mem;
+		unsigned int* shared_mem_synapses_delay = (unsigned int*)((int32_t*)shared_mem_synapses_id + num_threads);
 
 		//ignore invalid pre_ids
 		if(neuron_pre_id >= neuron_N)
@@ -115,31 +113,29 @@ public:
 			return;
 		}
 
-		if(tid < max_delay)
-		{
-			num_elements_per_delay[tid] = synapses_queue[tid][bid].size();
-			synapses_queue[tid][bid].resize(num_elements_per_delay[tid] + num_connected_synapses);
-        }
-		__syncthreads();
-
 		for(int i = tid; i < num_connected_synapses; i += num_threads)
 		{
 			int32_t syn_id = synapses_id_by_pre[right_offset][i];
+			shared_mem_synapses_id[tid] = syn_id;
 			unsigned int delay = delay_by_pre[right_offset][i];
+			shared_mem_synapses_delay[tid] = delay;
 
-			int32_t queue_syn_id = syn_id;
-			unsigned int queue_delay = delay;
-			unsigned int adjusted_delay = (current_offset + queue_delay) % max_delay;
-			unsigned int queue_id = bid;
-			unsigned int pos_in_queue = atomicAdd(&num_elements_per_delay[adjusted_delay], 1);
+			if(tid < max_delay)
+			{
+				for(int j = 0; j < num_threads && (i-tid)+j < num_connected_synapses; j++)
+				{
+					int32_t queue_syn_id = shared_mem_synapses_id[j];
+					unsigned int queue_delay = shared_mem_synapses_delay[j];
+					unsigned int adjusted_delay = (current_offset + queue_delay)%max_delay;
+					unsigned int queue_id = bid;
 
-			synapses_queue[adjusted_delay][queue_id].update(pos_in_queue, queue_syn_id);
-		}
-		__syncthreads();
-
-		if(tid < max_delay)
-		{
-			synapses_queue[tid][bid].resize(num_elements_per_delay[tid]);
+					if(tid == adjusted_delay)
+					{
+						synapses_queue[adjusted_delay][queue_id].push(queue_syn_id);
+					}
+				}
+			}
+			__syncthreads();
 		}
 	}
 

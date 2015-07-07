@@ -66,7 +66,6 @@ int32_t {{S.name}}_source_stop_index;
 // {{path.name}}
 __device__ unsigned int* brian::{{path.name}}_size_by_pre;
 __device__ int32_t** brian::{{path.name}}_synapses_id_by_pre;
-__device__ int32_t** brian::{{path.name}}_post_neuron_by_pre;
 __device__ unsigned int** brian::{{path.name}}_delay_by_pre;
 __device__ SynapticPathway<double> brian::{{path.name}};
 {% endfor %}
@@ -413,7 +412,6 @@ extern Synapses<double> {{S.name}};
 {% for path in S._pathways | sort(attribute='name') %}
 extern __device__ unsigned* {{path.name}}_size_by_pre;
 extern __device__ int32_t** {{path.name}}_synapses_id_by_pre;
-extern __device__ int32_t** {{path.name}}_post_neuron_by_pre;
 extern __device__ unsigned int** {{path.name}}_delay_by_pre;
 extern __device__ SynapticPathway<double> {{path.name}};
 {% endfor %}

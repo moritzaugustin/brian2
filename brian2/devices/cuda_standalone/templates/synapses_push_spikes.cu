@@ -36,6 +36,8 @@ namespace {
 	}
 }
 
+#define MEM_PER_THREAD (sizeof(int32_t) + sizeof(unsigned int))
+
 __global__ void _run_{{codeobj_name}}_advance_kernel()
 {
 	using namespace brian;
@@ -60,13 +62,12 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 
 	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
 	unsigned int start_index = {{owner.name}}.spikes_start - ({{owner.name}}.spikes_start % block_size);	//find start of last block
-	for(int i = 0; i < {{owner.name}}.spikes_stop;)
+	for(int i = 0; i < {{owner.name}}.spikes_stop; i++)
 	{
 		int32_t spiking_neuron = {{_spikespace}}[i];
-		if(spiking_neuron != -1 && spiking_neuron >= {{owner.name}}.spikes_start)
+		if(spiking_neuron != -1 && spiking_neuron >= {{owner.name}}.spikes_start && spiking_neuron < {{owner.name}}.spikes_stop)
 		{
 			__syncthreads();
-			i++;
 			{{owner.name}}.queue->push(
 				bid,
 				tid,
@@ -74,17 +75,9 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 				spiking_neuron,
 				shared_mem);
 		}
-		else
+		if(spiking_neuron == -1)
 		{
-			if(sourceN > _num_blocks)
-			{
-				//round to nearest multiple of N/num_blocks = start of next block
-				i += block_size - (i % block_size);
-			}
-			else
-			{
-				i++;
-			}
+			return;
 		}
 	}
 }
@@ -98,8 +91,9 @@ void _run_{{codeobj_name}}()
 
 	_run_{{codeobj_name}}_advance_kernel<<<1, num_parallel_blocks>>>();
 
-	unsigned int num_threads = max_threads_per_block;
-	_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, max_shared_mem_size>>>(
+	unsigned int num_threads = max_shared_mem_size / MEM_PER_THREAD;
+	num_threads = num_threads < max_threads_per_block? num_threads : max_threads_per_block; // get min of both
+	_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
 		_num_spikespace - 1,
 		num_parallel_blocks,
 		num_threads,

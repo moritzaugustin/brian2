@@ -33,7 +33,6 @@ __global__ void _run_{{codeobj_name}}_kernel(
 		max_delay,
 		{{pathobj}}_size_by_pre,
 		{{pathobj}}_synapses_id_by_pre,
-		{{pathobj}}_post_neuron_by_pre,
 		{{pathobj}}_delay_by_pre);
 }
 
@@ -50,24 +49,23 @@ void _run_{{pathobj}}_initialise_queue()
 	unsigned int target_N = {{owner.target.N}};
 
 	//Create temporary host vectors
-	int32_t* h_synapses__synaptic_pre = new int32_t[syn_N];
-	int32_t* h_synapses__synaptic_post = new int32_t[syn_N];
-	double* h_{{pathobj}}_delay = new double[syn_N];
+	int32_t* h_synapses_synaptic_sources = new int32_t[syn_N];
+	int32_t* h_synapses_synaptic_targets = new int32_t[syn_N];
+	double* h_synapses_delay = new double[syn_N];
 
-	cudaMemcpy(h_synapses__synaptic_pre, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_sources.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
-	cudaMemcpy(h_synapses__synaptic_post, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_targets.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
-	cudaMemcpy(h_{{pathobj}}_delay, thrust::raw_pointer_cast(&dev_dynamic_array_{{pathobj}}_delay[0]), sizeof(double) * syn_N, cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_synapses_synaptic_sources, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_sources.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_synapses_synaptic_targets, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_targets.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_synapses_delay, thrust::raw_pointer_cast(&dev_dynamic_array_{{pathobj}}_delay[0]), sizeof(double) * syn_N, cudaMemcpyDeviceToHost);
 	thrust::host_vector<int32_t>* h_synapses_by_pre_id = new thrust::host_vector<int32_t>[num_parallel_blocks*source_N];
-	thrust::host_vector<int32_t>* h_post_neuron_by_pre_id = new thrust::host_vector<int32_t>[num_parallel_blocks*source_N];
 	thrust::host_vector<unsigned int>* h_delay_by_pre_id = new thrust::host_vector<unsigned int>[num_parallel_blocks*source_N];
 
 	//fill vectors with pre_neuron, post_neuron, delay data
 	unsigned int max_delay = 0;
 	for(int syn_id = 0; syn_id < syn_N; syn_id++)
 	{
-		int32_t pre_neuron_id = h_synapses__synaptic_pre[syn_id] - {{owner.source.start}};
-		int32_t post_neuron_id = h_synapses__synaptic_post[syn_id]  - {{owner.target.start}};
-		unsigned int delay = (int)(h_{{pathobj}}_delay[syn_id] / dt + 0.5);
+		int32_t pre_neuron_id = h_synapses_synaptic_sources[syn_id] - {{owner.source.start}};
+		int32_t post_neuron_id = h_synapses_synaptic_targets[syn_id]  - {{owner.target.start}};
+		unsigned int delay = (int)(h_synapses_delay[syn_id] / dt + 0.5);
 		if(delay > max_delay)
 		{
 			max_delay = delay;
@@ -75,7 +73,6 @@ void _run_{{pathobj}}_initialise_queue()
 		unsigned int right_queue = (post_neuron_id*num_parallel_blocks)/target_N;
 		unsigned int right_offset = pre_neuron_id * num_parallel_blocks + right_queue;
 		h_synapses_by_pre_id[right_offset].push_back(syn_id);
-		h_post_neuron_by_pre_id[right_offset].push_back(post_neuron_id);
 		h_delay_by_pre_id[right_offset].push_back(delay);
 	}
 	max_delay++;	//we also need a current step
@@ -83,7 +80,6 @@ void _run_{{pathobj}}_initialise_queue()
 	//create array for device pointers
 	unsigned int* temp_size_by_pre_id = new unsigned int[num_parallel_blocks*source_N];
 	int32_t** temp_synapses_by_pre_id = new int32_t*[num_parallel_blocks*source_N];
-	int32_t** temp_post_neuron_by_pre_id = new int32_t*[num_parallel_blocks*source_N];
 	unsigned int** temp_delay_by_pre_id = new unsigned int*[num_parallel_blocks*source_N];
 	//fill temp arrays with device pointers
 	for(int i = 0; i < num_parallel_blocks*source_N; i++)
@@ -93,14 +89,9 @@ void _run_{{pathobj}}_initialise_queue()
 		if(num_elements > 0)
 		{
 			cudaMalloc((void**)&temp_synapses_by_pre_id[i], sizeof(int32_t)*num_elements);
-			cudaMalloc((void**)&temp_post_neuron_by_pre_id[i], sizeof(int32_t)*num_elements);
 			cudaMalloc((void**)&temp_delay_by_pre_id[i], sizeof(unsigned int)*num_elements);
 			cudaMemcpy(temp_synapses_by_pre_id[i],
 				thrust::raw_pointer_cast(&(h_synapses_by_pre_id[i][0])),
-				sizeof(int32_t)*num_elements,
-				cudaMemcpyHostToDevice);
-			cudaMemcpy(temp_post_neuron_by_pre_id[i],
-				thrust::raw_pointer_cast(&(h_post_neuron_by_pre_id[i][0])),
 				sizeof(int32_t)*num_elements,
 				cudaMemcpyHostToDevice);
 			cudaMemcpy(temp_delay_by_pre_id[i],
@@ -119,14 +110,10 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMalloc((void**)&temp2, sizeof(int32_t*)*num_parallel_blocks*source_N);
 	cudaMemcpy(temp2, temp_synapses_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol({{pathobj}}_synapses_id_by_pre, &temp2, sizeof(int32_t**));
-	int32_t* temp3;
-	cudaMalloc((void**)&temp3, sizeof(int32_t*)*num_parallel_blocks*source_N);
-	cudaMemcpy(temp3, temp_post_neuron_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol({{pathobj}}_post_neuron_by_pre, &temp3, sizeof(int32_t**));
-	unsigned int* temp4;
-	cudaMalloc((void**)&temp4, sizeof(unsigned int*)*num_parallel_blocks*source_N);
-	cudaMemcpy(temp4, temp_delay_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol({{pathobj}}_delay_by_pre, &temp4, sizeof(unsigned int**));
+	unsigned int* temp3;
+	cudaMalloc((void**)&temp3, sizeof(unsigned int*)*num_parallel_blocks*source_N);
+	cudaMemcpy(temp3, temp_delay_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol({{pathobj}}_delay_by_pre, &temp3, sizeof(unsigned int**));
 
 	unsigned int num_threads = max_delay;
 	if(num_threads >= max_threads_per_block)
@@ -142,15 +129,13 @@ void _run_{{pathobj}}_initialise_queue()
 		max_delay);
 
 	//delete temp arrays
-	delete [] h_synapses__synaptic_pre;
-	delete [] h_synapses__synaptic_post;
-	delete [] h_{{pathobj}}_delay;
+	delete [] h_synapses_synaptic_sources;
+	delete [] h_synapses_synaptic_targets;
+	delete [] h_synapses_delay;
 	delete [] h_synapses_by_pre_id;
-	delete [] h_post_neuron_by_pre_id;
 	delete [] h_delay_by_pre_id;
 	delete [] temp_size_by_pre_id;
 	delete [] temp_synapses_by_pre_id;
-	delete [] temp_post_neuron_by_pre_id;
 	delete [] temp_delay_by_pre_id;
 }
 

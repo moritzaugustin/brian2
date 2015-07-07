@@ -96,7 +96,6 @@ public:
 				free(data);
 				data = new_data;
 				size_allocated = new_capacity;
-                size_used = new_capacity;
 			}
 			else
 			{

@@ -9,24 +9,28 @@ __global__ void get_num_spikes_subgroup(
 	unsigned int neurongroup_N,
 	unsigned int block_size,
 	int32_t* spikespace)
-{	
- 	dev_num_spikes = 0;
-
-	for(int i = 0; i < _source_stop;)
+{
+	unsigned int tid = threadIdx.x;
+	unsigned int bid = blockIdx.x;
+	unsigned int idx = bid * block_size + tid;
+	
+	if(tid == 0 && bid == 0)
 	{
-		int32_t spiking_neuron = spikespace[i];
-		if(spiking_neuron != -1)
+		dev_num_spikes = 0;
+	}
+	
+	__syncthreads();
+	if(idx > neurongroup_N)
+	{
+		return;
+	}
+
+	int32_t spiking_neuron = spikespace[idx];
+	if(spiking_neuron != -1)
+	{
+		if(spiking_neuron >= _source_start && spiking_neuron < _source_stop)
 		{
-			if(spiking_neuron >= _source_start && spiking_neuron < _source_stop)
-			{
-				dev_num_spikes++;
-			}
-			i++;
-		}
-		else
-		{
-			//round to nearest multiple of block_size (= start of next block)
-			i += block_size - i % block_size;
+			atomicAdd(&dev_num_spikes, 1);
 		}
 	}
 }
@@ -45,7 +49,7 @@ if(_num_spikespace-1 == (_source_stop - _source_start))
 else
 {
 	//if subgroup, launch kernel to find number of spikes
-	get_num_spikes_subgroup<<<1,1>>>(
+	get_num_spikes_subgroup<<<num_blocks(_num_spikespace-1), num_threads(_num_spikespace-1)>>>(
 		_num_spikespace-1,
 		num_threads(_num_spikespace-1),
 		dev{{spikespace_name}});

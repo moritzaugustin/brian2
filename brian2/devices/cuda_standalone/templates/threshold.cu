@@ -15,7 +15,6 @@ int mem_per_thread(){
 
 	//// MAIN CODE ////////////
 	// scalar code
-	__shared__ int spikes_in_block;
 	{{scalar_code|autoindent}}
 
 	{{_spikespace}}[_idx] = -1;
@@ -42,7 +41,7 @@ int mem_per_thread(){
 {% endblock %}
 
 {% block kernel_call %}
-kernel_{{codeobj_name}}<<<num_blocks(N),num_threads(N), num_threads(N)*mem_per_thread()>>>(
+kernel_{{codeobj_name}}<<<num_blocks(N), num_threads(N)>>>(
 		num_threads(N),
 		%HOST_PARAMETERS%
 	);
