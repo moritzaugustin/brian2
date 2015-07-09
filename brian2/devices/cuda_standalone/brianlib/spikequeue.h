@@ -114,19 +114,16 @@ public:
 			unsigned int delay = delay_by_pre[right_offset][i];
 			shared_mem_synapses_delay[tid] = delay;
 
-			if(tid < max_delay)
-			{
-				for(int j = 0; j < num_threads && (i-tid)+j < num_connected_synapses; j++)
+            if(tid == 0)
+            {
+				for(int j = 0; j < num_threads && i + j < num_connected_synapses; j++)
 				{
 					int32_t queue_syn_id = shared_mem_synapses_id[j];
 					unsigned int queue_delay = shared_mem_synapses_delay[j];
 					unsigned int adjusted_delay = (current_offset + queue_delay)%max_delay;
 					unsigned int queue_id = bid;
 
-					if(tid == adjusted_delay)
-					{
-						synapses_queue[adjusted_delay][queue_id].push(queue_syn_id);
-					}
+					synapses_queue[adjusted_delay][queue_id].push(queue_syn_id);
 				}
 			}
 			__syncthreads();
