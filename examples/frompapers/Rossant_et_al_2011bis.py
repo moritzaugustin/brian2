@@ -16,7 +16,7 @@ less than 1% of the excitatory synapses have an important impact on the postsyna
 """
 from brian2 import *
 
-#set_device("cuda_standalone")
+set_device("cuda_standalone")
 
 # neuron parameters
 theta = -55*mV
@@ -47,7 +47,7 @@ group = NeuronGroup(N=2, model=eqs, reset='v = El',
                     threshold='v>theta',
                     refractory=5*ms)
 group.v = El
-group.ge = group.gi = 0
+group.ge = group.gi = 0*mV
 
 # independent E/I Poisson inputs
 p1 = PoissonInput(group[0:1], 'ge', N=ne, rate=lambdae, weight=we)
@@ -62,9 +62,9 @@ p5 = PoissonInput(group[1:], 'ge', N=1, rate=lambdac, weight=p*we)
 M = SpikeMonitor(group)
 SM = StateMonitor(group, 'v', record=True)
 BrianLogger.log_level_info()
-run(1*second)
+run(1*second, report="text")
 
-#device.build(directory='Wang_Buszaki_1996_cuda', compile=True, run=True, debug=False)
+device.build(directory='Rossant_2011_cuda', compile=True, run=True, debug=False)
 
 # plot trace and spikes
 for i in [0, 1]:

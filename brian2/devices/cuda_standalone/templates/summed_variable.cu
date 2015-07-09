@@ -20,8 +20,9 @@ __device__ double atomicAddDouble(double* address, double val)
 {% block kernel %}
 {# USES_VARIABLES { _synaptic_post, _synaptic_pre, N_post, N_pre } #}
 __global__ void kernel_{{codeobj_name}}(
-	int num_blocks_per_neuron,
-	int num_threads,
+	unsigned int num_blocks_per_neuron,
+	unsigned int num_threads,
+	unsigned int syn_N,
 	%DEVICE_PARAMETERS%
 	)
 {
@@ -38,6 +39,10 @@ __global__ void kernel_{{codeobj_name}}(
 	%KERNEL_VARIABLES%
 
 	//// MAIN CODE ////////////
+	if(_idx < 0 || _idx >=  syn_N)
+	{
+		return;
+	}
 	double _local_sum = 0.0;
 	shared_double_mem[tid] = 0.0;
 	if(tid == 0 && num_block_for_neuron == 0)
@@ -71,9 +76,11 @@ __global__ void kernel_{{codeobj_name}}(
 {% block kernel_call %}
 	int _num_blocks = num_blocks(N_pre) * N_post;
 	unsigned int _num_threads = num_threads(N_pre);
+	unsigned int syn_N = _num_postsynaptic_idx;
 	kernel_{{codeobj_name}}<<<_num_blocks, _num_threads, _num_threads*MEM_PER_THREAD>>>(
 			_num_blocks,
 			_num_threads,
+			syn_N,
 			%HOST_PARAMETERS%
 		);
 {% endblock %}

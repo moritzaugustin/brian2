@@ -20,19 +20,17 @@ int mem_per_thread(){
 	
 	//// MAIN CODE ////////////
 	// scalar code
-	extern __shared__ int32_t spike_cache[];
 	
-	spike_cache[tid] = -1;
 	{{_spikespace}}[_idx] = -1;
 
-	if(tid == 0 && bid == 0)
+	if(tid == 0)
 	{
 		//init number of spikes with 0
 		{{_spikespace}}[N] = 0;
 	}
 	__syncthreads();
 
-	for(int spike_idx={{_lastindex}}[0] + tid; spike_idx < _numspike_time; spike_idx+=THREADS_PER_BLOCK)
+	for(int spike_idx = {{_lastindex}}[0] + tid; spike_idx < _numspike_time; spike_idx += THREADS_PER_BLOCK)
 	{
 		if (not_end_period)
 		{
@@ -49,39 +47,16 @@ int mem_per_thread(){
 	        break;
 	    }
 	    int32_t neuron_id = {{neuron_index}}[spike_idx];
-	    if(neuron_id >= bid*THREADS_PER_BLOCK && neuron_id < (bid+1)*THREADS_PER_BLOCK)
-	    {
-			spike_cache[tid] = neuron_id;
-		}
+    	int32_t spikespace_index = atomicAdd(&{{_spikespace}}[N], 1);
+		atomicAdd(&{{_lastindex}}[0], 1);
+    	{{_spikespace}}[spikespace_index] = neuron_id;
+		__syncthreads();
 	}
-
-	if(tid != 0)
-	{
-		return;
-	}
-
-	int first_neuron_in_block = _idx;	//tid = 0, so neuron_id = bid*num_threads_per_block = start of block no. bid
-	int num_spikes_in_block = 0;
-	for(int i = 0; (i < THREADS_PER_BLOCK) && (first_neuron_in_block + i < N); i++)
-	{
-		if(spike_cache[i] != -1)
-		{
-			//spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
-			int spiking_neuron = spike_cache[i];
-			{{_spikespace}}[first_neuron_in_block + num_spikes_in_block] = spiking_neuron;
-			num_spikes_in_block++;
-		}
-	}
-	//add number of spikes of all blocks together
-	//last element of spikespace holds total number of spikes
-	__syncthreads();
-	atomicAdd(&{{_spikespace}}[N], num_spikes_in_block);
-	atomicAdd(&{{_lastindex}}[0], num_spikes_in_block);
 {% endblock %}
 
 {% block kernel_call %}
-kernel_{{codeobj_name}}<<<num_blocks(N),num_threads(N), num_threads(N)*mem_per_thread()>>>(
-		num_threads(N),
+kernel_{{codeobj_name}}<<<1,max_threads_per_block>>>(
+		max_threads_per_block,
 		%HOST_PARAMETERS%
 	);
 {% endblock %}

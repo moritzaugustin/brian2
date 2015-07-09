@@ -13,6 +13,7 @@ __all__ = ['LinearNeuronsOnly',
            'DenseMediumRateSynapsesOnly',
            'SparseLowRateSynapsesOnly',
            'SparseHighRateSynapsesOnly',
+           'AdaptationOscillation'
            ]
 
 class LinearNeuronsOnly(SpeedTest):
@@ -259,6 +260,8 @@ class AdaptationOscillation(SpeedTest):
         v_r = 0 * mV # reset voltage
         dw = 0.1 * mV # spike-triggered adaptation increment
         Tref = 2.5 * ms # refractory period
+        syn_weight = 1.03/(N_neurons*sparsity) * mV # currently: constant synaptic weights
+        syn_delay = 2 * ms
         # input noise:
         input_mean = 0.14 * mV/ms
         input_std = 0.07 * mV/ms**.5
@@ -282,6 +285,11 @@ class AdaptationOscillation(SpeedTest):
         # random initialization of neuron state values
         neurons.v = 'rand()*v_t' 
         neurons.w = 'rand()*10*dw'
+        
+        synapses = Synapses(neurons, neurons, 'c: volt', pre='v += c')
+        synapses.connect('i!=j', p=sparsity)
+        synapses.c[:] = 'syn_weight' 
+        synapses.delay[:] = 'syn_delay' 
         
         run(self.duration, report="text")
         
@@ -362,7 +370,7 @@ class SparseMediumRateSynapsesOnly(SynapsesOnly, SpeedTest):
     rate = 10*Hz
     p = 0.2
     n_range = [10, 100, 1000, 10000, 100000] # weave max CPU time should be about 5m
-
+    
 class DenseMediumRateSynapsesOnly(SynapsesOnly, SpeedTest):    
     name = "Dense, medium rate (1s duration)"
     rate = 10*Hz

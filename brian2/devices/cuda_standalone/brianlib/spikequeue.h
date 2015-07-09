@@ -79,14 +79,8 @@ public:
 
         for(int i = tid; i < max_delay; i+=num_threads)
         {
-		    //only the first few threads can work now
-    		if(tid >= max_delay)
-    		{
-    			return;
-    		}
-
-	    	synapses_queue[tid] = new cudaVector<DTYPE_int>[num_blocks];
-    		if(!synapses_queue[tid])
+	    	synapses_queue[i] = new cudaVector<DTYPE_int>[num_blocks];
+    		if(!synapses_queue[i])
 	    	{
     			printf("ERROR while allocating memory with size %ld in spikequeue.h/prepare()\n", sizeof(cudaVector<DTYPE_int>)*num_blocks);
     		}
