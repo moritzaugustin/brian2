@@ -11,6 +11,7 @@ import numpy as np
 from brian2.codegen.cpp_prefs import get_compiler_and_args
 from brian2.core.clocks import defaultclock
 from brian2.core.network import Network
+from brian2.core.preferences import prefs, BrianPreference
 from brian2.core.variables import *
 from brian2.devices.device import all_devices, get_device, set_device
 from brian2.synapses.synapses import Synapses
@@ -27,6 +28,17 @@ from brian2.monitors.statemonitor import StateMonitor
 __all__ = []
 
 logger = get_logger(__name__)
+
+prefs.register_preferences(
+    'devices.cuda_standalone',
+    'CUDA standalone preferences ',
+    SM_multiplier = BrianPreference(
+        default=1,
+        docs='''
+        The number of blocks per SM. By default, this value is set to 1.
+        ''',
+        ),
+    )
 
 class CUDAWriter(CPPWriter):
     def __init__(self, project_dir):
@@ -92,6 +104,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
     def generate_objects_source(self, writer, arange_arrays, synapses, static_array_specs, networks):
         codeobj_with_rand = [co for co in self.code_objects.values() if co.runs_every_tick and co.rand_calls > 0]
         codeobj_with_randn = [co for co in self.code_objects.values() if co.runs_every_tick and co.randn_calls > 0]
+        multiplier = prefs.devices.cuda_standalone.SM_multiplier
         arr_tmp = CUDAStandaloneCodeObject.templater.objects(
                         None, None,
                         array_specs=self.arrays,
@@ -106,7 +119,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         code_objects=self.code_objects.values(),
                         get_array_filename=self.get_array_filename,
                         codeobj_with_rand=codeobj_with_rand,
-                        codeobj_with_randn=codeobj_with_randn)
+                        codeobj_with_randn=codeobj_with_randn,
+                        multiplier=multiplier)
         writer.write('objects.*', arr_tmp)
 
     def generate_main_source(self, writer, main_includes):

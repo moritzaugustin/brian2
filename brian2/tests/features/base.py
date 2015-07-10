@@ -17,7 +17,8 @@ __all__ = ['FeatureTest', 'InaccuracyError', 'Configuration',
            'DefaultConfiguration', 'WeaveConfiguration',
            'CythonConfiguration', 'CPPStandaloneConfiguration',
            'CPPStandaloneConfigurationOpenMP',
-           'CUDAStandaloneConfiguration']
+           'CUDAStandaloneConfiguration',
+           'CUDAStandaloneConfigurationDoubleSMs']
 
 class InaccuracyError(AssertionError):
     def __init__(self, error, *args):
@@ -172,6 +173,18 @@ class CPPStandaloneConfigurationOpenMP(Configuration):
         
 class CUDAStandaloneConfiguration(Configuration):
     name = 'CUDA standalone'
+    def before_run(self):
+        brian2.prefs.reset_to_defaults()
+        brian2.set_device('cuda_standalone')
+        
+    def after_run(self):
+        if os.path.exists('cuda_standalone'):
+            shutil.rmtree('cuda_standalone')
+        brian2.device.build(directory='cuda_standalone', compile=True, run=True,
+                            with_output=False)
+        
+class CUDAStandaloneConfigurationDoubleSMs(Configuration):
+    name = 'CUDA standalone with 2 blocks per SM'
     def before_run(self):
         brian2.prefs.reset_to_defaults()
         brian2.set_device('cuda_standalone')
@@ -541,5 +554,6 @@ class SpeedTestResults(object):
                 pylab.gca().set_xscale('log')
             if st.time_axis_log:
                 pylab.gca().set_yscale('log')
-            pylab.savefig(fullname)
+            pylab.savefig(fullname + ".png")
+            pylab.show()
     

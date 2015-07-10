@@ -114,7 +114,7 @@ void _init_arrays()
 	cudaGetDeviceProperties(&props, 0);
 	
 
-	num_parallel_blocks = props.multiProcessorCount;
+	num_parallel_blocks = props.multiProcessorCount * {{multiplier}};
 	max_threads_per_block = props.maxThreadsPerBlock;
 	max_shared_mem_size = props.sharedMemPerBlock;
 	
