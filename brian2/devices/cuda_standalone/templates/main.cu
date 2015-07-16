@@ -19,11 +19,10 @@
 {{report_func|autoindent}}
 
 int main(int argc, char **argv)
-{
-
+{	
 	cudaDeviceProp props;
 	cudaGetDeviceProperties(&props, 0);
-	size_t limit = props.totalGlobalMem / 2;
+	size_t limit = 32 * 1024 * 1024;
 	cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
 	cudaDeviceSynchronize();
 	

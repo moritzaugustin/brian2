@@ -74,9 +74,9 @@ __global__ void kernel_{{codeobj_name}}(
 {% endblock %}
 
 {% block kernel_call %}
-	int _num_blocks = num_blocks(N_pre) * N_post;
-	unsigned int _num_threads = num_threads(N_pre);
 	unsigned int syn_N = _num_postsynaptic_idx;
+	int _num_blocks = num_blocks(syn_N) * N_post;
+	unsigned int _num_threads = num_threads(syn_N);
 	kernel_{{codeobj_name}}<<<_num_blocks, _num_threads, _num_threads*MEM_PER_THREAD>>>(
 			_num_blocks,
 			_num_threads,

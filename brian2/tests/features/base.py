@@ -18,7 +18,8 @@ __all__ = ['FeatureTest', 'InaccuracyError', 'Configuration',
            'CythonConfiguration', 'CPPStandaloneConfiguration',
            'CPPStandaloneConfigurationOpenMP',
            'CUDAStandaloneConfiguration',
-           'CUDAStandaloneConfigurationDoubleSMs']
+           'CUDAStandaloneConfigurationDoubleSMs',
+           'CUDAStandaloneConfigurationFourSMs']
 
 class InaccuracyError(AssertionError):
     def __init__(self, error, *args):
@@ -188,6 +189,20 @@ class CUDAStandaloneConfigurationDoubleSMs(Configuration):
     def before_run(self):
         brian2.prefs.reset_to_defaults()
         brian2.set_device('cuda_standalone')
+        brian2.prefs.devices.cuda_standalone.SM_multiplier = 2
+ 
+    def after_run(self):
+        if os.path.exists('cuda_standalone'):
+            shutil.rmtree('cuda_standalone')
+        brian2.device.build(directory='cuda_standalone', compile=True, run=True,
+                            with_output=False)
+
+class CUDAStandaloneConfigurationFourSMs(Configuration):
+    name = 'CUDA standalone with 4 blocks per SM'
+    def before_run(self):
+        brian2.prefs.reset_to_defaults()
+        brian2.set_device('cuda_standalone')
+        brian2.prefs.devices.cuda_standalone.SM_multiplier = 4
         
     def after_run(self):
         if os.path.exists('cuda_standalone'):

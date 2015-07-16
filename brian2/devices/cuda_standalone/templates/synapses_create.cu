@@ -15,21 +15,8 @@
 	{# USES_VARIABLES { _synaptic_pre, _synaptic_post, rand,
 	                    N_incoming, N_outgoing } #}
 
-	unsigned int MAX_SYN_N = _num_all_pre*_num_all_post;
-	
+	srand(time(0));
 	{{scalar_code|autoindent}}
-
-	//generate MAX_SYN_N random numbers
-	float* _array_random_float_numbers;
-	_array_random_float_numbers = (float*)malloc(sizeof(float)*MAX_SYN_N);
-	if(!_array_random_float_numbers)
-	{
-		printf("ERROR while allocating memory with size %ld()\n", sizeof(float)*MAX_SYN_N);
-	}
-	curandGenerator_t syn_random_gen;
-	curandCreateGeneratorHost(&syn_random_gen, CURAND_RNG_PSEUDO_DEFAULT);
-	curandSetPseudoRandomGeneratorSeed(syn_random_gen, time(0));
-	curandGenerateUniform(syn_random_gen, _array_random_float_numbers, MAX_SYN_N);
 
 	//these two vectors just cache everything on the CPU-side
 	//data is copied to GPU at the end
@@ -50,7 +37,7 @@
 			{
 				if (_p != 1.0)
 				{
-					float r = _array_random_float_numbers[_i*_numN_outgoing + _j];
+					float r = rand()/(float)RAND_MAX;
 					if (r >= _p)
 					{
 						continue;
@@ -79,6 +66,4 @@
 	{% endfor %}
 	// Also update the total number of synapses
 	{{owner.name}}._N_value = newsize;
-
-	free(_array_random_float_numbers);
 {% endblock %}

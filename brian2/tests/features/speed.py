@@ -88,7 +88,7 @@ class CUBAFixedConnectivity(SpeedTest):
     
     category = "Full examples"
     name = "CUBA fixed connectivity"
-    tags = ["Neurons", "Synapses", "SpikeMonitor"]
+    tags = ["Neurons", "Synapses"]
     n_range = [10]#, 100, 1000, 10000, 100000]
     n_label = 'Num neurons'
 
@@ -123,8 +123,6 @@ class CUBAFixedConnectivity(SpeedTest):
         Ci = Synapses(P, P, pre='gi += wi')
         Ce.connect('i<Ne', p=80./N)
         Ci.connect('i>=Ne', p=80./N)
-        
-        s_mon = SpikeMonitor(P)
         
         run(self.duration)
         
@@ -243,7 +241,7 @@ class STDP(SpeedTest):
                     connect=True,
                     )
         S.w = 'rand() * gmax'
-        run(self.duration, report='text')
+        run(self.duration)
         
 class Vogels(SpeedTest):
     
@@ -303,7 +301,7 @@ class Vogels(SpeedTest):
                                ''',
                           connect='rand()<epsilon')
         con_ie.w = 1e-10
-        run(self.duration, report='text')
+        run(self.duration)
         
 class VogelsWithSynapticDynamic(SpeedTest):
     
@@ -363,7 +361,7 @@ class VogelsWithSynapticDynamic(SpeedTest):
                                ''',
                           connect='rand()<epsilon')
         con_ie.w = 1e-10
-        run(self.duration, report='text')
+        run(self.duration)
         
 class AdaptationOscillation(SpeedTest):
     
@@ -416,7 +414,7 @@ class AdaptationOscillation(SpeedTest):
         synapses.c[:] = 'syn_weight' 
         synapses.delay[:] = 'syn_delay' 
         
-        run(self.duration, report="text")
+        run(self.duration)
         
 class BrunelHakimModel(SpeedTest):
     
@@ -454,7 +452,7 @@ class BrunelHakimModel(SpeedTest):
                         connect='rand()<sparseness')
         conn.delay = delta
         
-        run(duration, report="text")
+        run(duration)
         
 class BrunelHakimModelWithDelay(SpeedTest):
     
@@ -492,7 +490,7 @@ class BrunelHakimModelWithDelay(SpeedTest):
                         connect='rand()<sparseness')
         conn.delay = "delta * 2 * rand()"
         
-        run(duration, report="text")
+        run(duration)
 
 
 class SynapsesOnly(object):
@@ -514,11 +512,7 @@ class SynapsesOnly(object):
         H = NeuronGroup(N, 'w:1')
         S = Synapses(G, H, pre='w += 1.0')
         S.connect(True, p=self.p)
-        #M = SpikeMonitor(G)
-        run(self.duration,
-            #report='text',
-            )
-        #plot(M.t/ms, M.i, ',k')
+        run(self.duration)
         
 
 class VerySparseMediumRateSynapsesOnly(SynapsesOnly, SpeedTest):    

@@ -198,14 +198,17 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             num_occurences_rand = code_object.code.cu_file.count("_rand(")
             num_occurences_randn = code_object.code.cu_file.count("_randn(")
             if num_occurences_rand > 0:
-                #first one is alway the definition, so subtract 1
-                code_object.rand_calls = num_occurences_rand - 1
-                for i in range(0, code_object.rand_calls):
-                    if code_object.owner.N != 0:
-                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
-                    else:
-                        code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * N)", 1)
-            if num_occurences_randn > 0:
+                if code_object.template_name != "synapses_create":
+                    #first one is alway the definition, so subtract 1
+                    code_object.rand_calls = num_occurences_rand - 1
+                    for i in range(0, code_object.rand_calls):
+                        if code_object.owner.N != 0:
+                            code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
+                        else:
+                            code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * N)", 1)
+                else:
+                    code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "(rand()/(float)RAND_MAX)")
+            if num_occurences_randn > 0 and code_object.template_name != "synapses_create":
                 #first one is alway the definition, so subtract 1
                 code_object.randn_calls = num_occurences_randn - 1
                 for i in range(0, code_object.randn_calls):
@@ -248,20 +251,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     line = "float* _array_{name}_randn".format(name=codeobj.name)
                     device_parameters_lines.append(line)
                     host_parameters_lines.append("dev_array_randn")
-                elif k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name == "synapses_create":
-                    #synapses_create needs its random numbers on the host instead
-                    additional_code.append('''
-                        unsigned int N = _num_all_pre*_num_all_post;
-                        //genenerate an array of random numbers on the host
-                        float* _array_''' + codeobj.name + '''_randn = (float*)malloc(sizeof(float)*''' + number_elements + ''' * ''' + str(codeobj.randn_calls) + ''');
-                        if(!_array_''' + codeobj.name + '''_randn)
-                        {
-                            printf("ERROR while allocating host memory with size %ld\\n", sizeof(float)*''' + number_elements + '''*''' + str(codeobj.randn_calls) + ''');
-                        }
-                        curandGenerator_t uniform_gen;
-                        curandCreateGeneratorHost(&normal_gen, CURAND_RNG_PSEUDO_DEFAULT);
-                        curandSetPseudoRandomGeneratorSeed(normal_gen, time(0));
-                        curandGenerateNormal(normal_gen, _array_''' + codeobj.name + '''_randn, ''' + number_elements + '''*''' + str(codeobj.randn_calls) + ''', 0, 1);''')
                 elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name != "synapses_create":
                     additional_code.append('''
                         //genenerate an array of random numbers on the device
@@ -278,20 +267,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     line = "float* _array_{name}_rand".format(name=codeobj.name)
                     device_parameters_lines.append(line)
                     host_parameters_lines.append("dev_array_rand")
-                elif k == "_python_rand" and codeobj.runs_every_tick == False and codeobj.template_name == "synapses_create":
-                    #synapses_create needs its random numbers on the host instead
-                    additional_code.append('''
-                        unsigned int N = _num_all_pre*_num_all_post;
-                        //genenerate an array of random numbers on the host
-                        float* _array_''' + codeobj.name + '''_rand = (float*)malloc(sizeof(float)*''' + number_elements + ''' * ''' + str(codeobj.rand_calls) + ''');
-                        if(!_array_''' + codeobj.name + '''_rand)
-                        {
-                            printf("ERROR while allocating host memory with size %ld\\n", sizeof(float)*''' + number_elements + '''*''' + str(codeobj.rand_calls) + ''');
-                        }
-                        curandGenerator_t uniform_gen;
-                        curandCreateGeneratorHost(&uniform_gen, CURAND_RNG_PSEUDO_DEFAULT);
-                        curandSetPseudoRandomGeneratorSeed(uniform_gen, time(0));
-                        curandGenerateUniform(uniform_gen, _array_''' + codeobj.name + '''_rand, ''' + number_elements + '''*''' + str(codeobj.rand_calls) + ''');''')
                 elif isinstance(v, AttributeVariable):
                     # We assume all attributes are implemented as property-like methods
                     line = 'const {c_type} {varname} = {objname}.{attrname}();'
