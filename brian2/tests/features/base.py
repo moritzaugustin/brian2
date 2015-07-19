@@ -156,7 +156,7 @@ class CPPStandaloneConfiguration(Configuration):
         if os.path.exists('cpp_standalone'):
             shutil.rmtree('cpp_standalone')
         brian2.device.build(directory='cpp_standalone', compile=True, run=True,
-                            with_output=False)
+                            with_output=True)
 
 
 class CPPStandaloneConfigurationOpenMP(Configuration):
@@ -170,7 +170,7 @@ class CPPStandaloneConfigurationOpenMP(Configuration):
         if os.path.exists('cpp_standalone'):
             shutil.rmtree('cpp_standalone')
         brian2.device.build(directory='cpp_standalone', compile=True, run=True,
-                            with_output=False)
+                            with_output=True)
         
 class CUDAStandaloneConfiguration(Configuration):
     name = 'CUDA standalone'
@@ -182,7 +182,7 @@ class CUDAStandaloneConfiguration(Configuration):
         if os.path.exists('cuda_standalone'):
             shutil.rmtree('cuda_standalone')
         brian2.device.build(directory='cuda_standalone', compile=True, run=True,
-                            with_output=False)
+                            with_output=True)
         
 class CUDAStandaloneConfigurationDoubleSMs(Configuration):
     name = 'CUDA standalone with 2 blocks per SM'
@@ -195,7 +195,7 @@ class CUDAStandaloneConfigurationDoubleSMs(Configuration):
         if os.path.exists('cuda_standalone'):
             shutil.rmtree('cuda_standalone')
         brian2.device.build(directory='cuda_standalone', compile=True, run=True,
-                            with_output=False)
+                            with_output=True)
 
 class CUDAStandaloneConfigurationFourSMs(Configuration):
     name = 'CUDA standalone with 4 blocks per SM'
@@ -208,7 +208,7 @@ class CUDAStandaloneConfigurationFourSMs(Configuration):
         if os.path.exists('cuda_standalone'):
             shutil.rmtree('cuda_standalone')
         brian2.device.build(directory='cuda_standalone', compile=True, run=True,
-                            with_output=False)
+                            with_output=True)
         
 class GeNNConfiguration(Configuration):
     name = 'GeNN'
@@ -266,10 +266,15 @@ except Exception, ex:
     p = subprocess.Popen(args, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     stdout, stderr = p.communicate()
+    #print s[:-2]
     #sys.stdout.write(stdout)
     #sys.stderr.write(stderr)
     f = open(tempfilename, 'rb')
     tb, res, runtime = pickle.load(f)
+    if "(100%) simulated in " in stdout:
+        s = stdout.split("(100%) simulated in ")[1]
+        s = s.split(" s\n")
+        runtime = float(s[0])
     return tb, res, runtime
     
 
@@ -337,7 +342,6 @@ def run_feature_tests(configurations=None, feature_tests=None,
                     except InaccuracyError as exc:
                         sym = 'F'
                         txt = 'Fail (error=%.2f%%)' % (100.0*exc.error)
-            sys.stdout.write(sym)
             full_results[configuration.name, ft.fullname()] = (sym, txt, exc, tb)
             for tag in ft.tags:
                 tag_results[tag][configuration.name].append((sym, txt, exc, tb))
@@ -492,7 +496,7 @@ def normalize_row(row, max_cols):
 
     return r + "\n"
 
-def run_speed_tests(configurations=None, speed_tests=None, run_twice=True, verbose=True,
+def run_speed_tests(configurations=None, speed_tests=None, run_twice=True, verbose=False,
                     n_slice=slice(None)):
     if configurations is None:
         # some configurations to attempt to import
@@ -528,7 +532,9 @@ def run_speed_tests(configurations=None, speed_tests=None, run_twice=True, verbo
                     if configuration is DefaultConfiguration:
                         raise res
                     runtime = numpy.NAN
-                sys.stdout.write(sym)
+                if verbose:
+                    print sym
+                print configuration.name + ";" + ft.fullname() + ";" + str(n) + " = " + str(runtime)
                 full_results[configuration.name, ft.fullname(), n] = runtime
             if verbose:
                 print ']',

@@ -4,35 +4,46 @@ from brian2.tests.features.base import *
 from brian2.tests.features.speed import *
 
 # Full testing
+'''
 res = run_speed_tests()
 res.plot_all_tests()
 show()
+'''
 
 # Quick testing
-'''
-res = run_speed_tests(configurations=[DefaultConfiguration,
-                                      WeaveConfiguration,
-                                      CythonConfiguration,
-                                      CPPStandaloneConfiguration,
-                                      CUDAStandaloneConfiguration
-                                      ],
-                      speed_tests= [
-                                   LinearNeuronsOnly,
-                                   #HHNeuronsOnly,
-                                   #CUBAFixedConnectivity,
-                                   #VerySparseMediumRateSynapsesOnly,
-                                   #SparseMediumRateSynapsesOnly,
-                                   #DenseMediumRateSynapsesOnly,
-                                   #SparseLowRateSynapsesOnly,
-                                   #SparseHighRateSynapsesOnly,
-                                   ],
-                      #n_slice=slice(None, None, 3),
-                      #n_slice=slice(None, -1),
-                      #run_twice=False,
-                      )
-res.plot_all_tests()
-show()
-'''
+for i in range(0, 10):
+    res = run_speed_tests(configurations=[#DefaultConfiguration,
+                                          #WeaveConfiguration,
+                                          #CythonConfiguration,
+                                          CPPStandaloneConfiguration,
+                                          CPPStandaloneConfigurationOpenMP,
+                                          CUDAStandaloneConfiguration,
+                                          CUDAStandaloneConfigurationDoubleSMs,
+                                          CUDAStandaloneConfigurationFourSMs
+                                          ],
+                          speed_tests= [
+                                       HHNeuronsOnly,
+                                       CUBAFixedConnectivity,
+                                       COBAHH,
+                                       BrunelHakimModel,
+                                       BrunelHakimModelWithDelay,
+                                       STDPEventDriven,
+                                       STDPNotEventDriven,
+                                       #Vogels,
+                                       #VogelsWithSynapticDynamic,
+                                       AdaptationOscillation,
+                                       VerySparseMediumRateSynapsesOnly,
+                                       SparseMediumRateSynapsesOnly,
+                                       DenseMediumRateSynapsesOnly,
+                                       SparseLowRateSynapsesOnly,
+                                       SparseHighRateSynapsesOnly,
+                                       ],
+                          n_slice=slice(i, i+1),
+                          #n_slice=slice(None, -1),
+                          run_twice=False,
+                          verbose=False
+                          )
+    #res.plot_all_tests()
 
 # Debug
 # c = GeNNConfiguration()

@@ -16,7 +16,8 @@ __all__ = ['LinearNeuronsOnly',
            'AdaptationOscillation',
            'BrunelHakimModel',
            'BrunelHakimModelWithDelay',
-           'STDP',
+           'STDPEventDriven',
+           'STDPNotEventDriven',
            'Vogels',
            'VogelsWithSynapticDynamic'
            ]
@@ -26,7 +27,7 @@ class LinearNeuronsOnly(SpeedTest):
     category = "Neurons only"
     name = "Linear 1D"
     tags = ["Neurons"]
-    n_range = [10]#, 100, 1000, 10000, 100000, 1000000, 2000000]
+    n_range = [10, 100, 1000, 10000, 100000, 1000000, 2000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -37,7 +38,7 @@ class LinearNeuronsOnly(SpeedTest):
         self.v_init = linspace(0.1, 1, self.n)
         G = self.G = NeuronGroup(self.n, 'dv/dt=-v/tau:1')
         self.G.v = self.v_init
-        run(self.duration)
+        run(self.duration, report="text")
 
 
 class HHNeuronsOnly(SpeedTest):
@@ -45,7 +46,7 @@ class HHNeuronsOnly(SpeedTest):
     category = "Neurons only"
     name = "Hodgkin-Huxley"
     tags = ["Neurons"]
-    n_range = [10]#, 100, 1000, 10000, 100000, 2000000]
+    n_range = [10, 100, 1000, 10000, 100000, 2000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -81,7 +82,7 @@ class HHNeuronsOnly(SpeedTest):
                             refractory='v > -40*mV')
         group.v = El
         group.I = '0.7*nA * i / num_neurons'
-        run(self.duration)
+        run(self.duration, report="text")
 
 
 class CUBAFixedConnectivity(SpeedTest):
@@ -89,7 +90,7 @@ class CUBAFixedConnectivity(SpeedTest):
     category = "Full examples"
     name = "CUBA fixed connectivity"
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -124,14 +125,14 @@ class CUBAFixedConnectivity(SpeedTest):
         Ce.connect('i<Ne', p=80./N)
         Ci.connect('i>=Ne', p=80./N)
         
-        run(self.duration)
+        run(self.duration, report="text")
         
 class COBAHH(SpeedTest):
     
     category = "Full examples"
     name = "COBAHH"
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -192,14 +193,14 @@ class COBAHH(SpeedTest):
         P.ge = '(randn() * 1.5 + 4) * 10.*nS'
         P.gi = '(randn() * 12 + 20) * 10.*nS'
         
-        run(self.duration)
+        run(self.duration, report="text")
         
-class STDP(SpeedTest):
+class STDPEventDriven(SpeedTest):
     
     category = "Full examples"
-    name = "STDP"
+    name = "STDP (event-driven)"
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -238,17 +239,67 @@ class STDP(SpeedTest):
                         w = clip(w + Apost, 0, gmax)''',
                     post='''Apost += dApost
                          w = clip(w + Apre, 0, gmax)''',
-                    connect=True,
+                    connect=True
                     )
         S.w = 'rand() * gmax'
-        run(self.duration)
+        run(self.duration, report="text")
+        
+class STDPNotEventDriven(SpeedTest):
+    
+    category = "Full examples"
+    name = "STDP (not event-driven)"
+    tags = ["Neurons", "Synapses"]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
+    n_label = 'Num neurons'
+
+    # configuration options
+    duration = 1*second
+    
+    def run(self):
+        N = self.n
+        taum = 10*ms
+        taupre = 20*ms
+        taupost = taupre
+        Ee = 0*mV
+        vt = -54*mV
+        vr = -60*mV
+        El = -74*mV
+        taue = 5*ms
+        F = 15*Hz
+        gmax = .01
+        dApre = .01
+        dApost = -dApre * taupre / taupost * 1.05
+        dApost *= gmax
+        dApre *= gmax
+    
+        eqs_neurons = '''
+        dv/dt = (ge * (Ee-vr) + El - v) / taum : volt
+        dge/dt = -ge / taue : 1
+        '''
+        
+        input = PoissonGroup(N, rates=F)
+        neurons = NeuronGroup(1, eqs_neurons, threshold='v>vt', reset='v = vr')
+        S = Synapses(input, neurons,
+                     '''w : 1
+                        dApre/dt = -Apre / taupre : 1
+                        dApost/dt = -Apost / taupost : 1''',
+                        pre='''ge += w
+                        Apre += dApre
+                        w = clip(w + Apost, 0, gmax)''',
+                    post='''Apost += dApost
+                         w = clip(w + Apre, 0, gmax)''',
+                    connect=True,
+                    method=euler
+                    )
+        S.w = 'rand() * gmax'
+        run(self.duration, report="text")
         
 class Vogels(SpeedTest):
     
     category = "Full examples"
     name = "Vogels et al 2011 (event-driven synapses)"
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -301,14 +352,14 @@ class Vogels(SpeedTest):
                                ''',
                           connect='rand()<epsilon')
         con_ie.w = 1e-10
-        run(self.duration)
+        run(self.duration, report="text")
         
 class VogelsWithSynapticDynamic(SpeedTest):
     
     category = "Full examples"
     name = "Vogels et al 2011 (not event-driven synapses)"
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -361,14 +412,14 @@ class VogelsWithSynapticDynamic(SpeedTest):
                                ''',
                           connect='rand()<epsilon')
         con_ie.w = 1e-10
-        run(self.duration)
+        run(self.duration, report="text")
         
 class AdaptationOscillation(SpeedTest):
     
     category = "Full examples"
     name = "Adaptation oscillation"
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -414,14 +465,14 @@ class AdaptationOscillation(SpeedTest):
         synapses.c[:] = 'syn_weight' 
         synapses.delay[:] = 'syn_delay' 
         
-        run(self.duration)
+        run(self.duration, report="text")
         
 class BrunelHakimModel(SpeedTest):
     
     category = "Full examples"
     name = "Brunel Hakim "
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -452,14 +503,14 @@ class BrunelHakimModel(SpeedTest):
                         connect='rand()<sparseness')
         conn.delay = delta
         
-        run(duration)
+        run(duration, report="text")
         
 class BrunelHakimModelWithDelay(SpeedTest):
     
     category = "Full examples"
     name = "Brunel Hakim "
     tags = ["Neurons", "Synapses"]
-    n_range = [10]#, 100, 1000, 10000, 100000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
@@ -490,13 +541,13 @@ class BrunelHakimModelWithDelay(SpeedTest):
                         connect='rand()<sparseness')
         conn.delay = "delta * 2 * rand()"
         
-        run(duration)
+        run(duration, report="text")
 
 
 class SynapsesOnly(object):
     category = "Synapses only"
     tags = ["Synapses"]
-    n_range = [10]#, 100, 1000, 10000]
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     n_label = 'Num neurons'
     duration = 0.1*second
     # memory usage will be approximately p**2*rate*dt*N**2*bytes_per_synapse/1024**3 GB
@@ -512,40 +563,40 @@ class SynapsesOnly(object):
         H = NeuronGroup(N, 'w:1')
         S = Synapses(G, H, pre='w += 1.0')
         S.connect(True, p=self.p)
-        run(self.duration)
+        run(self.duration, report="text")
         
 
 class VerySparseMediumRateSynapsesOnly(SynapsesOnly, SpeedTest):    
     name = "Very sparse, medium rate (10s duration)"
     rate = 10*Hz
     p = 0.02
-    n_range = [10]#, 100, 1000, 10000, 100000] # weave max CPU time should be about 20s
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     duration = 10*second
 
 class SparseMediumRateSynapsesOnly(SynapsesOnly, SpeedTest):    
     name = "Sparse, medium rate (1s duration)"
     rate = 10*Hz
     p = 0.2
-    n_range = [10]#, 100, 1000, 10000, 100000] # weave max CPU time should be about 5m
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     
 class DenseMediumRateSynapsesOnly(SynapsesOnly, SpeedTest):    
     name = "Dense, medium rate (1s duration)"
     rate = 10*Hz
     p = 1.0
-    n_range = [10]#, 100, 1000, 10000, 40000] # weave max CPU time should be about 4m
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
 
 class SparseLowRateSynapsesOnly(SynapsesOnly, SpeedTest):    
     name = "Sparse, low rate (10s duration)"
     rate = 1*Hz
     p = 0.2
-    n_range = [10]#, 100, 1000, 10000, 100000] # weave max CPU time should be about 20s
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     duration = 1*second
 
 class SparseHighRateSynapsesOnly(SynapsesOnly, SpeedTest):    
     name = "Sparse, high rate (1s duration)"
     rate = 100*Hz
     p = 0.2
-    n_range = [10]#, 100, 1000, 10000] # weave max CPU time should be about 5m
+    n_range = [10, 100, 1000, 10000, 100000, 200000, 500000, 1000000]
     
 
 if __name__=='__main__':
