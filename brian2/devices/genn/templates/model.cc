@@ -5,6 +5,7 @@
 #include "modelSpec.h"
 #include "modelSpec.cc"
 
+
 //--------------------------------------------------------------------------
 /*! \brief This function defines the {{model_name}} model 
 */
@@ -66,15 +67,13 @@ double {{neuron_model.name}}_ini[{{neuron_model.variables.__len__()+1}}]= {
 {% endfor %}
  
 // initial variables (synapses)
+// one additional initial variable for hidden_weightmatrix
 {% for synapse_model in synapse_models %}
-{% if synapse_model.variables.__len__() == 0 %}
-double *{{synapse_model.name}}_ini= NULL;
-  {% else %}
-double {{synapse_model.name}}_ini[{{synapse_model.variables.__len__()}}]= {
+double {{synapse_model.name}}_ini[{{synapse_model.variables.__len__()+1}}]= {
   {% for k in synapse_model.variables %} 0.0,
   {% endfor %}
+  0.0
 };
-{%endif %}
 
 {% if synapse_model.postsyn_variables.__len__() == 0 %}
 double *{{synapse_model.name}}_postsyn_ini= NULL;
@@ -90,6 +89,7 @@ double {{synapse_model.name}}_postsyn_ini[{{synapse_model.postsyn_variables.__le
 void modelDefinition(NNmodel &model)
 {
   initGeNN();
+  GENN_PREFERENCES::autoRefractory= 0;
   // Define the relevant neuron models
   neuronModel n;
 
@@ -114,6 +114,8 @@ void modelDefinition(NNmodel &model)
   n.thresholdConditionCode= tS("{% for line in neuron_model.thresh_cond_lines %}{{line}}{% endfor %}");
   // step 5: add resetter code
   n.resetCode= tS("{% for line in neuron_model.reset_code_lines %}{{line}}{% endfor %}");
+  // step 6: add support code
+  n.supportCode= tS("{% for line in neuron_model.support_code_lines %}{{line}}{% endfor %}{% for line in neuron_model.hash_code_lines %}{{line}}{% endfor %}");
   nModels.push_back(n);
   {{neuron_model.name}}NEURON= nModels.size()-1;
   {% endfor %}
