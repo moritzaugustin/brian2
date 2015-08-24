@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import inspect
 import platform
-from collections import defaultdict
+from collections import defaultdict, Counter
 import numbers
 import tempfile
 
@@ -56,8 +56,10 @@ def freeze(code, ns):
 
         if (isinstance(v, Variable) and not isinstance(v, AttributeVariable) and
               v.scalar and v.constant and v.read_only):
-            v = v.get_value()
-
+            try:
+                v = v.get_value()
+            except NotImplementedError:
+                continue
         if isinstance(v, basestring):
             code = word_substitute(code, {k: v})
         elif isinstance(v, numbers.Number):
@@ -269,9 +271,28 @@ class CPPStandaloneDevice(Device):
         # data for dynamic arrays is fast enough here and it saves us some
         # additional work to set up the pointer
         array_name = self.get_array_name(var, access_data=False)
-        static_array_name = self.static_array(array_name, arr)
-        self.main_queue.append(('set_by_array', (array_name,
-                                                 static_array_name)))
+        arr = np.asarray(arr)
+        if arr.shape == ():
+            if var.size == 1:
+                value = CPPNodeRenderer().render_expr(repr(arr.item(0)))
+                # For a single assignment, generate a code line instead of storing the array
+                self.main_queue.append(('set_by_single_value', (array_name,
+                                                                0,
+                                                                value)))
+            else:
+                self.main_queue.append(('set_by_constant', (array_name,
+                                                            arr.item())))
+        else:    
+            # Using the std::vector instead of a pointer to the underlying
+            # data for dynamic arrays is fast enough here and it saves us some
+            # additional work to set up the pointer
+            static_array_name = self.static_array(array_name, arr)
+            self.main_queue.append(('set_by_array', (array_name,
+                                                     static_array_name)))
+
+    def resize(self, var, new_size):
+        array_name = self.get_array_name(var, access_data=False)
+        self.main_queue.append(('resize_array', (array_name, new_size)))
 
     def variableview_set_with_index_array(self, variableview, item,
                                           value, check_units):
@@ -315,6 +336,18 @@ class CPPStandaloneDevice(Device):
             # additional work to set up the pointer
             arrayname = self.get_array_name(variableview.variable,
                                             access_data=False)
+            if indices.shape == ():
+                self.main_queue.append(('set_by_single_value', (arrayname,
+                                            indices.item(),
+                                            float(value))))
+            else:
+                staticarrayname_index = self.static_array('_index_'+arrayname,
+                                                          indices)
+                staticarrayname_value = self.static_array('_value_'+arrayname,
+                                                          value)
+                self.main_queue.append(('set_array_by_array', (arrayname,
+                                                               staticarrayname_index,
+                                                               staticarrayname_value)))
             staticarrayname_index = self.static_array('_index_'+arrayname,
                                                       indices)
             staticarrayname_value = self.static_array('_value_'+arrayname,
@@ -419,7 +452,8 @@ class CPPStandaloneDevice(Device):
                         clocks=self.clocks,
                         static_array_specs=static_array_specs,
                         networks=networks,
-                        get_array_filename=self.get_array_filename)
+                        get_array_filename=self.get_array_filename,
+                        code_objects=self.code_objects.values())
         writer.write('objects.*', arr_tmp)
         
     def generate_main_source(self, writer, main_includes):
@@ -433,6 +467,17 @@ class CPPStandaloneDevice(Device):
             elif func=='run_network':
                 net, netcode = args
                 main_lines.extend(netcode)
+            elif func=='set_by_constant':
+                arrayname, value = args
+                code = '''
+                {pragma}
+                for(int i=0; i<_num_{arrayname}; i++)
+                {{
+                    {arrayname}[i] = {value};
+                }}
+                '''.format(arrayname=arrayname, value=CPPNodeRenderer().render_expr(repr(value)),
+                           pragma=openmp_pragma('static'))
+                main_lines.extend(code.split('\n'))
             elif func=='set_by_array':
                 arrayname, staticarrayname = args
                 code = '''
@@ -512,7 +557,7 @@ class CPPStandaloneDevice(Device):
                             if v.dimensions == 1:
                                 dyn_array_name = self.dynamic_arrays[v]
                                 array_name = self.arrays[v]
-                                line = '{c_type}* const {array_name} = &{dyn_array_name}[0];'
+                                line = '{c_type}* const {array_name} = {dyn_array_name}.empty()? 0 : &{dyn_array_name}[0];'
                                 line = line.format(c_type=c_data_type(v.dtype), array_name=array_name,
                                                    dyn_array_name=dyn_array_name)
                                 lines.append(line)
@@ -541,12 +586,7 @@ class CPPStandaloneDevice(Device):
             writer.write('code_objects/'+codeobj.name+'.h', codeobj.code.h_file)
         
     def generate_network_source(self, writer, compiler):
-        if compiler=='msvc':
-            std_move = 'std::move'
-        else:
-            std_move = ''
-        network_tmp = CPPStandaloneCodeObject.templater.network(None, None,
-                                                             std_move=std_move)
+        network_tmp = CPPStandaloneCodeObject.templater.network(None, None)
         writer.write('network.*', network_tmp)
         
     def generate_synapses_classes_source(self, writer):
@@ -723,7 +763,7 @@ class CPPStandaloneDevice(Device):
                         x = os.system('make')
                     if x!=0:
                         raise RuntimeError("Project compilation failed")
-                    
+
     def run(self, directory, with_output, run_args):
         with in_directory(directory):
             if not with_output:
@@ -746,9 +786,9 @@ class CPPStandaloneDevice(Device):
               run_args=None, **kwds):
         '''
         Build the project
-        
+
         TODO: more details
-        
+
         Parameters
         ----------
         directory : str
@@ -801,23 +841,30 @@ class CPPStandaloneDevice(Device):
         ensure_directory(directory)
 
         compiler, extra_compile_args = get_compiler_and_args()
-        compiler_flags = ' '.join(extra_compile_args)
-        
+        compiler_obj = ccompiler.new_compiler(compiler=compiler)
+        compiler_flags = (ccompiler.gen_preprocess_options(prefs['codegen.cpp.define_macros'],
+                                                           prefs['codegen.cpp.include_dirs']) +
+                          extra_compile_args)
+        linker_flags = (ccompiler.gen_lib_options(compiler_obj,
+                                                  library_dirs=prefs['codegen.cpp.library_dirs'],
+                                                  runtime_library_dirs=prefs['codegen.cpp.runtime_library_dirs'],
+                                                  libraries=prefs['codegen.cpp.libraries']) +
+                        prefs['codegen.cpp.extra_link_args'])
+
         for d in ['code_objects', 'results', 'static_arrays']:
             ensure_directory(os.path.join(directory, d))
-            
+
         writer = CPPWriter(directory)
-        
+
         # Get the number of threads if specified in an openmp context
         nb_threads = prefs.devices.cpp_standalone.openmp_threads
         # If the number is negative, we need to throw an error
         if (nb_threads < 0):
-            raise ValueError('The number of OpenMP threads can not be negative !') 
+            raise ValueError('The number of OpenMP threads can not be negative !')
 
         logger.debug("Writing C++ standalone project to directory "+os.path.normpath(directory))
-        
-        self.check_OPENMP_compatible(nb_threads)
-        
+        self.check_openmp_compatible(nb_threads)
+
         arange_arrays = sorted([(var, start)
                                 for var, start in self.arange_arrays.iteritems()],
                                key=lambda (var, start): var.name)
@@ -832,6 +879,17 @@ class CPPStandaloneDevice(Device):
         for net in self.networks:
             net.after_run()
 
+        # Check that all names are globally unique
+        names = [obj.name for net in self.networks for obj in net.objects]
+        non_unique_names = [name for name, count in Counter(names).iteritems()
+                            if count > 1]
+        if len(non_unique_names):
+            formatted_names = ', '.join("'%s'" % name
+                                        for name in non_unique_names)
+            raise ValueError('All objects need to have unique names in '
+                             'standalone mode, the following name(s) were used '
+                             'more than once: %s' % formatted_names)
+
         self.generate_objects_source(writer, arange_arrays, self.net_synapses, self.static_array_specs, self.networks)
         self.generate_main_source(writer, main_includes)
         self.generate_codeobj_source(writer)
@@ -839,12 +897,13 @@ class CPPStandaloneDevice(Device):
         self.generate_synapses_classes_source(writer)
         self.generate_run_source(writer, run_includes)
         self.copy_source_files(writer, directory)
-        
+
         writer.source_files.extend(additional_source_files)
-        writer.header_files.extend(additional_header_files)
-        
-        self.generate_makefile(writer, compiler, native, compiler_flags, nb_threads)
-        
+        self.generate_makefile(writer, compiler, native=native,
+                               compiler_flags=' '.join(compiler_flags),
+                               linker_flags=' '.join(linker_flags),
+                               nb_threads=nb_threads)
+
         if compile:
             self.compile_source(directory, compiler, debug, clean, native)
             if run:
@@ -852,7 +911,6 @@ class CPPStandaloneDevice(Device):
 
     def network_run(self, net, duration, report=None, report_period=10*second,
                     namespace=None, profile=True, level=0, **kwds):
-        # Note: profile argument will be ignored
         if kwds:
             logger.warn(('Unsupported keyword argument(s) provided for run: '
                          '%s') % ', '.join(kwds.keys()))
@@ -860,7 +918,7 @@ class CPPStandaloneDevice(Device):
         # We have to use +2 for the level argument here, since this function is
         # called through the device_override mechanism
         net.before_run(namespace, level=level+2)
-            
+
         self.clocks.update(net._clocks)
 
         # We run a simplified "update loop" that only advances the clocks
@@ -948,6 +1006,17 @@ class CPPStandaloneDevice(Device):
         raise NotImplementedError(('The store/restore mechanism is not '
                                    'supported in the C++ standalone'))
 
+    def network_get_profiling_info(self, net):
+        if net._profiling_info is None:
+            net._profiling_info = []
+            fname = os.path.join(self.project_dir, 'results', 'profiling_info.txt')
+            with open(fname) as f:
+                for line in f:
+                    (key, val) = line.split()
+                    net._profiling_info.append((key, float(val)*second))
+        return sorted(net._profiling_info, key=lambda item: item[1],
+                      reverse=True)
+
     def run_function(self, name, include_in_parent=True):
         '''
         Context manager to divert code into a function
@@ -993,4 +1062,4 @@ class CPPStandaloneSimpleDevice(CPPStandaloneDevice):
 
 cpp_standalone_simple_device = CPPStandaloneSimpleDevice()
 
-all_devices['cpp_standalone_simple'] = cpp_standalone_simple_device
+all_devices['cpp_standalone_simple'] = cpp_standalone_simple_device 

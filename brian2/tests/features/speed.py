@@ -2,7 +2,7 @@
 Check the speed of different Brian 2 configurations
 '''
 from brian2 import *
-from brian2.tests.features.base import SpeedTest
+from brian2.tests.features import SpeedTest
 
 __all__ = ['LinearNeuronsOnly',
            'HHNeuronsOnly',
@@ -23,48 +23,48 @@ __all__ = ['LinearNeuronsOnly',
            ]
 
 class LinearNeuronsOnly(SpeedTest):
-    
+
     category = "Neurons only"
     name = "Linear 1D"
     tags = ["Neurons"]
-    n_range = [10, 100, 1000, 10000, 100000, 1000000, 200000]
+    n_range = [10, 100, 1000, 10000, 100000, 1000000]
     n_label = 'Num neurons'
 
     # configuration options
-    duration = 10*second
-    
+    duration = 10 * second
+
     def run(self):
-        self.tau = tau = 1*second
+        self.tau = tau = 1 * second
         self.v_init = linspace(0.1, 1, self.n)
         G = self.G = NeuronGroup(self.n, 'dv/dt=-v/tau:1')
         self.G.v = self.v_init
-        run(self.duration, report="text")
+        run(self.duration)
 
 
 class HHNeuronsOnly(SpeedTest):
-    
+
     category = "Neurons only"
     name = "Hodgkin-Huxley"
     tags = ["Neurons"]
-    n_range = [10, 100, 1000, 10000, 100000, 200000]
+    n_range = [10, 100, 1000, 10000, 100000]
     n_label = 'Num neurons'
 
     # configuration options
-    duration = 1*second
-    
+    duration = 1 * second
+
     def run(self):
         num_neurons = self.n
         # Parameters
-        area = 20000*umetre**2
-        Cm = 1*ufarad*cm**-2 * area
-        gl = 5e-5*siemens*cm**-2 * area
-        El = -65*mV
-        EK = -90*mV
-        ENa = 50*mV
-        g_na = 100*msiemens*cm**-2 * area
-        g_kd = 30*msiemens*cm**-2 * area
-        VT = -63*mV
-        
+        area = 20000 * umetre**2
+        Cm = 1 * ufarad * cm**-2 * area
+        gl = 5e-5 * siemens * cm**-2 * area
+        El = -65 * mV
+        EK = -90 * mV
+        ENa = 50 * mV
+        g_na = 100 * msiemens * cm**-2 * area
+        g_kd = 30 * msiemens * cm**-2 * area
+        VT = -63 * mV
+
         # The model
         eqs = Equations('''
         dv/dt = (gl*(El-v) - g_na*(m*m*m)*h*(v-ENa) - g_kd*(n*n*n*n)*(v-EK) + I)/Cm : volt
@@ -556,8 +556,8 @@ class SynapsesOnly(object):
     def run(self):
         N = self.n
         rate = self.rate
-        M = int(rate*N*defaultclock.dt)
-        if M<=0:
+        M = int(rate * N * defaultclock.dt)
+        if M <= 0:
             M = 1
         G = NeuronGroup(M, 'v:1', threshold='True')
         H = NeuronGroup(N, 'w:1')

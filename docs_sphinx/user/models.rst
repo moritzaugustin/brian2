@@ -34,8 +34,8 @@ be used::
 Sometimes it can also be useful to introduce shared variables or subexpressions,
 i.e. variables that have a common value for all neurons. In contrast to
 external variables (such as ``Cm`` above), such variables can change during a
-run, e.g. by using a :meth:`~brian2.groups.group.Group.custom_operation`. This can be for example
-used for an external stimulus that changes in the course of a run::
+run, e.g. by using :meth:`~brian2.groups.group.Group.run_regularly`. This can be
+for example used for an external stimulus that changes in the course of a run::
 
     G = NeuronGroup(10, '''shared_input : volt (shared)
                            dv/dt = (-v + shared_input)/tau : volt
@@ -118,6 +118,28 @@ For shared variables, such string expressions can only refer to shared values:
     >>> print G.shared_input
     <neurongroup.shared_input: 4.2579690100000001 * mvolt>
 
+Sometimes it can be convenient to access multiple state variables at once, e.g.
+to set initial values from a dictionary of values or to store all the values of
+a group on disk. This can be done with the `Group.get_states` and
+`Group.set_states` methods:
+
+.. doctest::
+
+    >>> group = NeuronGroup(5, '''dv/dt = -v/tau : 1
+    ...                           tau : second''')
+    >>> initial_values = {'v': [0, 1, 2, 3, 4],
+    ...                   'tau': [10, 20, 10, 20, 10]*ms}
+    >>> group.set_states(initial_values)
+    >>> group.v[:]
+    array([ 0.,  1.,  2.,  3.,  4.])
+    >>> group.tau[:]
+    array([ 10.,  20.,  10.,  20.,  10.]) * msecond
+    >>> states = group.get_states()
+    >>> states['v']
+    array([ 0.,  1.,  2.,  3.,  4.])
+    >>> sorted(states.keys())
+    ['N', 'dt', 'i', 't', 'tau', 'v']
+
 
 Subgroups
 ---------
@@ -187,9 +209,8 @@ exactly first (for linear equations) and then resorting to numerical algorithms.
 It will also take care of integrating stochastic differential equations
 appropriately. Each class defines its own list of algorithms it tries to
 apply, `NeuronGroup` and `Synapses` will use the first suitable method out of
-the methods ``'linear'``, ``'euler'``, and ``'milstein'`` while `SpatialNeuron`
-objects will use ``'linear'``, ``'exponential_euler'``, ``'rk2'``, or
-``'milstein'``.
+the methods ``'linear'``, ``'euler'`` and ``'heun'`` while `SpatialNeuron`
+objects will use ``'linear'``, ``'exponential_euler'``, ``'rk2'`` or ``'heun'``.
 
 If you prefer to chose an integration algorithm yourself, you can do so using
 the ``method`` keyword for `NeuronGroup`, `Synapses`, or `SpatialNeuron`.
@@ -204,6 +225,8 @@ The complete list of available methods is the following:
   differential equations using the Euler-Maruyama method)
 * ``'rk2'``: second order Runge-Kutta method (midpoint method)
 * ``'rk4'``: classical Runge-Kutta method (RK4)
+* ``'heun'``: stochastic Heun method for solving Stratonovich stochastic
+  differential equations with non-diagonal multiplicative noise.
 * ``'milstein'``: derivative-free Milstein method for solving stochastic
   differential equations with diagonal multiplicative noise
 

@@ -1,5 +1,5 @@
 {% extends 'common_group.cu' %}
-{# USES_VARIABLES { t, i, _clock_t, _spikespace, _count,
+{# USES_VARIABLES { t, i, _clock_t, _spikespace, count,
                     _source_start, _source_stop} #}
                     
 {% block extra_device_helper %}
@@ -68,7 +68,7 @@ _run_{{codeobj_name}}_kernel<<<1, 1>>>(
 		num_threads(_num_spikespace-1),
 		start_spikes,
 		thrust::raw_pointer_cast(&(dev{{_dynamic_i}}[0])),
-		dev_array_{{owner.name}}__count,
+		dev_array_{{owner.name}}_count,
 		dev{{spikespace_name}});
 {% endblock %}
 

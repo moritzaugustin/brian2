@@ -144,7 +144,9 @@ class Morphology(object):
 
         x, y, z gives the cartesian coordinates of each node.
         R is the radius at that node.
-        P indicates the parent (the integer label) of the current point or -1 to indicate an origin (soma). 
+        P indicates the parent (the integer label) of the current point or -1 to indicate an origin (soma).
+
+        By default, the soma is assumed to have spherical geometry. If several compartments
         '''
         # 1) Create the list of segments, each segment has a list of children
         lines = open(filename).read().splitlines()
@@ -152,6 +154,12 @@ class Morphology(object):
         types = ['undefined', 'soma', 'axon', 'dendrite', 'apical', 'fork',
                  'end', 'custom']
         previousn = -1
+
+        # First pass: determine whether the soma should have spherical or cylindrical geometry.
+        # Criterion: spherical if only 1 somatic compartment, otherwise cylindrical
+        spherical_soma = len([line.split()[1] == 1 for line in lines if line[0] != '#'])==1
+
+        # Second pass: construction
         for line in lines:
             if line[0] != '#':  # comment
                 numbers = line.split()
@@ -167,12 +175,17 @@ class Morphology(object):
                 seg = dict(x=x, y=y, z=z, T=T, diameter=2 * R, parent=P,
                            children=[])
                 location = (x, y, z)
-                if T == 'soma':
+                if (T == 'soma') and spherical_soma: # Assuming spherical geometry
                     seg['area'] = 4 * pi * R ** 2
                     seg['length'] = 0 * um
-                else:  # dendrite
-                    locationP = (
-                    segment[P]['x'], segment[P]['y'], segment[P]['z'])
+                elif P==-2: # No parent: we make a zero-length cylinder (not very elegant)
+                    seg['area'] = 0 * um**2
+                    seg['length'] = 0 * um
+                else:  # not soma, dendrite
+                    try:
+                        locationP = (segment[P]['x'], segment[P]['y'], segment[P]['z'])
+                    except IndexError:
+                        raise IndexError("When adding segment "+str(n)+": Segment "+str(P)+" does not exist")
                     seg['length'] = (sum((array(location) -
                                           array(locationP)) ** 2)) ** .5 * meter
                     seg['area'] = seg['length'] * 2 * pi * R
@@ -525,7 +538,7 @@ class Cylinder(Morphology):
             if length is not None:
                 raise AttributeError(('Length and x-y-z coordinates cannot '
                                       'be simultaneously specified'))
-            length = (sum(array((x, y, z)) ** 2)) ** .5  # * meter (not sure)
+            length = sqrt(x**2 + y**2 + z**2)
         scale = arange(1, n + 1) * 1. / n
         self.x, self.y, self.z = x * scale, y * scale, z * scale
         self.length = ones(n) * length / n

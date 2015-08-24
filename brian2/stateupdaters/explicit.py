@@ -14,21 +14,22 @@ from brian2.parsing.sympytools import str_to_sympy, sympy_to_str
 
 from .base import StateUpdateMethod
 
-__all__ = ['milstein', 'euler', 'rk2', 'rk4', 'ExplicitStateUpdater']
+__all__ = ['milstein', 'heun', 'euler', 'rk2', 'rk4', 'ExplicitStateUpdater']
 
 
 #===============================================================================
 # Class for simple definition of explicit state updaters
 #===============================================================================
 
-def _symbol(name):
+def _symbol(name, positive=None):
     ''' Shorthand for ``sympy.Symbol(name, real=True)``. '''
-    return sympy.Symbol(name, real=True)
+    return sympy.Symbol(name, real=True, positive=positive)
 
 #: reserved standard symbols
 SYMBOLS = {'__x' : _symbol('__x'),
-           '__t' : _symbol('__t'),
-           'dt': _symbol('dt'),
+           '__t' : _symbol('__t', positive=True),
+           'dt': _symbol('dt', positive=True),
+           't': _symbol('t', positive=True),
            '__f' : sympy.Function('__f'),
            '__g' : sympy.Function('__g'),
            '__dW': _symbol('__dW')}
@@ -268,12 +269,14 @@ class ExplicitStateUpdater(StateUpdateMethod):
     def can_integrate(self, equations, variables):
         # Non-stochastic numerical integrators should work for all equations,
         # except for stochastic equations
-        if equations.is_stochastic and self.stochastic is None:
-            return False
-        elif (equations.stochastic_type == 'multiplicative' and
-              self.stochastic != 'multiplicative'):
-            return False
-        elif self.custom_check and not self.custom_check(equations, variables):
+        if equations.is_stochastic:
+            if self.stochastic is None:
+                return False
+            if (self.stochastic != 'multiplicative' and
+                        equations.stochastic_type == 'multiplicative'):
+                return False
+
+        if self.custom_check and not self.custom_check(equations, variables):
             return False
         else:
             return True
@@ -365,9 +368,12 @@ class ExplicitStateUpdater(StateUpdateMethod):
             # expression
             s_expr = s_expr.subs(eq_symbols[var], x_replacement)
 
-        # Directly substitute the 't' expression for the symbol t, there
-        # are no temporary variables to consider here.
-        s_expr = s_expr.subs(self.symbols['__t'], t)
+        # If the expression given for t in the state updater description
+        # is not just "t" (or rather "__t"), then replace t in the
+        # equations by it, and replace "__t" by "t" afterwards.
+        if t != self.symbols['__t']:
+            s_expr = s_expr.subs(SYMBOLS['t'], t)
+            s_expr = s_expr.replace(self.symbols['__t'], SYMBOLS['t'])
 
         return s_expr
 
@@ -667,12 +673,14 @@ rk4 = ExplicitStateUpdater('''
     x_new = x+(k_1+2*k_2+2*k_3+k_4)/6
     ''')
 
-
 def diagonal_noise(equations, variables):
     '''
     Checks whether we deal with diagonal noise, i.e. one independent noise
     variable per variable.
     '''
+    if not equations.is_stochastic:
+        return True
+
     stochastic_vars = []
     for _, expr in equations.substituted_expressions:
         expr_stochastic_vars = expr.stochastic_variables
@@ -685,7 +693,6 @@ def diagonal_noise(equations, variables):
     # have diagonal noise
     return len(stochastic_vars) == len(set(stochastic_vars))
 
-
 #: Derivative-free Milstein method
 milstein = ExplicitStateUpdater('''
     x_support = x + dt*f(x, t) + dt**.5 * g(x, t)
@@ -693,3 +700,11 @@ milstein = ExplicitStateUpdater('''
     k = 1/(2*dt**.5)*(g_support - g(x, t))*(dW**2)
     x_new = x + dt*f(x,t) + g(x, t) * dW + k
     ''', stochastic='multiplicative', custom_check=diagonal_noise)
+
+#: Stochastic Heun method (for multiplicative Stratonovic SDEs with non-diagonal
+#: diffusion matrix)
+heun = ExplicitStateUpdater('''
+    x_support = x + g(x,t) * dW
+    g_support = g(x_support,t+dt)
+    x_new = x + dt*f(x,t) + .5*dW*(g(x,t)+g_support)
+    ''', stochastic='multiplicative')

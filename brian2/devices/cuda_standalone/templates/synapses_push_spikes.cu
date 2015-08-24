@@ -2,7 +2,7 @@
 //// MAIN CODE /////////////////////////////////////////////////////////////
 
 {% macro cu_file() %}
-{# USES_VARIABLES { _spikespace } #}
+{# USES_VARIABLES { _eventspace } #}
 
 #include "code_objects/{{codeobj_name}}.h"
 #include<math.h>
@@ -52,7 +52,7 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 	unsigned int _num_blocks,
 	unsigned int _num_threads,
 	unsigned int block_size,
-	int32_t* {{_spikespace}})
+	int32_t* {{_eventspace}})
 {
 	using namespace brian;
 
@@ -64,7 +64,7 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 	unsigned int start_index = {{owner.name}}.spikes_start - ({{owner.name}}.spikes_start % block_size);	//find start of last block
 	for(int i = 0; i < {{owner.name}}.spikes_stop; i++)
 	{
-		int32_t spiking_neuron = {{_spikespace}}[i];
+		int32_t spiking_neuron = {{_eventspace}}[i];
 		if(spiking_neuron != -1 && spiking_neuron >= {{owner.name}}.spikes_start && spiking_neuron < {{owner.name}}.spikes_stop)
 		{
 			__syncthreads();
@@ -94,12 +94,12 @@ void _run_{{codeobj_name}}()
 	unsigned int num_threads = max_shared_mem_size / MEM_PER_THREAD;
 	num_threads = num_threads < max_threads_per_block? num_threads : max_threads_per_block; // get min of both
 	_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
-		_num_spikespace - 1,
+		_num_eventspace - 1,
 		num_parallel_blocks,
 		num_threads,
-		_num_threads(_num_spikespace - 1),
-		{% set _spike_space = get_array_name(owner.variables['_spikespace'], access_data=False) %}
-		dev{{_spike_space}});
+		_num_threads(_num_eventspace - 1),
+		{% set _event_space = get_array_name(owner.variables['eventspace'], access_data=False) %}
+		dev{{_event_space}});
 }
 {% endmacro %}
 

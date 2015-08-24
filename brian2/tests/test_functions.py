@@ -30,17 +30,24 @@ def test_constants_values():
     assert G.v == np.inf
 
 
-def test_math_functions_short():
+def test_math_functions():
     '''
     Test that math functions give the same result, regardless of whether used
-    directly or in generated Python or C++ code. Test only a few functions
+    directly or in generated Python or C++ code.
     '''
     default_dt = defaultclock.dt
     test_array = np.array([-1, -0.5, 0, 0.5, 1])
+    def int_(x):
+        return array(x, dtype=int)
+    int_.__name__ = 'int'
 
     with catch_logs() as _:  # Let's suppress warnings about illegal values
         # Functions with a single argument
-        for func in [exp, np.sqrt]:
+        for func in [cos, tan, sinh, cosh, tanh,
+                     arcsin, arccos, arctan,
+                     log, log10,
+                     exp, np.sqrt,
+                     np.ceil, np.floor, np.sign, int_]:
 
             # Calculate the result directly
             numpy_result = func(test_array)
@@ -65,9 +72,7 @@ def test_math_functions_short():
 
         # Functions/operators
         scalar = 3
-        # TODO: We are not testing the modulo operator here since it does
-        #       not work for double values in C
-        for func, operator in [(np.power, '**')]:
+        for func, operator in [(np.power, '**'), (np.mod, '%')]:
 
             # Calculate the result directly
             numpy_result = func(test_array, scalar)
@@ -85,45 +90,23 @@ def test_math_functions_short():
             assert_allclose(numpy_result, mon.func_.flatten(),
                             err_msg='Function %s did not return the correct values' % func.__name__)
 
-
-@attr('long')
-def test_math_functions():
-    '''
-    Test that math functions give the same result, regardless of whether used
-    directly or in generated Python or C++ code. Tests the remaining functions
-    that were not yet tested by test_math_functions_short
-    '''
-    default_dt = defaultclock.dt
-    test_array = np.array([-1, -0.5, 0, 0.5, 1])
-
-    with catch_logs() as _:  # Let's suppress warnings about illegal values
-        # Functions with a single argument
-        for func in [cos, tan, sinh, cosh, tanh,
-                     arcsin, arccos, arctan,
-                     log, log10,
-                     np.ceil, np.floor, np.sign]:
-
-            # Calculate the result directly
-            numpy_result = func(test_array)
-
-            # Calculate the result in a somewhat complicated way by using a
-            # subexpression in a NeuronGroup
-            if func.__name__ == 'absolute':
-                # we want to use the name abs instead of absolute
-                func_name = 'abs'
-            else:
-                func_name = func.__name__
-            G = NeuronGroup(len(test_array),
-                            '''func = {func}(variable) : 1
-                               variable : 1'''.format(func=func_name))
-            G.variable = test_array
-            mon = StateMonitor(G, 'func', record=True)
-            net = Network(G, mon)
-            net.run(default_dt)
-
-            assert_allclose(numpy_result, mon.func_.flatten(),
-                            err_msg='Function %s did not return the correct values' % func.__name__)
-
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
+def test_bool_to_int():
+    # Test that boolean expressions and variables are correctly converted into
+    # integers
+    G = NeuronGroup(2, '''
+                       intexpr1 = int(bool_var) : integer
+                       intexpr2 = int(float_var > 1.0) : integer
+                       bool_var : boolean
+                       float_var : 1
+                       ''')
+    G.bool_var = [True, False]
+    G.float_var = [2.0, 0.5]
+    s_mon = StateMonitor(G, ['intexpr1', 'intexpr2'], record=True)
+    run(defaultclock.dt)
+    assert_equal(s_mon.intexpr1.flatten(), [1, 0])
+    assert_equal(s_mon.intexpr2.flatten(), [1, 0])
 
 @attr('standalone-compatible')
 @with_setup(teardown=restore_device)
@@ -149,8 +132,7 @@ def test_user_defined_function():
                               variable : 1''')
     G.variable = test_array
     mon = StateMonitor(G, 'func', record=True)
-    net = Network(G, mon)
-    net.run(default_dt)
+    run(default_dt)
 
     assert_equal(np.sin(test_array), mon.func_.flatten())
 
@@ -443,8 +425,8 @@ def test_function_dependencies_weave():
         return 84*mV
 
     G = NeuronGroup(5, 'v : volt')
-    updater = G.custom_operation('v = bar(v)')
-    net = Network(G, updater)
+    G.run_regularly('v = bar(v)')
+    net = Network(G)
     net.run(defaultclock.dt)
 
     assert_allclose(G.v_[:], 84*0.001)
@@ -474,8 +456,8 @@ def test_function_dependencies_cython():
         return 84*mV
 
     G = NeuronGroup(5, 'v : volt')
-    updater = G.custom_operation('v = bar(v)')
-    net = Network(G, updater)
+    G.run_regularly('v = bar(v)')
+    net = Network(G)
     net.run(defaultclock.dt)
 
     assert_allclose(G.v_[:], 84*0.001)
@@ -511,8 +493,8 @@ def test_function_dependencies_numpy():
         return 2*foo(x)
 
     G = NeuronGroup(5, 'v : volt')
-    updater = G.custom_operation('v = bar(v)')
-    net = Network(G, updater)
+    G.run_regularly('v = bar(v)')
+    net = Network(G)
     net.run(defaultclock.dt)
 
     assert_allclose(G.v_[:], 84*0.001)
@@ -527,8 +509,8 @@ def test_binomial():
     # values
     G = NeuronGroup(1, '''x : 1
                           y : 1''')
-    updater = G.custom_operation('''x = binomial_f_approximated()
-                                    y = binomial_f()''')
+    G.run_regularly('''x = binomial_f_approximated()
+                       y = binomial_f()''')
     mon = StateMonitor(G, ['x', 'y'], record=0)
     run(1*ms)
     assert np.var(mon[0].x) > 0
@@ -536,11 +518,14 @@ def test_binomial():
 
 
 if __name__ == '__main__':
+    from brian2 import prefs
+    #prefs.codegen.target = 'numpy'
+    import time
     for f in [
             test_constants_sympy,
             test_constants_values,
-            test_math_functions_short,
             test_math_functions,
+            test_bool_to_int,
             test_user_defined_function,
             test_user_defined_function_units,
             test_simple_user_defined_function,
@@ -555,6 +540,8 @@ if __name__ == '__main__':
             test_binomial
             ]:
         try:
+            start = time.time()
             f()
+            print 'Test', f.__name__, 'took', time.time()-start
         except SkipTest as e:
             print 'Skipping test', f.__name__, e

@@ -121,9 +121,10 @@ class SynapticPathway(CodeRunner, Group):
         not given, delays are expected to vary between synapses.
     '''
     def __init__(self, synapses, code, prepost, objname=None,
-                 delay=None):
+                 delay=None, event='spike'):
         self.code = code
         self.prepost = prepost
+        self.event = event
         if prepost == 'pre':
             self.source = synapses.source
             self.target = synapses.target
@@ -157,7 +158,8 @@ class SynapticPathway(CodeRunner, Group):
 
         self.spikes_start = self.source.start
         self.spikes_stop = self.source.stop
-
+        self.eventspace_name = '_{}space'.format(event)
+        self.eventspace = None  # will be set in before_run
         self.spiking_synapses = np.array([], dtype=np.int32)
         self.variables = Variables(self)
         self.variables.add_attribute_variable('_spiking_synapses', unit=Unit(1),
@@ -165,7 +167,7 @@ class SynapticPathway(CodeRunner, Group):
                                               attribute='spiking_synapses',
                                               constant=False,
                                               scalar=False)
-        self.variables.add_reference('_spikespace', self.source)
+        self.variables.add_reference(self.eventspace_name, self.source)
         self.variables.add_reference('N', synapses)
         if delay is None:  # variable delays
             self.variables.add_dynamic_array('delay', unit=second,
@@ -185,9 +187,18 @@ class SynapticPathway(CodeRunner, Group):
                                  'quantity with shape %s instead.') % str(delay.shape))
             fail_for_dimension_mismatch(delay, second, ('Delay has to be '
                                                         'specified in units '
-                                                        'of seconds'))
-            self.variables.add_array('delay', unit=second, size=1,
-                                     constant=True, scalar=True)
+                                                        'of seconds but got '
+                                                        '{value}'),
+                                        value=delay)
+            # We use a "dynamic" array of constant size here because it makes
+            # the generated code easier, we don't need to deal with a different
+            # type for scalar and variable delays
+            self.variables.add_dynamic_array('delay', unit=second,
+                                             size=1, constant=True,
+                                             constant_size=True, scalar=True)
+            # Since this array does not grow with the number of synapses, we
+            # have to resize it ourselves
+            self.variables['delay'].resize(1)
             self.variables['delay'].set_value(delay)
 
         self._delays = self.variables['delay']
@@ -241,18 +252,30 @@ class SynapticPathway(CodeRunner, Group):
 
         # we insert rather than replace because CodeRunner puts a CodeObject in updaters already
         if self._pushspikes_codeobj is None:
+            # Since this now works for general events not only spikes, we have to
+            # pass the information about which variable to use to the template,
+            # it can not longer simply refer to "_spikespace"
+            # Strictly speaking this is only true for the standalone mode at the
+            # moment, since in runtime, all the template does is to call
+            # SynapticPathway.push_spike
+            eventspace_name = '_{}space'.format(self.event)
+            template_kwds = {'eventspace_variable': self.source.variables[eventspace_name]}
+            needed_variables= [eventspace_name]
             self._pushspikes_codeobj = create_runner_codeobj(self,
                                                              '', # no code
                                                              'synapses_push_spikes',
                                                              name=self.name+'_push_spikes',
                                                              check_units=False,
                                                              additional_variables=self.variables,
+                                                             needed_variables=needed_variables,
+                                                             template_kwds=template_kwds,
                                                              run_namespace=run_namespace,
                                                              level=level+2)
 
         self._code_objects.insert(0, weakref.proxy(self._pushspikes_codeobj))
 
     def initialise_queue(self):
+        self.eventspace = self.source.variables[self.eventspace_name].get_value()
         if self.synapse_sources.get_len() == 0:
             logger.warn(("Synapses object '%s' does not have any synapses. Did "
                          "you forget a 'connect'?") % self.synapses.name,
@@ -290,10 +313,10 @@ class SynapticPathway(CodeRunner, Group):
             self.queue._restore(name)
 
     def push_spikes(self):
-        # Push new spikes into the queue
-        spikes = self.source.spikes
-        if len(spikes):
-            self.queue.push(spikes)
+        # Push new events (e.g. spikes) into the queue
+        events = self.eventspace[:self.eventspace[len(self.eventspace)-1]]
+        if len(events):
+            self.queue.push(events)
         # Get the spikes
         self.spiking_synapses = self.queue.peek()
         # Advance the spike queue
@@ -537,6 +560,11 @@ class Synapses(Group):
         argument, but instead set the delays via the attribute of the pathway,
         e.g. ``S.pre.delay = ...`` (or ``S.delay = ...`` as an abbreviation),
         ``S.post.delay = ...``, etc.
+    on_event : str or dict, optional
+        Define the events which trigger the pre and post pathways. By default,
+        both pathways are triggered by the ``'spike'`` event, i.e. the event
+        that is triggered by the ``threshold`` condition in the connected
+        groups.
     namespace : dict, optional
         A dictionary mapping identifier names to objects. If not given, the
         namespace will be filled in at the time of the call of `Network.run`,
@@ -566,13 +594,14 @@ class Synapses(Group):
         The name for this object. If none is given, a unique name of the form
         ``synapses``, ``synapses_1``, etc. will be automatically chosen.
     '''
-
     add_to_magic_network = True
+
     def __init__(self, source, target=None, model=None, pre=None, post=None,
-                 connect=False, delay=None, namespace=None, dtype=None,
+                 connect=False, delay=None, on_event='spike',
+                 namespace=None, dtype=None,
                  codeobj_class=None,
                  dt=None, clock=None, order=0,
-                 method=('linear', 'euler', 'milstein'),
+                 method=('linear', 'euler', 'heun'),
                  name='synapses*'):
         self._N = 0
         Group.__init__(self, dt=dt, clock=clock, when='start', order=order,
@@ -609,7 +638,7 @@ class Synapses(Group):
         model._equations['lastupdate'] = SingleEquation(PARAMETER,
                                                         'lastupdate',
                                                         second)
-        self._create_variables(model)
+        self._create_variables(model, user_dtype=dtype)
 
         # Separate the equations into event-driven equations,
         # continuously updated equations and summed variable updates
@@ -659,12 +688,22 @@ class Synapses(Group):
         self._synaptic_updaters = []
         #: List of all `SynapticPathway` objects
         self._pathways = []
+
+        if isinstance(on_event, basestring):
+            events_dict = collections.defaultdict(lambda: on_event)
+        else:
+            events_dict = collections.defaultdict(lambda: 'spike')
+            events_dict.update(on_event)
+
+        #: "Events" for all the pathways
+        self.events = events_dict
         for prepost, argument in zip(('pre', 'post'), (pre, post)):
             if not argument:
                 continue
             if isinstance(argument, basestring):
                 pathway_delay = delay.get(prepost, None)
-                self._add_updater(argument, prepost, delay=pathway_delay)
+                self._add_updater(argument, prepost, delay=pathway_delay,
+                                  event=self.events[prepost])
             elif isinstance(argument, collections.Mapping):
                 for key, value in argument.iteritems():
                     if not isinstance(key, basestring):
@@ -674,7 +713,7 @@ class Synapses(Group):
                         raise TypeError(err_msg)
                     pathway_delay = delay.get(key, None)
                     self._add_updater(value, prepost, objname=key,
-                                      delay=pathway_delay)
+                                      delay=pathway_delay, event=self.events[key])
 
         # Check whether any delays were specified for pathways that don't exist
         for pathway in delay:
@@ -770,7 +809,8 @@ class Synapses(Group):
         self.lastupdate = self._clock.t
         super(Synapses, self).before_run(run_namespace, level=level+1)
 
-    def _add_updater(self, code, prepost, objname=None, delay=None):
+    def _add_updater(self, code, prepost, objname=None, delay=None,
+                     event='spike'):
         '''
         Add a new target updater. Users should call `add_pre` or `add_post`
         instead.
@@ -802,13 +842,17 @@ class Synapses(Group):
         else:
             raise ValueError(('"prepost" argument has to be "pre" or "post", '
                               'is "%s".') % prepost)
+        if event not in spike_group.events:
+            raise ValueError(("%s group does not define an event "
+                              "'%s'.") % (group_name, event))
 
         if not isinstance(spike_group, SpikeSource) or not hasattr(spike_group, 'clock'):
             raise TypeError(('%s has to be a SpikeSource with spikes and'
                              ' clock attribute. Is type %r instead')
                             % (group_name, type(spike_group)))
 
-        updater = SynapticPathway(self, code, prepost, objname, delay)
+        updater = SynapticPathway(self, code, prepost, objname,
+                                  delay=delay, event=event)
         objname = updater.objname
         if hasattr(self, objname):
             raise ValueError(('Cannot add updater with name "{name}", synapses '

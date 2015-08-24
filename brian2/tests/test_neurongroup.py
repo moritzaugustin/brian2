@@ -14,6 +14,7 @@ from brian2.devices.device import restore_device
 from brian2.equations.equations import Equations
 from brian2.groups.group import get_dtype
 from brian2.groups.neurongroup import NeuronGroup
+from brian2.core.magic import run
 from brian2.synapses.synapses import Synapses
 from brian2.monitors.statemonitor import StateMonitor
 from brian2.units.fundamentalunits import (DimensionMismatchError,
@@ -47,6 +48,25 @@ def test_creation():
     # neither string nor Equations object as model description
     assert_raises(TypeError, lambda: NeuronGroup(1, object()))
 
+@attr('codegen-independent')
+def test_integer_variables_and_mod():
+    '''
+    Test that integer operations and variable definitions work.
+    '''
+    n = 10
+    eqs = '''
+    dv/dt = (a+b+j+k)/second : 1
+    j = i%n : integer
+    k = i/n : integer
+    a = v%(i+1) : 1
+    b = v%(2*v) : 1
+    '''
+    G = NeuronGroup(100, eqs)
+    G.v = np.random.rand(len(G))
+    run(1*ms)
+    assert_equal(G.j[:], G.i[:]%n)
+    assert_equal(G.k[:], G.i[:]/n)
+    assert_equal(G.a[:], G.v[:]%(G.i[:]+1))
 
 @attr('codegen-independent')
 def test_variables():
@@ -64,6 +84,42 @@ def test_variables():
     G = NeuronGroup(1, 'dv/dt = -v/(10*ms) : 1', refractory=5*ms)
     assert 'not_refractory' in G.variables and 'lastspike' in G.variables
 
+@attr('codegen-independent')
+def test_variableview_calculations():
+    # Check that you can directly calculate with "variable views"
+    G = NeuronGroup(10, '''x : 1
+                           y : volt''')
+    G.x = np.arange(10)
+    G.y = np.arange(10)[::-1]*mV
+    assert_allclose(G.x * G.y, np.arange(10)*np.arange(10)[::-1]*mV)
+    assert_allclose(-G.x, -np.arange(10))
+    assert_allclose(-G.y, -np.arange(10)[::-1]*mV)
+
+    assert_allclose(3 * G.x, 3 * np.arange(10))
+    assert_allclose(3 * G.y, 3 *np.arange(10)[::-1]*mV)
+    assert_allclose(G.x * 3, 3 * np.arange(10))
+    assert_allclose(G.y * 3, 3 *np.arange(10)[::-1]*mV)
+    assert_allclose(G.x / 2.0, np.arange(10)/2.0)
+    assert_allclose(G.y / 2, np.arange(10)[::-1]*mV/2)
+    assert_allclose(G.x + 2, 2 + np.arange(10))
+    assert_allclose(G.y + 2*mV, 2*mV + np.arange(10)[::-1]*mV)
+    assert_allclose(2 + G.x, 2 + np.arange(10))
+    assert_allclose(2*mV + G.y, 2*mV + np.arange(10)[::-1]*mV)
+    assert_allclose(G.x - 2, np.arange(10) - 2)
+    assert_allclose(G.y - 2*mV, np.arange(10)[::-1]*mV - 2*mV)
+    assert_allclose(2 - G.x, 2 - np.arange(10))
+    assert_allclose(2*mV - G.y, 2*mV - np.arange(10)[::-1]*mV)
+
+    # incorrect units
+    assert_raises(DimensionMismatchError, lambda: G.x + G.y)
+    assert_raises(DimensionMismatchError, lambda: G.x[:] + G.y)
+    assert_raises(DimensionMismatchError, lambda: G.x + G.y[:])
+    assert_raises(DimensionMismatchError, lambda: G.x + 3*mV)
+    assert_raises(DimensionMismatchError, lambda: 3*mV + G.x)
+    assert_raises(DimensionMismatchError, lambda: G.y + 3)
+    assert_raises(DimensionMismatchError, lambda: 3 + G.y)
+
+
 @attr('standalone-compatible')
 @with_setup(teardown=restore_device)
 def test_stochastic_variable():
@@ -73,8 +129,7 @@ def test_stochastic_variable():
     '''
     tau = 10 * ms
     G = NeuronGroup(1, 'dv/dt = -v/tau + xi*tau**-0.5: 1')
-    net = Network(G)
-    net.run(defaultclock.dt)
+    run(defaultclock.dt)
 
 @attr('standalone-compatible')
 @with_setup(teardown=restore_device)
@@ -86,8 +141,7 @@ def test_stochastic_variable_multiplicative():
     mu = 0.5/second # drift
     sigma = 0.1/second #diffusion
     G = NeuronGroup(1, 'dX/dt = (mu - 0.5*second*sigma**2)*X + X*sigma*xi*second**.5: 1')
-    net = Network(G)
-    net.run(defaultclock.dt)
+    run(defaultclock.dt)
 
 def test_scalar_variable():
     '''
@@ -122,8 +176,7 @@ def test_referred_scalar_variable():
     G.x = np.arange(10)
     G2 = NeuronGroup(10, '')
     G2.variables.add_reference('out', G)
-    net = Network(G, G2)
-    net.run(.25*second)
+    run(.25*second)
     assert_allclose(G2.out[:], np.arange(10)+1)
 
 @attr('standalone-compatible')
@@ -139,8 +192,7 @@ def test_linked_variable_correct():
     G2.v = linked_var(G1.v)
     mon1 = StateMonitor(G1, 'v', record=True)
     mon2 = StateMonitor(G2, 'v', record=True)
-    net = Network(G1, G2, mon1, mon2)
-    net.run(10*ms)
+    run(10*ms)
     assert_equal(mon1.v[:, :], mon2.v[:, :])
     # Make sure that printing the variable values works
     assert len(str(G2.v)) > 0
@@ -182,10 +234,9 @@ def test_linked_variable_scalar():
     G2.y = np.linspace(0, 1, 10)
     G2.x = linked_var(G1.x)
     mon = StateMonitor(G2, 'y', record=True)
-    net = Network(G1, G2, mon)
     # We don't test anything for now, except that it runs without raising an
     # error
-    net.run(10*ms)
+    run(10*ms)
     # Make sure that printing the variable values works
     assert len(str(G2.x)) > 0
     assert len(repr(G2.x)) > 0
@@ -332,9 +383,7 @@ def test_linked_subexpression():
 
     G2.x = linked_var(G.v, index=np.array([0, 1]).repeat(5))
     mon = StateMonitor(G2, 'I', record=True)
-
-    net = Network(G, G2, mon)
-    net.run(5*ms)
+    run(5*ms)
 
     # Due to the linking, the first 5 and the second 5 recorded I vectors should
     # be identical
@@ -356,9 +405,7 @@ def test_linked_subexpression_2():
     G2.I_l = linked_var(G.I)
     mon1 = StateMonitor(G, 'I', record=True)
     mon = StateMonitor(G2, 'I_l', record=True)
-
-    net = Network(G, G2, mon, mon1)
-    net.run(5*ms)
+    run(5*ms)
 
     assert all(mon[0].I_l == mon1[0].I)
     assert all(mon[1].I_l == mon1[1].I)
@@ -378,9 +425,7 @@ def test_linked_subexpression_3():
     G2.I_l = linked_var(G.I, index=np.array([0, 1]).repeat(5))
     mon1 = StateMonitor(G, 'I', record=True)
     mon = StateMonitor(G2, 'I_l', record=True)
-
-    net = Network(G, G2, mon, mon1)
-    net.run(5*ms)
+    run(5*ms)
 
     # Due to the linking, the first 5 and the second 5 recorded I vectors should
     # refer to the
@@ -455,10 +500,9 @@ def test_linked_var_in_reset():
                      threshold='y>1', reset='y=0; x_linked += 1')
     G2.x_linked = linked_var(G1, 'x')
     G2.y = [0, 1.1, 0]
-    net = Network(G1, G2)
     # In this context, x_linked should not be considered as a scalar variable
     # and therefore the reset statement should be allowed
-    net.run(3*defaultclock.dt)
+    run(3*defaultclock.dt)
     assert_equal(G1.x[:], [0, 1, 0])
 
 @attr('standalone-compatible')
@@ -470,10 +514,9 @@ def test_linked_var_in_reset_size_1():
                      threshold='y>1', reset='y=0; x_linked += 1')
     G2.x_linked = linked_var(G1, 'x')
     G2.y = 1.1
-    net = Network(G1, G2)
     # In this context, x_linked should not be considered as a scalar variable
     # and therefore the reset statement should be allowed
-    net.run(3*defaultclock.dt)
+    run(3*defaultclock.dt)
     assert_equal(G1.x[:], 1)
 
 @attr('codegen-independent')
@@ -528,7 +571,7 @@ def test_namespace_errors():
     assert_raises(KeyError, lambda: net.run(1*ms))
 
     # reset uses unknown identifier
-    G = NeuronGroup(1, 'dv/dt = -v/tau : 1', reset='v = v_r')
+    G = NeuronGroup(1, 'dv/dt = -v/tau : 1', threshold='False', reset='v = v_r')
     net = Network(G)
     assert_raises(KeyError, lambda: net.run(1*ms))
 
@@ -612,8 +655,7 @@ def test_threshold_reset():
     G = NeuronGroup(3, 'dv/dt = 0 / second : 1',
                     threshold='v > 1', reset='v=0.5')
     G.v = np.array([0, 1, 2])
-    net = Network(G)
-    net.run(defaultclock.dt)
+    run(defaultclock.dt)
     assert_equal(G.v[:], np.array([0, 1, 0.5]))
 
 @attr('codegen-independent')
@@ -629,15 +671,18 @@ def test_unit_errors_threshold_reset():
     # Unit error in reset
     assert_raises(DimensionMismatchError,
                   lambda: NeuronGroup(1, 'dv/dt = -v/(10*ms) : 1',
+                                      threshold='True',
                                       reset='v = -65*mV'))
 
     # More complicated unit reset with an intermediate variable
     # This should pass
     NeuronGroup(1, 'dv/dt = -v/(10*ms) : 1',
+                threshold='False',
                 reset='''temp_var = -65
                          v = temp_var''')
     # throw in an empty line (should still pass)
     NeuronGroup(1, 'dv/dt = -v/(10*ms) : 1',
+                threshold='False',
                 reset='''temp_var = -65
 
                          v = temp_var''')
@@ -645,17 +690,20 @@ def test_unit_errors_threshold_reset():
     # This should fail
     assert_raises(DimensionMismatchError,
                   lambda: NeuronGroup(1, 'dv/dt = -v/(10*ms) : 1',
+                                      threshold='False',
                                       reset='''temp_var = -65*mV
                                                v = temp_var'''))
 
     # Resets with an in-place modification
     # This should work
     NeuronGroup(1, 'dv/dt = -v/(10*ms) : 1',
+                threshold='False',
                 reset='''v /= 2''')
 
     # This should fail
     assert_raises(DimensionMismatchError,
                   lambda: NeuronGroup(1, 'dv/dt = -v/(10*ms) : 1',
+                                      threshold='False',
                                       reset='''v -= 60*mV'''))
 
 @attr('codegen-independent')
@@ -676,7 +724,55 @@ def test_syntax_errors():
     # Syntax error in reset
     assert_raises(Exception,
                   lambda: NeuronGroup(1, 'dv/dt = 5*Hz : 1',
+                                      threshold='True',
                                       reset='0'))
+
+@attr('codegen-independent')
+def test_custom_events():
+    G = NeuronGroup(2, '''event_time1 : second
+                          event_time2 : second''',
+                    events={'event1': 't>=i*ms and t<i*ms+dt',
+                            'event2': 't>=(i+1)*ms and t<(i+1)*ms+dt'})
+    G.run_on_event('event1', 'event_time1 = t')
+    G.run_on_event('event2', 'event_time2 = t')
+    net = Network(G)
+    net.run(2.1*ms)
+    assert_allclose(G.event_time1[:], [0, 1]*ms)
+    assert_allclose(G.event_time2[:], [1, 2]*ms)
+
+def test_custom_events_schedule():
+    # In the same time step: event2 will be checked and its code executed
+    # before event1 is checked and its code executed
+    G = NeuronGroup(2, '''x : 1
+                          event_time : second''',
+                    events={'event1': 'x>0',
+                            'event2': 't>=(i+1)*ms and t<(i+1)*ms+dt'})
+    G.set_event_schedule('event1', when='after_resets')
+    G.run_on_event('event2', 'x = 1', when='resets')
+    G.run_on_event('event1',
+                   '''event_time = t
+                      x = 0''', when='after_resets', order=1)
+    net = Network(G)
+    net.run(2.1*ms)
+    assert_allclose(G.event_time[:], [1, 2]*ms)
+
+
+@attr('codegen-independent')
+def test_incorrect_custom_event_definition():
+    # Incorrect event name
+    assert_raises(TypeError, lambda: NeuronGroup(1, '',
+                                                 events={'1event': 'True'}))
+    # duplicate definition of 'spike' event
+    assert_raises(ValueError, lambda: NeuronGroup(1, '', threshold='True',
+                                                  events={'spike': 'False'}))
+    # not a threshold
+    assert_raises(TypeError, lambda: NeuronGroup(1, '',
+                                                 events={'my_event': 10*mV}))
+    # schedule for a non-existing event
+    G = NeuronGroup(1, '', threshold='False', events={'my_event': 'True'})
+    assert_raises(ValueError, lambda: G.set_event_schedule('another_event'))
+    # code for a non-existing event
+    assert_raises(ValueError, lambda: G.run_on_event('another_event', ''))
 
 
 def test_state_variables():
@@ -1006,6 +1102,16 @@ def test_repr():
             assert len(func(eq))
 
 @attr('codegen-independent')
+def test_ipython_html():
+    G = NeuronGroup(10, '''dv/dt = -(v + Inp) / tau : volt
+                           Inp = sin(2*pi*freq*t) : volt
+                           freq : Hz''')
+
+    # Test that HTML representation in IPython does not raise errors
+    assert len(G._repr_html_())
+
+
+@attr('codegen-independent')
 def test_indices():
     G = NeuronGroup(10, 'v : 1')
     G.v = 'i'
@@ -1068,8 +1174,8 @@ def test_aliasing_in_statements():
                      x_0 = -1'''
     g = NeuronGroup(1, model='''x_0 : 1
                                 x_1 : 1 ''')
-    custom_code_obj = g.custom_operation(runner_code)
-    net = Network(g, custom_code_obj)
+    g.run_regularly(runner_code)
+    net = Network(g)
     net.run(defaultclock.dt)
     assert_equal(g.x_0_[:], np.array([-1]))
     assert_equal(g.x_1_[:], np.array([0]))
@@ -1096,8 +1202,10 @@ def test_get_states():
     assert_equal(states['subexpr2'], 11*np.arange(10))
 
     all_states = G.get_states(units=True)
-    assert set(all_states.keys()) == {'v', 'x', 'subexpr', 'subexpr2', 'N', 't',
-                                      'dt', 'i'}
+    assert set(all_states.keys()) == {'v', 'x', 'N', 't', 'dt', 'i'}
+    all_states = G.get_states(units=True, subexpressions=True)
+    assert set(all_states.keys()) == {'v', 'x', 'N', 't', 'dt', 'i',
+                                      'subexpr', 'subexpr2'}
 
 
 def test_random_vector_values():
@@ -1116,7 +1224,9 @@ def test_random_vector_values():
 
 if __name__ == '__main__':
     test_creation()
+    test_integer_variables_and_mod()
     test_variables()
+    test_variableview_calculations()
     test_scalar_variable()
     test_referred_scalar_variable()
     test_linked_variable_correct()
@@ -1145,6 +1255,9 @@ if __name__ == '__main__':
     test_unit_errors()
     test_threshold_reset()
     test_unit_errors_threshold_reset()
+    test_custom_events()
+    test_custom_events_schedule()
+    test_incorrect_custom_event_definition()
     test_incomplete_namespace()
     test_namespace_errors()
     test_namespace_warnings()
@@ -1159,6 +1272,7 @@ if __name__ == '__main__':
     test_scalar_subexpression()
     test_indices()
     test_repr()
+    test_ipython_html()
     test_get_dtype()
     if prefs.codegen.target == 'numpy':
         test_aliasing_in_statements()

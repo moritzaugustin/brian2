@@ -86,6 +86,27 @@ prefs.register_preferences(
     )
 
 
+mod_support_code = ''
+typestrs = ['unsigned char', 'char', 'unsigned short', 'short', 'unsigned int', 'int', 'unsigned long', 'long',
+            'unsigned long long', 'long long', 'float', 'double', 'long double']
+floattypestrs = ['float', 'double', 'long double']
+for ix, xtype in enumerate(typestrs):
+    for iy, ytype in enumerate(typestrs):
+        hightype = typestrs[max(ix, iy)]
+        if xtype in floattypestrs or ytype in floattypestrs:
+            expr = 'fmod(fmod(x, y)+y, y)'
+        else:
+            expr = '((x%y)+y)%y'
+        mod_support_code += '''
+        inline {hightype} _brian_mod({xtype} ux, {ytype} uy)
+        {{
+            const {hightype} x = ({hightype})ux;
+            const {hightype} y = ({hightype})uy;
+            return {expr};
+        }}
+        '''.format(hightype=hightype, xtype=xtype, ytype=ytype, expr=expr)
+
+
 class CPPCodeGenerator(CodeGenerator):
     '''
     C++ language
@@ -109,6 +130,8 @@ class CPPCodeGenerator(CodeGenerator):
     '''
 
     class_name = 'cpp'
+
+    universal_support_code = deindent(mod_support_code)
 
     def __init__(self, *args, **kwds):
         super(CPPCodeGenerator, self).__init__(*args, **kwds)
@@ -330,6 +353,9 @@ class CPPCodeGenerator(CodeGenerator):
             if func_namespace is not None:
                 self.variables.update(func_namespace)
 
+        support_code.append(self.universal_support_code)
+
+
         keywords = {'pointers_lines': stripped_deindented_lines('\n'.join(pointers)),
                     'support_code_lines': stripped_deindented_lines('\n'.join(support_code)),
                     'hashdefine_lines': stripped_deindented_lines('\n'.join(hash_defines)),
@@ -350,7 +376,6 @@ for func in ['sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'exp', 'log',
 
 # Functions that need a name translation
 for func, func_cpp in [('arcsin', 'asin'), ('arccos', 'acos'), ('arctan', 'atan'),
-                       ('mod', 'fmod'),
                        ]:
     DEFAULT_FUNCTIONS[func].implementations.add_implementation(CPPCodeGenerator,
                                                                code=None,
@@ -404,7 +429,7 @@ DEFAULT_FUNCTIONS['randn'].implementations.add_implementation(CPPCodeGenerator,
                                                               name='_randn')
 
 rand_code = '''
-        double _rand(int vectorisation_idx)
+        inline double _rand(int vectorisation_idx)
         {
 	        return (double)rand()/RAND_MAX;
         }
@@ -414,7 +439,7 @@ DEFAULT_FUNCTIONS['rand'].implementations.add_implementation(CPPCodeGenerator,
                                                              name='_rand')
 
 clip_code = '''
-        double _clip(const float value, const float a_min, const float a_max)
+        inline double _clip(const double value, const double a_min, const double a_max)
         {
 	        if (value < a_min)
 	            return a_min;
@@ -428,7 +453,11 @@ DEFAULT_FUNCTIONS['clip'].implementations.add_implementation(CPPCodeGenerator,
                                                              name='_clip')
 
 int_code = '''
-        int int_(const bool value)
+        template<typename T> inline int int_(T value)
+        {
+	        return (int)value;
+        }
+        template<> inline int int_(bool value)
         {
 	        return value ? 1 : 0;
         }
@@ -438,9 +467,9 @@ DEFAULT_FUNCTIONS['int'].implementations.add_implementation(CPPCodeGenerator,
                                                             name='int_')
 
 sign_code = '''
-template <typename T> int sign_(T val) {
-    return (T(0) < val) - (val < T(0));
-}
+        template <typename T> inline int sign_(T val) {
+            return (T(0) < val) - (val < T(0));
+        }
         '''
 DEFAULT_FUNCTIONS['sign'].implementations.add_implementation(CPPCodeGenerator,
                                                              code=sign_code,

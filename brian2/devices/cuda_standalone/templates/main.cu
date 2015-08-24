@@ -3,6 +3,7 @@
 #include <ctime>
 #include <time.h>
 #include "run.h"
+#include "brianlib/common_math.h"
 #include "rand.h"
 
 {% for codeobj in code_objects %}

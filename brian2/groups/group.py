@@ -11,7 +11,8 @@ import numpy as np
 from brian2.core.base import BrianObject
 from brian2.core.preferences import prefs
 from brian2.core.variables import (Variables, Constant, Variable,
-                                   ArrayVariable, DynamicArrayVariable)
+                                   ArrayVariable, DynamicArrayVariable,
+                                   Subexpression)
 from brian2.core.functions import Function
 from brian2.core.namespace import (get_local_namespace,
                                    DEFAULT_FUNCTIONS,
@@ -20,7 +21,7 @@ from brian2.core.namespace import (get_local_namespace,
 from brian2.codegen.codeobject import create_runner_codeobj, check_code_units
 from brian2.equations.equations import BOOLEAN, INTEGER, FLOAT
 from brian2.units.fundamentalunits import (fail_for_dimension_mismatch, Unit,
-                                           get_unit)
+                                           get_unit, DIMENSIONLESS)
 from brian2.units.allunits import second
 from brian2.utils.logger import get_logger
 from brian2.utils.stringtools import get_identifiers, SpellChecker
@@ -350,8 +351,18 @@ class Group(BrianObject):
         elif name in self.variables:
             var = self.variables[name]
             if not isinstance(val, basestring):
-                fail_for_dimension_mismatch(val, var.unit,
-                                            'Incorrect units for setting %s' % name)
+                if var.unit.dim is DIMENSIONLESS:
+                    fail_for_dimension_mismatch(val, var.unit,
+                                                ('%s should be set with a '
+                                                 'dimensionless value, but got '
+                                                 '{value}') % name,
+                                                value=val)
+                else:
+                    fail_for_dimension_mismatch(val, var.unit,
+                                                ('%s should be set with a '
+                                                 'value with units %r, but got '
+                                                 '{value}') % (name, var.unit),
+                                                value=val)
             if var.read_only:
                 raise TypeError('Variable %s is read-only.' % name)
             # Make the call X.var = ... equivalent to X.var[:] = ...
@@ -417,21 +428,35 @@ class Group(BrianObject):
                                  'an attribute of this group.' % name)
         object.__setattr__(self, name, None)
 
-    def get_states(self, vars=None, units=True, format='dict', level=0):
+    def get_states(self, vars=None, units=True, format='dict',
+                   subexpressions=False, read_only_variables=True, level=0):
         '''
-        Return a copy of the current state variable values.
+        Return a copy of the current state variable values. The returned arrays
+        are copies of the actual arrays that store the state variable values,
+        therefore changing the values in the returned dictionary will not affect
+        the state variables.
 
         Parameters
         ----------
         vars : list of str, optional
             The names of the variables to extract. If not specified, extract
             all state variables (except for internal variables, i.e. names that
-            start with ``'_'``).
+            start with ``'_'``). If the ``subexpressions`` argument is ``True``,
+            the current values of all subexpressions are returned as well.
         units : bool, optional
             Whether to include the physical units in the return value. Defaults
             to ``True``.
         format : str, optional
             The output format. Defaults to ``'dict'``.
+        subexpressions: bool, optional
+            Whether to return subexpressions when no list of variable names
+            is given. Defaults to ``False``. This argument is ignored if an
+            explicit list of variable names is given in ``vars``.
+        read_only_variables : bool, optional
+            Whether to return read-only variables (e.g. the number of neurons,
+            the time, etc.). Setting it to ``False`` will assure that the
+            returned state can later be used with `set_states`. Defaults to
+            ``True``.
         level : int, optional
             How much higher to go up the stack to resolve external variables.
             Only relevant if extracting subexpressions that refer to external
@@ -448,8 +473,10 @@ class Group(BrianObject):
         if format != 'dict':
             raise NotImplementedError("Format '%s' is not supported" % format)
         if vars is None:
-            vars = [name for name in self.variables.iterkeys()
-                    if not name.startswith('_')]
+            vars = [name for name, var in self.variables.iteritems()
+                    if not name.startswith('_') and
+                    (subexpressions or not isinstance(var, Subexpression)) and
+                    (read_only_variables or not getattr(var, 'read_only', False))]
         data = {}
         for var in vars:
             data[var] = np.array(self.state(var, use_units=units,
@@ -785,12 +812,20 @@ class Group(BrianObject):
 
     def runner(self, *args, **kwds):
         raise AttributeError("The 'runner' method has been renamed to "
-                             "'custom_operation'")
+                             "'run_regularly'.")
 
-    def custom_operation(self, code, dt=None, clock=None, when='start',
-                         order=0, name=None, codeobj_class=None):
+    def custom_operation(self, *args, **kwds):
+        raise AttributeError("The 'custom_operation' method has been renamed "
+                             "to 'run_regularly'.")
+
+    def run_regularly(self, code, dt=None, clock=None, when='start',
+                      order=0, name=None, codeobj_class=None):
         '''
-        Returns a `CodeRunner` that runs abstract code in the group's namespace.
+        Run abstract code in the group's namespace. The created `CodeRunner`
+        object will be automatically added to the group, it therefore does not
+        need to be added to the network manually. However, a reference to the
+        object will be returned, which can be used to later remove it from the
+        group or to set it to inactive.
 
         Parameters
         ----------
@@ -806,15 +841,20 @@ class Group(BrianObject):
             When to run within a time step, defaults to the ``'start'`` slot.
         name : str, optional
             A unique name, if non is given the name of the group appended with
-            'custom_operation', 'custom_operation_1', etc. will be used. If a
+            'run_regularly', 'run_regularly_1', etc. will be used. If a
             name is given explicitly, it will be used as given (i.e. the group
             name will not be prepended automatically).
         codeobj_class : class, optional
             The `CodeObject` class to run code with. If not specified, defaults
             to the `group`'s ``codeobj_class`` attribute.
+
+        Returns
+        -------
+        obj : `CodeRunner`
+            A reference to the object that will be run.
         '''
         if name is None:
-            name = self.name + '_custom_operation*'
+            name = self.name + '_run_regularly*'
 
         if dt is None and clock is None:
             clock = self._clock
@@ -822,8 +862,8 @@ class Group(BrianObject):
         runner = CodeRunner(self, 'stateupdate', code=code, name=name,
                             dt=dt, clock=clock, when=when, order=order,
                             codeobj_class=codeobj_class)
+        self.contained_objects.append(runner)
         return runner
-
 
 
 class CodeRunner(BrianObject):

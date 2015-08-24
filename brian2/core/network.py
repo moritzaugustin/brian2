@@ -9,14 +9,14 @@ Preferences
 '''
 
 import sys
-import gc
 import time
-from collections import defaultdict, Sequence
+from collections import defaultdict, Sequence, Counter
 
 from brian2.utils.logger import get_logger
 from brian2.core.names import Nameable
 from brian2.core.base import BrianObject
 from brian2.core.clocks import Clock
+from brian2.devices.device import device
 from brian2.units.fundamentalunits import check_units, DimensionMismatchError
 from brian2.units.allunits import second, msecond 
 from brian2.core.preferences import prefs, BrianPreference
@@ -214,6 +214,18 @@ class Network(Nameable):
                      Current simulation time in seconds (`Quantity`)
                      ''')
 
+    @device_override('network_get_profiling_info')
+    def get_profiling_info(self):
+        '''
+        The only reason this is not directly implemented in `profiling_info`
+        is to allow devices (e.g. `CPPStandaloneDevice`) to overwrite this.
+        '''
+        if self._profiling_info is None:
+            raise ValueError('(No profiling info collected (did you run with '
+                             'profile=True?)')
+        return sorted(self._profiling_info, key=lambda item: item[1],
+                      reverse=True)
+
     @property
     def profiling_info(self):
         '''
@@ -227,11 +239,7 @@ class Network(Nameable):
         Profiling has to be activated using the ``profile`` keyword in `run` or
         `Network.run`.
         '''
-        if self._profiling_info is None:
-            raise ValueError('(No profiling info collected (did you run with '
-                             'profile=True?)')
-        return sorted(self._profiling_info, key=lambda item: item[1],
-                      reverse=True)
+        return self.get_profiling_info()
 
     _globally_stopped = False
 
@@ -372,6 +380,91 @@ class Network(Nameable):
                 obj._restore(name=name)
         self.t_ = self._stored_t[name]
 
+    def get_states(self, units=True, format='dict',
+                   subexpressions=False, read_only_variables=True, level=0):
+        '''
+        Return a copy of the current state variable values of objects in the
+        network.. The returned arrays are copies of the actual arrays that
+        store the state variable values, therefore changing the values in the
+        returned dictionary will not affect the state variables.
+
+        Parameters
+        ----------
+        vars : list of str, optional
+            The names of the variables to extract. If not specified, extract
+            all state variables (except for internal variables, i.e. names that
+            start with ``'_'``). If the ``subexpressions`` argument is ``True``,
+            the current values of all subexpressions are returned as well.
+        units : bool, optional
+            Whether to include the physical units in the return value. Defaults
+            to ``True``.
+        format : str, optional
+            The output format. Defaults to ``'dict'``.
+        subexpressions: bool, optional
+            Whether to return subexpressions when no list of variable names
+            is given. Defaults to ``False``. This argument is ignored if an
+            explicit list of variable names is given in ``vars``.
+        read_only_variables : bool, optional
+            Whether to return read-only variables (e.g. the number of neurons,
+            the time, etc.). Setting it to ``False`` will assure that the
+            returned state can later be used with `set_states`. Defaults to
+            ``True``.
+        level : int, optional
+            How much higher to go up the stack to resolve external variables.
+            Only relevant if extracting subexpressions that refer to external
+            variables.
+
+        Returns
+        -------
+        values
+            A dictionary mapping object names to the state variables of that
+            object, in the specified ``format``.
+
+        See Also
+        --------
+        Group.get_states
+        '''
+        states = dict()
+        for obj in self.objects:
+            if hasattr(obj, 'get_states'):
+                states[obj.name] = obj.get_states(vars=None, units=units,
+                                                  format=format,
+                                                  subexpressions=subexpressions,
+                                                  read_only_variables=read_only_variables,
+                                                  level=level+1)
+        return states
+
+    def set_states(self, values, units=True, format='dict', level=0):
+        '''
+        Set the state variables of objects in the network.
+
+        Parameters
+        ----------
+        values : dict
+            A dictionary mapping object names to objects of ``format``, setting
+            the states of this object.
+        units : bool, optional
+            Whether the ``values`` include physical units. Defaults to ``True``.
+        format : str, optional
+            The format of ``values``. Defaults to ``'dict'``
+        level : int, optional
+            How much higher to go up the stack to resolve external variables.
+            Only relevant when using string expressions to set values.
+
+        See Also
+        --------
+        Group.set_states
+        '''
+        # For the moment, 'dict' is the only supported format -- later this will
+        # be made into an extensible system, see github issue #306
+        for obj_name, obj_values in values.iteritems():
+            if obj_name not in self:
+                raise KeyError(("Network does not include a network with "
+                                "name '%s'.") % obj_name)
+            self[obj_name].set_states(obj_values, units=units, format=format,
+                                     level=level+1)
+
+
     def _get_schedule(self):
         if self._schedule is None:
             return list(prefs.core.network.default_schedule)
@@ -468,12 +561,19 @@ class Network(Nameable):
         '''
         from brian2.devices.device import get_device, all_devices
 
-        # A garbage collection here can be useful to free memory if we have
-        # multiple runs
-        gc.collect()
-
         prefs.check_all_validated()
-        
+
+        # Check names in the network for uniqueness
+        names = [obj.name for obj in self.objects]
+        non_unique_names = [name for name, count in Counter(names).iteritems()
+                            if count > 1]
+        if len(non_unique_names):
+            formatted_names = ', '.join("'%s'" % name
+                                        for name in non_unique_names)
+            raise ValueError('All objects in a network need to have unique '
+                             'names, the following name(s) were used more than '
+                             'once: %s' % formatted_names)
+
         self._stopped = False
         Network._globally_stopped = False
 
@@ -631,6 +731,7 @@ class Network(Nameable):
 
         profiling_info = defaultdict(float)
 
+        start_time = time.time()
         while clock.running and not self._stopped and not Network._globally_stopped:
             # update the network time to this clocks time
             self.t_ = clock.t_
@@ -659,6 +760,7 @@ class Network(Nameable):
             # with the smallest t value, unless there are several with the 
             # same t value in which case we update all of them
             clock, curclocks = self._nextclocks()
+        device._last_run_time = time.time()-start_time
 
         if self._stopped or Network._globally_stopped:
             self.t_ = clock.t_

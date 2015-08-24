@@ -96,7 +96,7 @@ class SpatialNeuron(NeuronGroup):
                  threshold_location=None,
                  dt=None, clock=None, order=0, Cm=0.9 * uF / cm ** 2, Ri=150 * ohm * cm,
                  name='spatialneuron*', dtype=None, namespace=None,
-                 method=('linear', 'exponential_euler', 'rk2', 'milstein')):
+                 method=('linear', 'exponential_euler', 'rk2', 'heun')):
 
         # #### Prepare and validate equations
         if isinstance(model, basestring):
@@ -209,6 +209,10 @@ class SpatialNeuron(NeuronGroup):
         v_star : volt
         u_plus : 1
         u_minus : 1
+        # The following two are only necessary for C code where we cannot deal
+        # with scalars and arrays interchangeably
+        gtot_all : siemens/meter**2
+        I0_all : amp/meter**2
         """)
         # Possibilities for the name: characteristic_length, electrotonic_length, length_constant, space_constant
 

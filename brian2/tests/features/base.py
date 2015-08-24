@@ -11,21 +11,24 @@ from brian2.utils.stringtools import indent
 
 from collections import defaultdict
 
-__all__ = ['FeatureTest', 'InaccuracyError', 'Configuration',
+__all__ = ['FeatureTest', 'SpeedTest',
+           'InaccuracyError', 'Configuration',
            'run_feature_tests', 'run_single_feature_test',
            'run_speed_tests',
-           'DefaultConfiguration', 'WeaveConfiguration',
+           'DefaultConfiguration', 'LocalConfiguration',
+           'NumpyConfiguration', 'WeaveConfiguration',
            'CythonConfiguration', 'CPPStandaloneConfiguration',
            'CPPStandaloneConfigurationOpenMP',
            'CUDAStandaloneConfiguration',
            'CUDAStandaloneConfigurationDoubleSMs',
            'CUDAStandaloneConfigurationFourSMs']
 
+
 class InaccuracyError(AssertionError):
     def __init__(self, error, *args):
         self.error = error
         AssertionError.__init__(self, *args)
-        
+
 class BaseTest(object):
     '''
     '''
@@ -89,6 +92,7 @@ class FeatureTest(BaseTest):
             if (v_test[-I]!=0).any():
                 raise InaccuracyError(numpy.inf)
 
+
 class SpeedTest(BaseTest):
     n_range = [1]
     n_label = 'n'
@@ -110,6 +114,7 @@ class SpeedTest(BaseTest):
     def __call__(self):
         return self
 
+
 class Configuration(object):
     '''
     '''
@@ -122,12 +127,36 @@ class Configuration(object):
     def after_run(self):
         pass
     
+    def get_last_run_time(self):
+        '''
+        Implement this to overwrite the measured runtime (e.g. to remove overhead).
+        '''
+        if hasattr(brian2.device, '_last_run_time'):
+            return brian2.device._last_run_time
+        raise NotImplementedError
+    
     
 class DefaultConfiguration(Configuration):
     name = 'Default'
     def before_run(self):
         brian2.prefs.reset_to_defaults()
         brian2.set_device('runtime')
+
+
+class LocalConfiguration(Configuration):
+    name = 'Local'
+    def before_run(self):
+        brian2.prefs.reset_to_defaults()
+        brian2.set_device('runtime')
+        brian2.prefs.load_preferences()
+
+
+class NumpyConfiguration(Configuration):
+    name = 'Numpy'
+    def before_run(self):
+        brian2.prefs.reset_to_defaults()
+        brian2.set_device('runtime')
+        brian2.prefs.codegen.target = 'numpy'
 
 
 class WeaveConfiguration(Configuration):
@@ -157,7 +186,6 @@ class CPPStandaloneConfiguration(Configuration):
             shutil.rmtree('cpp_standalone')
         brian2.device.build(directory='cpp_standalone', compile=True, run=True,
                             with_output=True)
-
 
 class CPPStandaloneConfigurationOpenMP(Configuration):
     name = 'C++ standalone (OpenMP)'
@@ -224,14 +252,18 @@ class GeNNConfiguration(Configuration):
                             use_GPU=True)
     
     
-def results(configuration, feature, n):
+def results(configuration, feature, n=None):
     tempfilename = tempfile.mktemp('exception')
+    if n is None:
+        init_args = ''
+    else:
+        init_args = str(n)
     code_string = '''
 __file__ = '{fname}'
 from {config_module} import {config_name}
 from {feature_module} import {feature_name}
 configuration = {config_name}()
-feature = {feature_name}({n})
+feature = {feature_name}()
 import warnings, traceback, pickle, sys, os, time
 warnings.simplefilter('ignore')
 try:
@@ -241,15 +273,20 @@ try:
     configuration.after_run()
     runtime=time.time() - start_time
     results = feature.results()
+    run_time = time.time()-start_time
+    if feature.allow_time_override:
+        try:
+            run_time = configuration.get_last_run_time()
+        except NotImplementedError:
+            pass
     f = open(r'{tempfname}', 'wb')
-    pickle.dump((None, results, runtime), f, -1)
+    pickle.dump((None, results, run_time), f, -1)
     f.close()
 except Exception, ex:
     #traceback.print_exc(file=sys.stdout)
     tb = traceback.format_exc()
     f = open(r'{tempfname}', 'wb')
-    runtime = 0
-    pickle.dump((tb, ex, runtime), f, -1)
+    pickle.dump((tb, ex, 0.0), f, -1)
     f.close()
     '''.format(config_module=configuration.__module__,
                config_name=configuration.__name__,
@@ -257,7 +294,8 @@ except Exception, ex:
                feature_name=feature.__name__,
                tempfname=tempfilename,
                fname=__file__,
-               n=str(n)
+               n=str(n),
+               init_args=init_args
                )
     args = [sys.executable, '-c',
             code_string]
@@ -342,9 +380,10 @@ def run_feature_tests(configurations=None, feature_tests=None,
                     except InaccuracyError as exc:
                         sym = 'F'
                         txt = 'Fail (error=%.2f%%)' % (100.0*exc.error)
-            full_results[configuration.name, ft.fullname()] = (sym, txt, exc, tb)
+            sys.stdout.write(sym)
+            full_results[configuration.name, ft.fullname()] = (sym, txt, exc, tb, runtime)
             for tag in ft.tags:
-                tag_results[tag][configuration.name].append((sym, txt, exc, tb))
+                tag_results[tag][configuration.name].append((sym, txt, exc, tb, runtime))
         if verbose:
             print ']'
         
@@ -373,8 +412,8 @@ class FeatureTestResults(object):
                 curcat = cat
             row = [ft.name]
             for configuration in self.configurations:
-                sym, txt, exc, tb = self.full_results[configuration.name,
-                                                      ft.fullname()]
+                sym, txt, exc, tb, runtime = self.full_results[configuration.name,
+                                                               ft.fullname()]
                 row.append(txt)
             table.append(row)
         return make_table(table)
@@ -389,7 +428,7 @@ class FeatureTestResults(object):
             row = [tag]
             for configuration in self.configurations:
                 tag_res = self.tag_results[tag][configuration.name]
-                syms = [sym for sym, txt, exc, tb in tag_res]
+                syms = [sym for sym, txt, exc, tb, runtime in tag_res]
                 n = len(syms)
                 okcount = sum(sym=='.' for sym in syms)
                 poorcount = sum(sym=='I' for sym in syms)
@@ -434,8 +473,8 @@ class FeatureTestResults(object):
         for configuration in self.configurations:
             curconfig = []
             for ft in self.feature_tests:
-                sym, txt, exc, tb = self.full_results[configuration.name,
-                                                      ft.fullname()]
+                sym, txt, exc, tb, runtime = self.full_results[configuration.name,
+                                                               ft.fullname()]
                 if tb is not None:
                     curconfig.append((ft.fullname(), tb))
             if len(curconfig):
@@ -459,6 +498,86 @@ class FeatureTestResults(object):
     def __str__(self):
         return self.tables
     __repr__ = __str__
+
+
+def run_speed_tests(configurations=None, speed_tests=None, run_twice=True, verbose=True,
+                    n_slice=slice(None)):
+    if configurations is None:
+        # some configurations to attempt to import
+        try:
+            import brian2genn.correctness_testing
+        except:
+            pass
+        configurations = Configuration.__subclasses__()
+    if speed_tests is None:
+        speed_tests = SpeedTest.__subclasses__()
+    speed_tests.sort(key=lambda ft: ft.fullname())
+    if verbose:
+        print 'Running speed tests'
+        print 'Configurations:', ', '.join(c.name for c in configurations)
+
+    full_results = {}
+    tag_results = defaultdict(lambda:defaultdict(list))
+    for ft in speed_tests:
+        if verbose:
+            print ft.fullname()+': ',
+        for n in ft.n_range[n_slice]:
+            if verbose:
+                print 'n=%d [' % n,
+            for configuration in configurations:
+                sym = '.'
+                for _ in xrange(1+int(run_twice)):
+                    tb, res, runtime = results(configuration, ft, n)
+                if isinstance(res, Exception):
+                    if isinstance(res, NotImplementedError):
+                        sym = 'N'
+                    else:
+                        sym = 'E'
+                    if configuration is DefaultConfiguration:
+                        raise res
+                    runtime = numpy.NAN
+                sys.stdout.write(sym)
+                full_results[configuration.name, ft.fullname(), n] = runtime
+            if verbose:
+                print ']',
+        if verbose:
+            print
+        
+    return SpeedTestResults(full_results, configurations, speed_tests)
+
+
+class SpeedTestResults(object):
+    def __init__(self, full_results, configurations, speed_tests):
+        self.full_results = full_results
+        self.configurations = configurations
+        self.speed_tests = speed_tests
+        
+    def get_ns(self, fullname):
+        L = [(cn, fn, n) for cn, fn, n in self.full_results.keys() if fn==fullname]
+        confignames, fullnames, n = zip(*L)
+        return numpy.array(sorted(list(set(n))))
+    
+    def plot_all_tests(self):
+        import pylab
+        for st in self.speed_tests:
+            fullname = st.fullname()
+            pylab.figure()
+            ns = self.get_ns(fullname)
+            for config in self.configurations:
+                configname = config.name
+                runtimes = []
+                for n in ns:
+                    runtimes.append(self.full_results[configname, fullname, n])
+                runtimes = numpy.array(runtimes)
+                pylab.plot(ns, runtimes, label=configname)
+            pylab.title(fullname)
+            pylab.legend(loc='best', fontsize='x-small')
+            pylab.xlabel(st.n_label)
+            if st.n_axis_log:
+                pylab.gca().set_xscale('log')
+            if st.time_axis_log:
+                pylab.gca().set_yscale('log')
+
 
 # Code below auto generates restructured text tables, copied from:
 # http://stackoverflow.com/questions/11347505/what-are-some-approaches-to-outputting-a-python-data-structure-to-restructuredte

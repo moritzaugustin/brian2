@@ -79,6 +79,8 @@ specifications:
   *EventClock* are obsolete
 * The functionality of *MultiStateMonitor* is provided by the standard
   `StateMonitor` class.
+* The functionality of *StateSpikeMonitor* is provided by the
+  `SpikeMonitor` class.
 * The library of models has been removed (*leaky_IF*, *Izhikevich*,
   *alpha_synapse*, *OrnsteinUhlenbeck*, etc.), specify the models directly
   in the equations instead
@@ -128,6 +130,16 @@ for neuron i while the latter returns the value for the *ith* recorded neuron.::
     mon = StateMonitor(G, 'v', record=[0, 2, 4])
     print mon[2].v  # v values for neuron number 2
     print mon.v[2]  # v values for neuron number 4
+
+Another change is that the `StateMonitor` now records in the ``'start'``
+scheduling slot by default. This leads to a more intuitive correspondence
+between the recorded times and the values: previously (where `StateMonitor`
+recorded in the ``'end'`` slot) the recorded value at 0ms was not the initial
+value of the variable but the value after integrating it for a single time
+step. The disadvantage of this new default is that the very last value at the
+end of the last time step of a simulation is not recorded anymore. However, this
+value can be manually added to the monitor by calling
+`StateMonitor.record_single_timestep`.
 
 Miscellaneous changes
 ~~~~~~~~~~~~~~~~~~~~~
