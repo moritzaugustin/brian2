@@ -11,33 +11,17 @@ if(first_run)
 	
 	{% for varname, var in _recorded_variables | dictsort %}
 		{% set _recorded =  get_array_name(var, access_data=False) %}
-		addresses_monitor_{{_recorded}}.clear();
+		addresses_monitor_{{_recorded}}.clear();			
 	{% endfor %}
 	for(int i = 0; i < _num__array_{{owner.name}}__indices; i++)
 	{
 		{% for varname, var in _recorded_variables | dictsort %}
 			{% set _recorded =  get_array_name(var, access_data=False) %}
-			{{_recorded}}[i].resize(1000);
-			h_{{_recorded}}[i].resize({{_recorded}}[i].size() + num_iterations - current_iteration);
+			{{_recorded}}[i].resize({{_recorded}}[i].size() + num_iterations - current_iteration);
 			addresses_monitor_{{_recorded}}.push_back(thrust::raw_pointer_cast(&{{_recorded}}[i][0]));
 		{% endfor %}
 	}
 	first_run = false;
-}
-if(current_iteration % 1000 == 0)
-{
-	//periodically copy vectors to CPU/RAM
-	for(int i = 0; i < _num__array_{{owner.name}}__indices; i++)
-	{
-		{% for varname, var in _recorded_variables | dictsort %}
-			{% set _recorded =  get_array_name(var, access_data=False) %}
-			for(int i = 0; i < 1000; i++)
-			{
-				h_{{_recorded}}[current_iteration - start_offset] = {{_recorded}}[i];
-			}
-		{% endfor %}
-	}
-	host_size_{{varname}} += 1000;
 }
 {% endblock %}
 
@@ -45,7 +29,7 @@ if(current_iteration % 1000 == 0)
 _run_{{codeobj_name}}_kernel<<<1, _num__array_{{owner.name}}__indices>>>(
 	_num__array_{{owner.name}}__indices,
 	dev_array_{{owner.name}}__indices,
-	(current_iteration - start_offset) % 1000,
+	current_iteration - start_offset,
 	{% for varname, var in _recorded_variables | dictsort %}
 		{% set _recorded =  get_array_name(var, access_data=False) %}
 		thrust::raw_pointer_cast(&addresses_monitor_{{_recorded}}[0]),
@@ -58,7 +42,7 @@ _run_{{codeobj_name}}_kernel<<<1, _num__array_{{owner.name}}__indices>>>(
 __global__ void _run_{{codeobj_name}}_kernel(
 	int _num_indices,
 	int32_t* indices,
-	int current_index,
+	int current_iteration,
 	{% for varname, var in _recorded_variables | dictsort %}
 		{{c_data_type(var.dtype)}}** monitor_{{varname}},
 	{% endfor %}
@@ -79,7 +63,7 @@ __global__ void _run_{{codeobj_name}}_kernel(
 
 	{% for varname, var in _recorded_variables | dictsort %}
 		{% set _recorded =  get_array_name(var, access_data=False) %}
-		monitor_{{varname}}[tid][current_index] = _to_record_{{varname}};
+		monitor_{{varname}}[tid][current_iteration] = _to_record_{{varname}};
 	{% endfor %}
 }
 {% endblock %}

@@ -8,6 +8,7 @@ import inspect
 import platform
 from collections import defaultdict, Counter
 import numbers
+from distutils import ccompiler
 import tempfile
 
 import numpy as np
@@ -429,7 +430,7 @@ class CPPStandaloneDevice(Device):
         self.code_objects[codeobj.name] = codeobj
         return codeobj
     
-    def check_OPENMP_compatible(self, nb_threads):
+    def check_openmp_compatible(self, nb_threads):
         if nb_threads > 0:
             logger.warn("OpenMP code is not yet well tested, and may be inaccurate.", "openmp", once=True)
             logger.debug("Using OpenMP with %d threads " % nb_threads)
@@ -600,7 +601,7 @@ class CPPStandaloneDevice(Device):
                                                         )
         writer.write('run.*', run_tmp)
         
-    def generate_makefile(self, writer, compiler, native, compiler_flags, nb_threads):
+    def generate_makefile(self, writer, compiler, native, compiler_flags, linker_flags, nb_threads):
         if compiler=='msvc':
             if native:
                 arch_flag = ''
@@ -863,6 +864,7 @@ class CPPStandaloneDevice(Device):
             raise ValueError('The number of OpenMP threads can not be negative !')
 
         logger.debug("Writing C++ standalone project to directory "+os.path.normpath(directory))
+
         self.check_openmp_compatible(nb_threads)
 
         arange_arrays = sorted([(var, start)

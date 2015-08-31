@@ -25,6 +25,7 @@
 
 	{{pointers_lines|autoindent}}
 
+	unsigned int syn_id = 0;
 	for(int _i = 0; _i < _num_all_pre; _i++)
 	{
 		for(int _j = 0; _j < _num_all_post; _j++)
@@ -49,6 +50,7 @@
 					{{N_incoming}}[_post_idx] += 1;
 					temp_synaptic_pre.push_back(_pre_idx);
 					temp_synaptic_post.push_back(_post_idx);
+					syn_id++;
 				}
 			}
 			{% endblock %}
@@ -57,7 +59,7 @@
 
 	dev{{_dynamic__synaptic_pre}} = temp_synaptic_pre;
 	dev{{_dynamic__synaptic_post}} = temp_synaptic_post;
-    
+	
 	// now we need to resize all registered variables
 	const int32_t newsize = dev{{_dynamic__synaptic_pre}}.size();
 	{% for variable in owner._registered_variables | sort(attribute='name') %}

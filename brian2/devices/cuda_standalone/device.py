@@ -14,7 +14,7 @@ from brian2.core.network import Network
 from brian2.core.preferences import prefs, BrianPreference
 from brian2.core.variables import *
 from brian2.devices.device import all_devices, get_device, set_device
-from brian2.synapses.synapses import Synapses
+from brian2.synapses.synapses import Synapses, SynapticPathway
 from brian2.utils.filetools import copy_directory, ensure_directory
 from brian2.codegen.generators.cuda_generator import c_data_type
 from brian2.utils.logger import get_logger
@@ -80,6 +80,13 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
     def code_object(self, owner, name, abstract_code, variables, template_name,
                     variable_indices, codeobj_class=None, template_kwds=None,
                     override_conditional_write=None):
+        if template_kwds == None:
+            template_kwds = {}
+        no_delay_mode = False
+        if isinstance(owner, SynapticPathway):
+            if owner.variables["delay"].constant == True or (owner.variables["delay"].scalar == True and owner.variables["delay"].size == 1):
+                no_delay_mode = True
+        template_kwds["no_delay_mode"] = no_delay_mode
         if template_name == "synapses":
             serializing_mode = "syn"    #no serializing
             for varname in variables.iterkeys():
@@ -93,11 +100,11 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                                                                template_name, variable_indices,
                                                                codeobj_class=codeobj_class,
                                                                template_kwds=template_kwds,
-                                                               override_conditional_write=override_conditional_write,
+                                                               override_conditional_write=override_conditional_write
                                                                 )
         return codeobj
     
-    def check_OPENMP_compatible(self, nb_threads):
+    def check_openmp_compatible(self, nb_threads):
         if nb_threads > 0:
             raise NotImplementedError("Using OpenMP in an CUDA standalone project is not supported")
         

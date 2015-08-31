@@ -56,8 +56,14 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMemcpy(h_synapses_synaptic_sources, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_sources.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
 	cudaMemcpy(h_synapses_synaptic_targets, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_targets.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
 	cudaMemcpy(h_synapses_delay, thrust::raw_pointer_cast(&dev_dynamic_array_{{pathobj}}_delay[0]), sizeof(double) * syn_N, cudaMemcpyDeviceToHost);
+	{% if no_delay_mode == False%}
 	thrust::host_vector<int32_t>* h_synapses_by_pre_id = new thrust::host_vector<int32_t>[num_parallel_blocks*source_N];
 	thrust::host_vector<unsigned int>* h_delay_by_pre_id = new thrust::host_vector<unsigned int>[num_parallel_blocks*source_N];
+	{% else %}
+	num_parallel_blocks = 1;
+	thrust::host_vector<int32_t>* h_synapses_by_pre_id = new thrust::host_vector<int32_t>[target_N];
+	thrust::host_vector<unsigned int>* h_delay_by_pre_id = new thrust::host_vector<unsigned int>[target_N];
+	{% endif %}
 
 	//fill vectors with pre_neuron, post_neuron, delay data
 	unsigned int max_delay = 0;
@@ -65,6 +71,7 @@ void _run_{{pathobj}}_initialise_queue()
 	{
 		int32_t pre_neuron_id = h_synapses_synaptic_sources[syn_id] - {{owner.source.start}};
 		int32_t post_neuron_id = h_synapses_synaptic_targets[syn_id]  - {{owner.target.start}};
+		{% if no_delay_mode == False%}
 		unsigned int delay = (int)(h_synapses_delay[syn_id] / dt + 0.5);
 		if(delay > max_delay)
 		{
@@ -74,10 +81,15 @@ void _run_{{pathobj}}_initialise_queue()
 		unsigned int right_offset = pre_neuron_id * num_parallel_blocks + right_queue;
 		h_synapses_by_pre_id[right_offset].push_back(syn_id);
 		h_delay_by_pre_id[right_offset].push_back(delay);
+		{% else %}
+		h_synapses_by_pre_id[post_neuron_id].push_back(syn_id);
+		h_delay_by_pre_id[post_neuron_id].push_back(0);
+		{% endif %}
 	}
 	max_delay++;	//we also need a current step
 
 	//create array for device pointers
+	{% if no_delay_mode == False%}
 	unsigned int* temp_size_by_pre_id = new unsigned int[num_parallel_blocks*source_N];
 	int32_t** temp_synapses_by_pre_id = new int32_t*[num_parallel_blocks*source_N];
 	unsigned int** temp_delay_by_pre_id = new unsigned int*[num_parallel_blocks*source_N];
@@ -114,6 +126,36 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMalloc((void**)&temp3, sizeof(unsigned int*)*num_parallel_blocks*source_N);
 	cudaMemcpy(temp3, temp_delay_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol({{pathobj}}_delay_by_pre, &temp3, sizeof(unsigned int**));
+	{% else %}
+	//NO DELAY MODE
+	unsigned int* temp_size_by_pre_id = new unsigned int[target_N];
+	int32_t** temp_synapses_by_pre_id = new int32_t*[target_N];
+	unsigned int** temp_delay_by_pre_id = new unsigned int*[target_N];
+	//fill temp arrays with device pointers
+	for(int i = 0; i < target_N; i++)
+	{
+		int num_elements = h_synapses_by_pre_id[i].size();
+		temp_size_by_pre_id[i] = num_elements;
+		if(num_elements > 0)
+		{
+			cudaMalloc((void**)&temp_synapses_by_pre_id[i], sizeof(int32_t)*num_elements);
+			cudaMemcpy(temp_synapses_by_pre_id[i],
+				thrust::raw_pointer_cast(&(h_synapses_by_pre_id[i][0])),
+				sizeof(int32_t)*num_elements,
+				cudaMemcpyHostToDevice);
+		}
+	}
+
+	//copy temp arrays to device
+	unsigned int* temp;
+	cudaMalloc((void**)&temp, sizeof(unsigned int)*target_N);
+	cudaMemcpy(temp, temp_size_by_pre_id, sizeof(unsigned int)*num_parallel_blocks*target_N, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol({{pathobj}}_size_by_pre, &temp, sizeof(unsigned int*));
+	int32_t* temp2;
+	cudaMalloc((void**)&temp2, sizeof(int32_t*)*num_parallel_blocks*target_N);
+	cudaMemcpy(temp2, temp_synapses_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*target_N, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol({{pathobj}}_synapses_id_by_pre, &temp2, sizeof(int32_t**));
+	{% endif %}
 
 	unsigned int num_threads = max_delay;
 	if(num_threads >= max_threads_per_block)

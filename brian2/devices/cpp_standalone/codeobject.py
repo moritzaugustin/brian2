@@ -9,7 +9,7 @@ from brian2.codegen.generators.cpp_generator import (CPPCodeGenerator,
 from brian2.devices.device import get_device
 from brian2.core.preferences import prefs
 
-__all__ = ['CPPStandaloneCodeObject']
+__all__ = ['CPPStandaloneCodeObject','openmp_pragma']
 
 
 def openmp_pragma(pragma_type):
@@ -79,6 +79,17 @@ def openmp_pragma(pragma_type):
         return '#pragma omp section'
     else:
         raise ValueError('Unknown OpenMP pragma "%s"' % pragma_type)
+    
+def constant_or_scalar(varname, variable):
+    '''
+    Convenience function to generate code to access the value of a variable.
+    Will return ``'varname'`` if the ``variable`` is a constant, and
+    ``array_name[0]`` if it is a scalar array.
+    '''
+    if variable.array:
+        return '%s[0]' % get_device().get_array_name(variable)
+    else:
+        return '%s' % varname
 
 class CPPStandaloneCodeObject(CodeObject):
     '''
