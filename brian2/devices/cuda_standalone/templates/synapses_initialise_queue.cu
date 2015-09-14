@@ -71,7 +71,6 @@ void _run_{{pathobj}}_initialise_queue()
 	{
 		int32_t pre_neuron_id = h_synapses_synaptic_sources[syn_id] - {{owner.source.start}};
 		int32_t post_neuron_id = h_synapses_synaptic_targets[syn_id]  - {{owner.target.start}};
-		{% if no_delay_mode == False%}
 		unsigned int delay = (int)(h_synapses_delay[syn_id] / dt + 0.5);
 		if(delay > max_delay)
 		{
@@ -79,6 +78,7 @@ void _run_{{pathobj}}_initialise_queue()
 		}
 		unsigned int right_queue = (post_neuron_id*num_parallel_blocks)/target_N;
 		unsigned int right_offset = pre_neuron_id * num_parallel_blocks + right_queue;
+		{% if no_delay_mode == False%}
 		h_synapses_by_pre_id[right_offset].push_back(syn_id);
 		h_delay_by_pre_id[right_offset].push_back(delay);
 		{% else %}
@@ -126,7 +126,9 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMalloc((void**)&temp3, sizeof(unsigned int*)*num_parallel_blocks*source_N);
 	cudaMemcpy(temp3, temp_delay_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol({{pathobj}}_delay_by_pre, &temp3, sizeof(unsigned int**));
+	
 	{% else %}
+	
 	//NO DELAY MODE
 	unsigned int* temp_size_by_pre_id = new unsigned int[target_N];
 	int32_t** temp_synapses_by_pre_id = new int32_t*[target_N];
@@ -139,9 +141,14 @@ void _run_{{pathobj}}_initialise_queue()
 		if(num_elements > 0)
 		{
 			cudaMalloc((void**)&temp_synapses_by_pre_id[i], sizeof(int32_t)*num_elements);
+			cudaMalloc((void**)&temp_delay_by_pre_id[i], sizeof(unsigned int)*num_elements);
 			cudaMemcpy(temp_synapses_by_pre_id[i],
 				thrust::raw_pointer_cast(&(h_synapses_by_pre_id[i][0])),
 				sizeof(int32_t)*num_elements,
+				cudaMemcpyHostToDevice);
+			cudaMemcpy(temp_delay_by_pre_id[i],
+				thrust::raw_pointer_cast(&(h_delay_by_pre_id[i][0])),
+				sizeof(unsigned int)*num_elements,
 				cudaMemcpyHostToDevice);
 		}
 	}
@@ -155,6 +162,10 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMalloc((void**)&temp2, sizeof(int32_t*)*num_parallel_blocks*target_N);
 	cudaMemcpy(temp2, temp_synapses_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*target_N, cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol({{pathobj}}_synapses_id_by_pre, &temp2, sizeof(int32_t**));
+	unsigned int* temp3;
+	cudaMalloc((void**)&temp3, sizeof(unsigned int*)*num_parallel_blocks*source_N);
+	cudaMemcpy(temp3, temp_delay_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol({{pathobj}}_delay_by_pre, &temp3, sizeof(unsigned int**));
 	{% endif %}
 
 	unsigned int num_threads = max_delay;

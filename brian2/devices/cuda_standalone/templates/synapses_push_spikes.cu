@@ -59,9 +59,13 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 	extern __shared__ char shared_mem[];
 	int bid = blockIdx.x;
 	int tid = threadIdx.x;
-
+	
 	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
+	block_size = ((sourceN + _num_blocks - 1) / _num_blocks);
 	unsigned int start_index = {{owner.name}}.spikes_start - ({{owner.name}}.spikes_start % block_size);	//find start of last block
+	
+	{% if no_delay_mode == False %}
+	char no_delay_mode = false;
 	for(int i = 0; i < {{owner.name}}.spikes_stop; i++)
 	{
 		int32_t spiking_neuron = {{_spikespace}}[i];
@@ -73,13 +77,36 @@ __global__ void _run_{{codeobj_name}}_push_kernel(
 				tid,
 				_num_threads,
 				spiking_neuron,
-				shared_mem);
+				shared_mem,
+				no_delay_mode);
 		}
 		if(spiking_neuron == -1)
 		{
 			return;
 		}
 	}
+	{% else %}
+	// NO DELAY MODE!
+	char no_delay_mode = true;
+	for(int i = start_index; i < {{owner.name}}.spikes_stop; i++)
+	{
+		int32_t spiking_neuron = {{_spikespace}}[i];
+		if(spiking_neuron != -1 && spiking_neuron >= {{owner.name}}.spikes_start && spiking_neuron < {{owner.name}}.spikes_stop)
+		{
+			{{owner.name}}.queue->push(
+				bid,
+				tid,
+				1,
+				spiking_neuron,
+				shared_mem,
+				no_delay_mode);
+		}
+		if(spiking_neuron == -1)
+		{
+			return;
+		}
+	}
+	{% endif %}
 }
 
 void _run_{{codeobj_name}}()
@@ -89,18 +116,27 @@ void _run_{{codeobj_name}}()
 	%CONSTANTS%
 	///// POINTERS ////////////
 
-	{% if no_delay_mode == False %}
 	_run_{{codeobj_name}}_advance_kernel<<<1, num_parallel_blocks>>>();
-
 	unsigned int num_threads = max_shared_mem_size / MEM_PER_THREAD;
 	num_threads = num_threads < max_threads_per_block? num_threads : max_threads_per_block; // get min of both
-	_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
-		_num_spikespace - 1,
-		num_parallel_blocks,
-		num_threads,
-		_num_threads(_num_spikespace - 1),
-		{% set _spikespace = get_array_name(owner.variables['_spikespace'], access_data=False) %}
-		dev{{_spikespace}});
+	
+	
+	{% if no_delay_mode == False %}
+		_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
+			_num_spikespace - 1,
+			num_parallel_blocks,
+			num_threads,
+			_num_threads(_num_spikespace - 1),
+			{% set _spikespace = get_array_name(owner.variables['_spikespace'], access_data=False) %}
+			dev{{_spikespace}});
+	{% else %}
+		_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, 1, num_threads*MEM_PER_THREAD>>>(
+			_num_spikespace - 1,
+			num_parallel_blocks,
+			1,
+			_num_threads(_num_spikespace - 1),
+			{% set _spikespace = get_array_name(owner.variables['_spikespace'], access_data=False) %}
+			dev{{_spikespace}});
 	{% endif %}
 }
 {% endmacro %}

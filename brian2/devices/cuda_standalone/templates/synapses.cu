@@ -16,6 +16,17 @@ __global__ void kernel_{{codeobj_name}}(
 	%DEVICE_PARAMETERS%
 	)
 {
+{% else %}
+__global__ void kernel_{{codeobj_name}}(
+	unsigned int* size_by_post,
+	int32_t** syn_by_post,
+	int32_t* spikespace,
+	unsigned int THREADS_PER_BLOCK,
+	unsigned int NUM_BLOCKS,
+	%DEVICE_PARAMETERS%
+	)
+{
+{% endif %}
 	{# USES_VARIABLES { N, _synaptic_pre } #}
 	using namespace brian;
 
@@ -36,37 +47,18 @@ __global__ void kernel_{{codeobj_name}}(
 	
 	{{scalar_code|autoindent}}
 	
+{% if no_delay_mode == False %}
 	for(int j = tid; j < size; j+=THREADS_PER_BLOCK)
 	{
 		int32_t _idx = synapses_queue[bid].at(j);
 
 		{{vector_code|autoindent}}
 	}
-}
 {% else %}
-__global__ void kernel_{{codeobj_name}}(
-	unsigned int* size_by_post,
-	int32_t** syn_by_post,
-	int32_t* spikespace,
-	unsigned int THREADS_PER_BLOCK,
-	unsigned int NUM_BLOCKS,
-	%DEVICE_PARAMETERS%
-	)
-{
-	{# USES_VARIABLES { N, _synaptic_pre } #}
-	using namespace brian;
-
-	unsigned int tid = threadIdx.x;
-	unsigned int bid = blockIdx.x + bid_offset;
-	unsigned int _idx = bid * THREADS_PER_BLOCK + tid;
-	unsigned int _vectorisation_idx = _idx;
-	%KERNEL_VARIABLES%
-	
-	{{scalar_code|autoindent}}
-	
 	for(int j = bid; j < N; j += NUM_BLOCKS)
 	{
-		int32_t spiking_neuron = spikespace[j];
+		int32_t syn_idx = synapses_queue[bid].at(j);
+		int32_t spiking_neuron = synapses_queue[bid].at(j);
 		unsigned int size = size_by_post[spiking_neuron];
 		for(int i = tid; i < size; i += THREADS_PER_BLOCK)
 		{
@@ -75,8 +67,9 @@ __global__ void kernel_{{codeobj_name}}(
 			{{vector_code|autoindent}}
 		}
 	}
-}
 {% endif %}
+}
+
 {% endblock %}
 
 {% block kernel_call %}
