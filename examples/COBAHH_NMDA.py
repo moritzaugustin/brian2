@@ -13,7 +13,7 @@ set_device('cpp_standalone')
 # Parameters
 N = 400 #8000
 use_nmda = True
-only_syndynamics = False # removes the pre spike dependency from the NMDA synapses and replaces them by a random process
+only_syndynamics = True # removes the pre spike dependency from the NMDA synapses and replaces them by a random process
 
 area = 20000*umetre**2
 Cm = (1*ufarad*cm**-2) * area
