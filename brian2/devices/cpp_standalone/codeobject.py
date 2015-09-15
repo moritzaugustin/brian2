@@ -1,7 +1,7 @@
 '''
 Module implementing the C++ "standalone" `CodeObject`
 '''
-from brian2.codegen.codeobject import CodeObject
+from brian2.codegen.codeobject import CodeObject, constant_or_scalar
 from brian2.codegen.targets import codegen_targets
 from brian2.codegen.templates import Templater
 from brian2.codegen.generators.cpp_generator import (CPPCodeGenerator,
@@ -91,6 +91,7 @@ def constant_or_scalar(varname, variable):
     else:
         return '%s' % varname
 
+
 class CPPStandaloneCodeObject(CodeObject):
     '''
     C++ standalone code object
@@ -101,7 +102,8 @@ class CPPStandaloneCodeObject(CodeObject):
     '''
     templater = Templater('brian2.devices.cpp_standalone',
                           env_globals={'c_data_type': c_data_type,
-                                       'openmp_pragma': openmp_pragma})
+                                       'openmp_pragma': openmp_pragma,
+                                       'constant_or_scalar': constant_or_scalar})
     generator_class = CPPCodeGenerator
 
     def __call__(self, **kwds):
