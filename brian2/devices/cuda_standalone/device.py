@@ -21,7 +21,7 @@ from brian2.utils.logger import get_logger
 from brian2.units import second
 
 from .codeobject import CUDAStandaloneCodeObject
-from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice, freeze
+from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice
 from brian2.monitors.statemonitor import StateMonitor
 
 
@@ -142,8 +142,28 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             elif func=='run_network':
                 net, netcode = args
                 main_lines.extend(netcode)
+            elif func=='set_by_constant':
+                arrayname, value, is_dynamic = args
+                size_str = arrayname+'.size()' if is_dynamic else '_num_'+arrayname
+                code = '''
+                {pragma}
+                for(int i=0; i<{size_str}; i++)
+                {{
+                    {arrayname}[i] = {value};
+                }}
+                cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({sizestr}, cudaMemcpyHostToDevice);
+                '''.format(arrayname=arrayname, size_str=size_str,
+                           value=CPPNodeRenderer().render_expr(repr(value)))
+                main_lines.extend(code.split('\n'))
+            elif func=='set_by_single_value':
+                arrayname, item, value = args
+                code = '''
+                {arrayname}[{item}] = {value};
+                cudaMemcpy(dev{arrayname}[{item}], {arrayname}[{item}], sizeof({arrayname}[0], cudaMemcpyHostToDevice);
+                '''.format(arrayname=arrayname, item=item, value=value)
+                main_lines.extend([code])
             elif func=='set_by_array':
-                arrayname, staticarrayname = args
+                arrayname, staticarrayname, is_dynamic = args
                 size = "_num_" + arrayname
                 if arrayname in self.dynamic_arrays.values():
                     arrayname = "dev" + arrayname
@@ -274,16 +294,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     line = "float* _array_{name}_rand".format(name=codeobj.name)
                     device_parameters_lines.append(line)
                     host_parameters_lines.append("dev_array_rand")
-                elif isinstance(v, AttributeVariable):
-                    # We assume all attributes are implemented as property-like methods
-                    line = 'const {c_type} {varname} = {objname}.{attrname}();'
-                    code_object_defs_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
-                                             attrname=v.attribute)) 
-                    host_parameters_lines.append(k)
-                    line = "{c_type} par_{varname}"
-                    device_parameters_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k))
-                    line = 'const {c_type} {varname} = par_{varname};'
-                    kernel_variables_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k))
                 elif isinstance(v, ArrayVariable):
                     try:
                         if isinstance(v, DynamicArrayVariable):
@@ -343,7 +353,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         for codeobj in self.code_objects.itervalues():
             ns = codeobj.variables
             # TODO: fix these freeze/CONSTANTS hacks somehow - they work but not elegant.
-            code = freeze(codeobj.code.cu_file, ns)
+            code = self.freeze(codeobj.code.cu_file, ns)
                         
             if len(host_parameters[codeobj.name]) == 0:
                 host_parameters[codeobj.name].append("0")
@@ -552,16 +562,15 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
     def network_run(self, net, duration, report=None, report_period=10*second,
                     namespace=None, profile=True, level=0, **kwds):
         CPPStandaloneDevice.network_run(self, net, duration, report, report_period, namespace, profile, level+1)
-        clock = 0
         for func, args in self.main_queue:
             if func=='run_network':
                 net, netcode = args
-                clock = net._clocks[0]
-                line = '{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net)
-                if line not in netcode:
-                    run_action = netcode.pop()
-                    netcode.append(line);
-                    netcode.append(run_action)
+                for clock in net._clocks:
+                    line = '{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net)
+                    if line not in netcode:
+                        run_action = netcode.pop()
+                        netcode.append(line);
+                        netcode.append(run_action)
 
 
                         

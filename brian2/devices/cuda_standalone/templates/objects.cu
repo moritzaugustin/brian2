@@ -187,7 +187,7 @@ void _init_arrays()
 	cudaMalloc((void**)&dev{{name}}, sizeof({{dtype_spec}})*{{N}});
 	if(!dev{{name}})
 	{
-		printf("ERROR while allocating {{varname}} on device with size %ld\n", sizeof({{dtype_spec}})*{{N}});
+		printf("ERROR while allocating {{name}} on device with size %ld\n", sizeof({{dtype_spec}})*{{N}});
 	}
 	cudaMemcpyToSymbol(d{{name}}, &dev{{name}}, sizeof({{dtype_spec}}*));
 	{% endfor %}

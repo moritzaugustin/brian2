@@ -8,8 +8,8 @@ import inspect
 import platform
 from collections import defaultdict, Counter
 import numbers
-from distutils import ccompiler
 import tempfile
+from distutils import ccompiler
 
 import numpy as np
 
@@ -191,10 +191,11 @@ class CPPStandaloneDevice(Device):
         else:
             raise TypeError(('Do not have a name for variable of type '
                              '%s') % type(var))
-            
+
     def get_array_filename(self, var, basedir='results'):
         '''
         Return a file name for a variable.
+
         Parameters
         ----------
         var : `ArrayVariable`
@@ -207,6 +208,7 @@ class CPPStandaloneDevice(Device):
             A filename of the form
             ``'results/'+varname+'_'+str(hash(varname))``, where varname is the
             name returned by `get_array_name`.
+
         Notes
         -----
         The reason that the filename is not simply ``'results/' + varname`` is
@@ -217,7 +219,7 @@ class CPPStandaloneDevice(Device):
         return os.path.join(basedir, varname + '_' + str(hash(varname)))
 
     def add_array(self, var):
-       # Note that a dynamic array variable is added to both the arrays and
+        # Note that a dynamic array variable is added to both the arrays and
         # the _dynamic_array dictionary
         if isinstance(var, DynamicArrayVariable):
             # The code below is slightly more complicated than just looking
@@ -254,7 +256,6 @@ class CPPStandaloneDevice(Device):
                 suffix += 1
                 array_name = orig_array_name + '_%d' % suffix
             self.arrays[var] = array_name
-
 
     def init_with_zeros(self, var):
         self.zero_arrays.append(var)
@@ -325,8 +326,8 @@ class CPPStandaloneDevice(Device):
             # We have to calculate indices. This will not work for synaptic
             # variables
             try:
-                indices = variableview.indexing(item,
-                                                index_var=variableview.index_var)
+                indices = np.asarray(variableview.indexing(item,
+                                                           index_var=variableview.index_var))
             except NotImplementedError:
                 raise NotImplementedError(('Cannot set variable "%s" this way in '
                                            'standalone, try using string '
@@ -336,6 +337,7 @@ class CPPStandaloneDevice(Device):
             # additional work to set up the pointer
             arrayname = self.get_array_name(variableview.variable,
                                             access_data=False)
+
             if (indices.shape != () and
                     (value.shape == () or
                          (value.size == 1 and indices.size > 1))):
@@ -399,9 +401,19 @@ class CPPStandaloneDevice(Device):
     def variableview_get_subexpression_with_index_array(self, variableview,
                                                         item, level=0,
                                                         run_namespace=None):
-        raise NotImplementedError(('Cannot evaluate subexpressions in '
-                                   'standalone scripts.'))
-
+        if not self.has_been_run:
+            raise NotImplementedError('Cannot retrieve the values of state '
+                                      'variables in standalone code before the '
+                                      'simulation has been run.')
+        # Temporarily switch to the runtime device to evaluate the subexpression
+        # (based on the values stored on disk)
+        backup_device = get_device()
+        set_device('runtime')
+        result = VariableView.get_subexpression_with_index_array(variableview, item,
+                                                                 level=level+2,
+                                                                 run_namespace=run_namespace)
+        set_device(backup_device)
+        return result
 
     def variableview_get_with_expression(self, variableview, code, level=0,
                                          run_namespace=None):
@@ -416,6 +428,11 @@ class CPPStandaloneDevice(Device):
     def code_object(self, owner, name, abstract_code, variables, template_name,
                     variable_indices, codeobj_class=None, template_kwds=None,
                     override_conditional_write=None):
+        if template_kwds is None:
+            template_kwds = dict()
+        else:
+            template_kwds = dict(template_kwds)
+        template_kwds['user_headers'] = prefs['codegen.cpp.headers']
         codeobj = super(CPPStandaloneDevice, self).code_object(owner, name, abstract_code, variables,
                                                                template_name, variable_indices,
                                                                codeobj_class=codeobj_class,
@@ -462,7 +479,7 @@ class CPPStandaloneDevice(Device):
                         code_objects=self.code_objects.values())
         writer.write('objects.*', arr_tmp)
         
-    def generate_main_source(self, writer, main_includes):
+    def generate_main_source(self, writer):
         main_lines = []
         procedures = [('', main_lines)]
         runfuncs = {}
@@ -516,6 +533,10 @@ class CPPStandaloneDevice(Device):
                 '''.format(arrayname=arrayname, staticarrayname_index=staticarrayname_index,
                            staticarrayname_value=staticarrayname_value, pragma=openmp_pragma('static'))
                 main_lines.extend(code.split('\n'))
+            elif func=='resize_array':
+                array_name, new_size = args
+                main_lines.append("{array_name}.resize({new_size});".format(array_name=array_name,
+                                                                            new_size=new_size))
             elif func=='insert_code':
                 main_lines.append(args)
             elif func=='start_run_func':
@@ -599,10 +620,9 @@ class CPPStandaloneDevice(Device):
         synapses_classes_tmp = CPPStandaloneCodeObject.templater.synapses_classes(None, None)
         writer.write('synapses_classes.*', synapses_classes_tmp)
         
-    def generate_run_source(self, writer, run_includes):
+    def generate_run_source(self, writer):
         run_tmp = CPPStandaloneCodeObject.templater.run(None, None, run_funcs=self.runfuncs,
                                                         code_objects=self.code_objects.values(),
-                                                        additional_headers=run_includes,
                                                         user_headers=prefs['codegen.cpp.headers'],
                                                         array_specs=self.arrays,
                                                         clocks=self.clocks
@@ -634,6 +654,7 @@ class CPPStandaloneDevice(Device):
                 None, None,
                 source_bases=source_bases,
                 compiler_flags=compiler_flags,
+                linker_flags=linker_flags,
                 openmp_flag=openmp_flag,
                 )
             writer.write('win_makefile', win_makefile_tmp)
@@ -647,6 +668,7 @@ class CPPStandaloneDevice(Device):
                 source_files=' '.join(writer.source_files),
                 header_files=' '.join(writer.header_files),
                 compiler_flags=compiler_flags,
+                linker_flags=linker_flags,
                 rm_cmd=rm_cmd)
             writer.write('makefile', makefile_tmp)
     
@@ -695,56 +717,33 @@ class CPPStandaloneDevice(Device):
         for net in networks:
             net_synapses = [s for s in net.objects if isinstance(s, Synapses)]
             synapses.extend(net_synapses)
-            # We don't currently support pathways with scalar delays
-            for synapse_obj in net_synapses:
-                for pathway in synapse_obj._pathways:
-                    if not isinstance(pathway.variables['delay'],
-                                      DynamicArrayVariable):
-                        error_msg = ('The "%s" pathway  uses a scalar '
-                                     'delay (instead of a delay per synapse). '
-                                     'This is not yet supported. Do not '
-                                     'specify a delay in the Synapses(...) '
-                                     'call but instead set its delay attribute '
-                                     'afterwards.') % (pathway.name)
-                        raise NotImplementedError(error_msg)
-
         self.networks = networks
         self.net_synapses = synapses
     
     def compile_source(self, directory, compiler, debug, clean, native):
         with in_directory(directory):
-            if compiler=='msvc':
+            if compiler == 'msvc':
+                from distutils import msvc9compiler
                 # TODO: handle debug
                 if debug:
                     logger.warn('Debug flag currently ignored for MSVC')
-                vcvars_search_paths = [
-                    # futureproofing!
-                    r'c:\Program Files\Microsoft Visual Studio 15.0\VC\vcvarsall.bat',
-                    r'c:\Program Files (x86)\Microsoft Visual Studio 15.0\VC\vcvarsall.bat',
-                    r'c:\Program Files\Microsoft Visual Studio 14.0\VC\vcvarsall.bat',
-                    r'c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat',
-                    r'c:\Program Files\Microsoft Visual Studio 13.0\VC\vcvarsall.bat',
-                    r'c:\Program Files (x86)\Microsoft Visual Studio 13.0\VC\vcvarsall.bat',
-                    r'c:\Program Files\Microsoft Visual Studio 12.0\VC\vcvarsall.bat',
-                    r'c:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat',
-                    r'c:\Program Files\Microsoft Visual Studio 11.0\VC\vcvarsall.bat',
-                    r'c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat',
-                    r'c:\Program Files\Microsoft Visual Studio 10.0\VC\vcvarsall.bat',
-                    r'c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\vcvarsall.bat',
-                    ]
                 vcvars_loc = prefs['codegen.cpp.msvc_vars_location']
-                if vcvars_loc=='':
-                    for fname in vcvars_search_paths:
-                        if os.path.exists(fname):
+                if vcvars_loc == '':
+                    for version in xrange(16, 8, -1):
+                        fname = msvc9compiler.find_vcvarsall(version)
+                        if fname:
                             vcvars_loc = fname
                             break
-                if vcvars_loc=='':
-                    raise IOError("Cannot find vcvarsall.bat on standard search path.")
+                if vcvars_loc == '':
+                    raise IOError("Cannot find vcvarsall.bat on standard "
+                                  "search path. Set the "
+                                  "codegen.cpp.msvc_vars_location preference "
+                                  "explicitly.")
                 # TODO: copy vcvars and make replacements for 64 bit automatically
                 arch_name = prefs['codegen.cpp.msvc_architecture']
-                if arch_name=='':
+                if arch_name == '':
                     mach = platform.machine()
-                    if mach=='AMD64':
+                    if mach == 'AMD64':
                         arch_name = 'x86_amd64'
                     else:
                         arch_name = 'x86'
@@ -790,8 +789,7 @@ class CPPStandaloneDevice(Device):
     def build(self, directory='output',
               compile=True, run=True, debug=False, clean=True,
               with_output=True, native=True,
-              additional_source_files=None, additional_header_files=None,
-              main_includes=None, run_includes=None,
+              additional_source_files=None,
               run_args=None, **kwds):
         '''
         Build the project
@@ -816,12 +814,6 @@ class CPPStandaloneDevice(Device):
             Whether or not to clean the project before building
         additional_source_files : list of str
             A list of additional ``.cpp`` files to include in the build.
-        additional_header_files : list of str
-            A list of additional ``.h`` files to include in the build.
-        main_includes : list of str
-            A list of additional header files to include in ``main.cpp``.
-        run_includes : list of str
-            A list of additional header files to include in ``run.cpp``.
         '''
         renames = {'project_dir': 'directory',
                    'compile_project': 'compile',
@@ -838,12 +830,6 @@ class CPPStandaloneDevice(Device):
 
         if additional_source_files is None:
             additional_source_files = []
-        if additional_header_files is None:
-            additional_header_files = []
-        if main_includes is None:
-            main_includes = []
-        if run_includes is None:
-            run_includes = []
         if run_args is None:
             run_args = []
         self.project_dir = directory
@@ -901,14 +887,15 @@ class CPPStandaloneDevice(Device):
                              'more than once: %s' % formatted_names)
 
         self.generate_objects_source(writer, arange_arrays, self.net_synapses, self.static_array_specs, self.networks)
-        self.generate_main_source(writer, main_includes)
+        self.generate_main_source(writer)
         self.generate_codeobj_source(writer)
         self.generate_network_source(writer, compiler)
         self.generate_synapses_classes_source(writer)
-        self.generate_run_source(writer, run_includes)
+        self.generate_run_source(writer)
         self.copy_source_files(writer, directory)
 
         writer.source_files.extend(additional_source_files)
+
         self.generate_makefile(writer, compiler, native=native,
                                compiler_flags=' '.join(compiler_flags),
                                linker_flags=' '.join(linker_flags),
@@ -1075,4 +1062,5 @@ class CPPStandaloneSimpleDevice(CPPStandaloneDevice):
 
 cpp_standalone_simple_device = CPPStandaloneSimpleDevice()
 
-all_devices['cpp_standalone_simple'] = cpp_standalone_simple_device 
+all_devices['cpp_standalone_simple'] = cpp_standalone_simple_device
+
