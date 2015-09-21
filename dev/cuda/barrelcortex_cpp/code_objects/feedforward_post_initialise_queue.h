@@ -1,6 +1,0 @@
-#ifndef _INCLUDED_feedforward_post_initialise_queue
-#define _INCLUDED_feedforward_post_initialise_queue
-
-void _run_feedforward_post_initialise_queue();
-
-#endif

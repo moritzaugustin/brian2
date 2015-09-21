@@ -1,9 +1,0 @@
-#ifndef _INCLUDED_poissongroup_group_variable_set_conditional_codeobject
-#define _INCLUDED_poissongroup_group_variable_set_conditional_codeobject
-
-#include "objects.h"
-
-void _run_poissongroup_group_variable_set_conditional_codeobject();
-
-
-#endif

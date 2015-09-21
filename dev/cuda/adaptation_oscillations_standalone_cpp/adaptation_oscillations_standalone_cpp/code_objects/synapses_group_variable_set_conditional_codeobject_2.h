@@ -1,9 +1,0 @@
-#ifndef _INCLUDED_synapses_group_variable_set_conditional_codeobject_2
-#define _INCLUDED_synapses_group_variable_set_conditional_codeobject_2
-
-#include "objects.h"
-
-void _run_synapses_group_variable_set_conditional_codeobject_2();
-
-
-#endif

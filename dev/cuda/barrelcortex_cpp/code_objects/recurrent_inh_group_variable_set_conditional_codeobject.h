@@ -1,9 +1,0 @@
-#ifndef _INCLUDED_recurrent_inh_group_variable_set_conditional_codeobject
-#define _INCLUDED_recurrent_inh_group_variable_set_conditional_codeobject
-
-#include "objects.h"
-
-void _run_recurrent_inh_group_variable_set_conditional_codeobject();
-
-
-#endif
