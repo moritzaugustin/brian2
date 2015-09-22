@@ -21,6 +21,7 @@ namespace {
 }
 
 __global__ void _kernel_{{codeobj_name}}(
+	unsigned int _N,
 	unsigned int THREADS_PER_BLOCK,
 	%DEVICE_PARAMETERS%
 	)
@@ -35,7 +36,7 @@ __global__ void _kernel_{{codeobj_name}}(
 
 	%KERNEL_VARIABLES%
 
-	if(_idx < 0 || _idx >= N)
+	if(_idx < 0 || _idx >= _N)
 	{
 		return;
 	}
@@ -59,10 +60,12 @@ void _run_{{codeobj_name}}()
     {# ALLOWS_SCALAR_WRITE #}
 	using namespace brian;
 	///// CONSTANTS ///////////
+	const int _N = {{constant_or_scalar('N', variables['N'])}};
 	%CONSTANTS%
 
-	_kernel_{{codeobj_name}}<<<num_blocks(N),num_threads(N)>>>(
-		num_threads(N),
+	_kernel_{{codeobj_name}}<<<num_blocks(_N),num_threads(_N)>>>(
+		_N,
+		num_threads(_N),
 		%HOST_PARAMETERS%
 	);
 }

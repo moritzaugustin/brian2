@@ -56,8 +56,9 @@ else
 	cudaMemcpyFromSymbol(&num_spikes, dev_num_spikes, sizeof(num_spikes), 0, cudaMemcpyDeviceToHost);
 }
 
-dev{{_dynamic_i}}.resize(dev{{_dynamic_i}}.size() + num_spikes);	//push dummy value
-dev{{_dynamic_t}}.resize(dev{{_dynamic_t}}.size() + num_spikes, _clock_t);
+{% for varname, var in record_variables.items() %}
+	dev{{get_array_name(var, access_data=False)}}.resize(dev{{get_array_name(var, access_data=False)}}.size() + num_spikes);
+{% endfor %}
 {% endblock %}
 
 {% block kernel_call %}
@@ -69,7 +70,8 @@ _run_{{codeobj_name}}_kernel<<<1, 1>>>(
 		start_spikes,
 		thrust::raw_pointer_cast(&(dev{{_dynamic_i}}[0])),
 		dev_array_{{owner.name}}_count,
-		dev{{spikespace_name}});
+		dev{{spikespace_name}},
+		%HOST_PARAMETERS%);
 {% endblock %}
 
 {% block kernel %}
@@ -80,10 +82,14 @@ __global__ void _run_{{codeobj_name}}_kernel(
 	int32_t index_last_element,
 	int32_t* spikemonitor_i,
 	int32_t* count,
-	int32_t* spikespace
+	int32_t* spikespace,
+	%DEVICE_PARAMETERS%
 	)
 {
 	using namespace brian;
+	%KERNEL_VARIABLES%
+
+	{{scalar_code|autoindent}}
 
 	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
 	for(int i = 0; i < neurongroup_N;)
@@ -93,8 +99,14 @@ __global__ void _run_{{codeobj_name}}_kernel(
 		{
 			if(spiking_neuron >= _source_start && spiking_neuron < _source_stop)
 			{
-				spikemonitor_i[index_last_element++] = spiking_neuron;
-				count[spiking_neuron-_source_start]++;
+				int _idx = spiking_neuron;
+				int _vectorisation_idx = _idx;
+				{{vector_code|autoindent}}
+				{% for varname, var in record_variables.items() %}
+					_ptr_array_{{owner.name}}_{{varname}}[index_last_element] = _to_record_{{varname}};
+				{% endfor %}
+				count[_idx -_source_start]++;
+				index_last_element++;
 			}
 			i++;
 		}

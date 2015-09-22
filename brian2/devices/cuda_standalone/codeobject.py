@@ -7,6 +7,7 @@ from brian2.codegen.templates import Templater
 from brian2.codegen.generators.cuda_generator import (CUDACodeGenerator,
                                                      c_data_type)
 from brian2.devices.cpp_standalone import CPPStandaloneCodeObject
+from brian2.devices.cpp_standalone.codeobject import constant_or_scalar
 from brian2.devices.device import get_device
 from brian2.core.preferences import prefs
 
@@ -22,7 +23,8 @@ class CUDAStandaloneCodeObject(CPPStandaloneCodeObject):
     ``support_code`` for any support code (e.g. function definitions).
     '''
     templater = Templater('brian2.devices.cuda_standalone',
-                          env_globals={'c_data_type': c_data_type})
+                          env_globals={'c_data_type': c_data_type,
+				       'constant_or_scalar': constant_or_scalar})
     generator_class = CUDACodeGenerator
     serializing_form = "syn"
     runs_every_tick = True  #default True, set False in generate_main_source

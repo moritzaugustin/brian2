@@ -146,7 +146,7 @@ void _init_arrays()
 			thrust::raw_pointer_cast(&dev{{dynamic_array_specs[path.variables['delay']]}}[0]),
 			thrust::raw_pointer_cast(&dev{{dynamic_array_specs[path.synapse_sources]}}[0]),
 			thrust::raw_pointer_cast(&dev{{dynamic_array_specs[path.synapse_targets]}}[0]),
-			{{path.source.dt_}},
+			0,	//was dt, maybe irrelevant?
 			{{path.source.start}},
 			{{path.source.stop}}
 			);

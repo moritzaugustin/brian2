@@ -13,6 +13,7 @@ from brian2.core.clocks import defaultclock
 from brian2.core.network import Network
 from brian2.core.preferences import prefs, BrianPreference
 from brian2.core.variables import *
+from brian2.parsing.rendering import CPPNodeRenderer
 from brian2.devices.device import all_devices, get_device, set_device
 from brian2.synapses.synapses import Synapses, SynapticPathway
 from brian2.utils.filetools import copy_directory, ensure_directory
@@ -146,12 +147,11 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 arrayname, value, is_dynamic = args
                 size_str = arrayname+'.size()' if is_dynamic else '_num_'+arrayname
                 code = '''
-                {pragma}
                 for(int i=0; i<{size_str}; i++)
                 {{
                     {arrayname}[i] = {value};
                 }}
-                cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({sizestr}, cudaMemcpyHostToDevice);
+                cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({size_str}), cudaMemcpyHostToDevice);
                 '''.format(arrayname=arrayname, size_str=size_str,
                            value=CPPNodeRenderer().render_expr(repr(value)))
                 main_lines.extend(code.split('\n'))
@@ -159,7 +159,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 arrayname, item, value = args
                 code = '''
                 {arrayname}[{item}] = {value};
-                cudaMemcpy(dev{arrayname}[{item}], {arrayname}[{item}], sizeof({arrayname}[0], cudaMemcpyHostToDevice);
+                cudaMemcpy(&dev{arrayname}[{item}], &{arrayname}[{item}], sizeof({arrayname}[0]), cudaMemcpyHostToDevice);
                 '''.format(arrayname=arrayname, item=item, value=value)
                 main_lines.extend([code])
             elif func=='set_by_array':
@@ -189,6 +189,9 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 '''.format(arrayname=arrayname, staticarrayname_index=staticarrayname_index,
                            staticarrayname_value=staticarrayname_value)
                 main_lines.extend(code.split('\n'))
+            elif func=='resize_array':
+		array_name, new_size = args
+		main_lines.append("{array_name}.resize({new_size});".format(array_name=array_name, new_size=new_size))
             elif func=='insert_code':
                 main_lines.append(args)
             elif func=='start_run_func':
@@ -232,7 +235,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                         if code_object.owner.N != 0:
                             code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
                         else:
-                            code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * N)", 1)
+                            code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "_rand(_vectorisation_idx + " + str(i) + " * _N)", 1)
                 else:
                     code_object.code.cu_file = code_object.code.cu_file.replace("_rand(_vectorisation_idx)", "(rand()/(float)RAND_MAX)")
             if num_occurences_randn > 0 and code_object.template_name != "synapses_create":
@@ -242,7 +245,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     if code_object.owner.N != 0:
                         code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " * " + str(code_object.owner.N) + ")", 1)
                     else:
-                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " *N)", 1)
+                        code_object.code.cu_file = code_object.code.cu_file.replace("_randn(_vectorisation_idx)", "_randn(_vectorisation_idx + " + str(i) + " * _N)", 1)
 
         code_object_defs = defaultdict(list)
         host_parameters = defaultdict(list)
@@ -259,7 +262,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
             if hasattr(codeobj, 'owner') and hasattr(codeobj.owner, '_N') and codeobj.owner._N != 0:
                 number_elements = str(codeobj.owner._N)
             else:
-                number_elements = "N"
+                number_elements = "_N"
             for k, v in codeobj.variables.iteritems():
                 #code objects which only run once
                 if k == "_python_randn" and codeobj.runs_every_tick == False and codeobj.template_name != "synapses_create":

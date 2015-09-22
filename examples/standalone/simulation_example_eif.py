@@ -88,7 +88,7 @@ netlist = [G, SpMon, StMon, PRMon, Gstat, Sstat, StMonStat]
 # implement lower bound to ensure v is lower bounded by V_lb
 if lower_bound:
     # version 1: reflect values of v below V_lb
-    OperationLB = G.custom_operation('V = V + 2*(clip(V, V_lb, inf) - V)', when='resets')
+    OperationLB = G.run_regularly('V = V + 2*(clip(V, V_lb, inf) - V)', when='resets')
     
     # version 2: set of v below V_lb to V_lb independent of their distance
 #     OperationLB = G.custom_operation('v = clip(v, V_lb, inf)', when='resets')

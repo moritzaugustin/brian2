@@ -19,29 +19,29 @@ if(first_run)
 {% block kernel_call %}
 _run_{{codeobj_name}}_kernel<<<1,1>>>(
 	{{owner.source.N}},
-	_clock_t,
-	_clock_dt,
 	current_iteration - start_offset,
 	dev_array_{{owner.source.name}}__spikespace,
 	thrust::raw_pointer_cast(&(dev{{_dynamic_rate}}[0])),
-	thrust::raw_pointer_cast(&(dev{{_dynamic_t}}[0])));
+	thrust::raw_pointer_cast(&(dev{{_dynamic_t}}[0])),
+	%HOST_PARAMETERS%);
 {% endblock %}
 
 {% block kernel %}
 __global__ void _run_{{codeobj_name}}_kernel(
 	unsigned int N,
-	double _clock_t,
-	double _clock_dt,
 	int32_t current_iteration,
 	int32_t* spikespace,
 	double* ratemonitor_rate,
-	double* ratemonitor_t
+	double* ratemonitor_t,
+	%DEVICE_PARAMETERS%
 	)
 {
 	using namespace brian;
 
+	%KERNEL_VARIABLES%
+
 	unsigned int num_spikes = spikespace[N];
-	ratemonitor_rate[current_iteration] = 1.0*num_spikes/_clock_dt/N;
-	ratemonitor_t[current_iteration] = _clock_t;
+	ratemonitor_rate[current_iteration] = 1.0*num_spikes/{{_clock_dt}}/N;
+	ratemonitor_t[current_iteration] = {{_clock_t}};
 }
 {% endblock %}
