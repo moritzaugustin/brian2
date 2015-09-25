@@ -36,6 +36,7 @@ const int brian::_num_{{varname}} = {{var.size}};
 
 //////////////// dynamic arrays 1d /////////
 {% for var, varname in dynamic_array_specs | dictsort(by='value') %}
+std::vector<{{c_data_type(var.dtype)}}> brian::{{varname}};
 thrust::device_vector<{{c_data_type(var.dtype)}}> brian::dev{{varname}};
 {% endfor %}
 
@@ -375,6 +376,7 @@ extern Network {{net.name}};
 
 //////////////// dynamic arrays ///////////
 {% for var, varname in dynamic_array_specs | dictsort(by='value') %}
+extern std::vector<{{c_data_type(var.dtype)}}> {{varname}};
 extern thrust::device_vector<{{c_data_type(var.dtype)}}> dev{{varname}};
 {% endfor %}
 

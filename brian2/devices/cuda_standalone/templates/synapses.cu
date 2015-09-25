@@ -18,9 +18,7 @@ __global__ void kernel_{{codeobj_name}}(
 {
 {% else %}
 __global__ void kernel_{{codeobj_name}}(
-	unsigned int* size_by_post,
-	int32_t** syn_by_post,
-	int32_t* spikespace,
+	unsigned int bid_offset,
 	unsigned int THREADS_PER_BLOCK,
 	unsigned int NUM_BLOCKS,
 	%DEVICE_PARAMETERS%
@@ -43,11 +41,11 @@ __global__ void kernel_{{codeobj_name}}(
 	{{pathway.name}}.queue->peek(
 		&synapses_queue);
 
-	int size = synapses_queue[bid].size();
-	
+			
 	{{scalar_code|autoindent}}
 	
 {% if no_delay_mode == False %}
+	int size = synapses_queue[bid].size();
 	for(int j = tid; j < size; j+=THREADS_PER_BLOCK)
 	{
 		int32_t _idx = synapses_queue[bid].at(j);
@@ -55,16 +53,19 @@ __global__ void kernel_{{codeobj_name}}(
 		{{vector_code|autoindent}}
 	}
 {% else %}
-	for(int j = bid; j < N; j += NUM_BLOCKS)
+	for(int j = 0; j < NUM_BLOCKS; j++)
 	{
-		int32_t syn_idx = synapses_queue[bid].at(j);
-		int32_t spiking_neuron = synapses_queue[bid].at(j);
-		unsigned int size = size_by_post[spiking_neuron];
-		for(int i = tid; i < size; i += THREADS_PER_BLOCK)
+		int size = synapses_queue[j].size();
+		for(int k = 0; k < size; k++)
 		{
-			int32_t _idx = syn_by_post[j][i];
-			_vectorisation_idx = _idx;
-			{{vector_code|autoindent}}
+			int32_t spiking_neuron = synapses_queue[j].at(k);
+			unsigned int num_pre_neurons = {{pathway.name}}_size_by_pre[spiking_neuron];
+			for(int l = tid; l < num_pre_neurons; l += THREADS_PER_BLOCK)
+			{
+				int32_t _idx = {{pathway.name}}_synapses_id_by_pre[spiking_neuron][l];
+				_vectorisation_idx = _idx;
+				{{vector_code|autoindent}}
+			}
 		}
 	}
 {% endif %}
@@ -103,9 +104,7 @@ __global__ void kernel_{{codeobj_name}}(
 	{% set _spikespace = get_array_name(owner.variables['_spikespace'], access_data=False) %}
 	{% if serializing_mode == "syn" %}
 	kernel_{{codeobj_name}}<<<num_parallel_blocks, max_threads_per_block>>>(
-		{{owner.name}}_size_by_pre,
-		{{owner.name}}_synapses_id_by_pre,
-		dev{{_spikespace}},
+		0,
 		max_threads_per_block,
 		num_parallel_blocks,
 		%HOST_PARAMETERS%
@@ -113,9 +112,7 @@ __global__ void kernel_{{codeobj_name}}(
 	{% endif %}
 	{% if serializing_mode == "post" %}
 	kernel_{{codeobj_name}}<<<1, max_threads_per_block>>>(
-		{{owner.name}}_size_by_pre,
-		{{owner.name}}_synapses_id_by_pre,
-		dev{{_spikespace}},
+		0,
 		1,
 		num_parallel_blocks,
 		%HOST_PARAMETERS%
@@ -123,9 +120,7 @@ __global__ void kernel_{{codeobj_name}}(
 	{% endif %}
 	{% if serializing_mode == "pre" %}
 	kernel_{{codeobj_name}}<<<1,1>>>(
-		{{owner.name}}_size_by_pre,
-		{{owner.name}}_synapses_id_by_pre,
-		dev{{_spikespace}},
+		0,
 		1,
 		1,
 		%HOST_PARAMETERS%

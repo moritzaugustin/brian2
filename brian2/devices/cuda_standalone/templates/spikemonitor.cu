@@ -1,100 +1,64 @@
 {% extends 'common_group.cu' %}
-{# USES_VARIABLES { t, i, _clock_t, _spikespace, count,
+{# USES_VARIABLES { N, t, i, _clock_t, _spikespace, count,
                     _source_start, _source_stop} #}
                     
 {% block extra_device_helper %}
-__device__ int32_t dev_num_spikes;	//only needed for subgroups
-
-__global__ void get_num_spikes_subgroup(
-	unsigned int neurongroup_N,
-	unsigned int block_size,
-	int32_t* spikespace)
-{
-	unsigned int tid = threadIdx.x;
-	unsigned int bid = blockIdx.x;
-	unsigned int idx = bid * block_size + tid;
-	
-	if(tid == 0 && bid == 0)
-	{
-		dev_num_spikes = 0;
-	}
-	
-	__syncthreads();
-	if(idx > neurongroup_N)
-	{
-		return;
-	}
-
-	int32_t spiking_neuron = spikespace[idx];
-	if(spiking_neuron != -1)
-	{
-		if(spiking_neuron >= _source_start && spiking_neuron < _source_stop)
-		{
-			atomicAdd(&dev_num_spikes, 1);
-		}
-	}
-}
-{% endblock %}
-
-{% block extra_maincode %}
-unsigned int start_spikes = dev{{_dynamic_i}}.size();
-int32_t num_spikes;
-//check if subgroup of a neurongroup
-if(_num_spikespace-1 == (_source_stop - _source_start))
-{
-	//if not a subgroup, just copy last value of spikespace (= num_spikes)
-	{% set spikespace_name =  get_array_name(variables['_spikespace'], access_data=False) %}
-	cudaMemcpy(&num_spikes, &dev{{spikespace_name}}[_num_spikespace-1], sizeof(int32_t), cudaMemcpyDeviceToHost);
-}
-else
-{
-	//if subgroup, launch kernel to find number of spikes
-	get_num_spikes_subgroup<<<num_blocks(_num_spikespace-1), num_threads(_num_spikespace-1)>>>(
-		_num_spikespace-1,
-		num_threads(_num_spikespace-1),
-		dev{{spikespace_name}});
-	cudaMemcpyFromSymbol(&num_spikes, dev_num_spikes, sizeof(num_spikes), 0, cudaMemcpyDeviceToHost);
-}
-
-{% for varname, var in record_variables.items() %}
-	dev{{get_array_name(var, access_data=False)}}.resize(dev{{get_array_name(var, access_data=False)}}.size() + num_spikes);
-{% endfor %}
+	{% for varname, var in record_variables.items() %}
+		__device__ cudaVector<{{c_data_type(var.dtype)}}>** monitor_{{varname}};
+	{% endfor %}
 {% endblock %}
 
 {% block kernel_call %}
-{% set spikespace_name =  get_array_name(variables['_spikespace'], access_data=False) %}
-_run_{{codeobj_name}}_kernel<<<1, 1>>>(
+static bool first_run = true;
+if(first_run)
+{
+	_run_{{codeobj_name}}_init<<<1,1>>>(
+		num_blocks(_num_spikespace-1));
+	first_run = false;
+}
+_run_{{codeobj_name}}_kernel<<<num_blocks(_num_spikespace-1), 1>>>(
 		_num_spikespace-1,
 		num_blocks(_num_spikespace-1),
 		num_threads(_num_spikespace-1),
-		start_spikes,
-		thrust::raw_pointer_cast(&(dev{{_dynamic_i}}[0])),
 		dev_array_{{owner.name}}_count,
-		dev{{spikespace_name}},
 		%HOST_PARAMETERS%);
 {% endblock %}
 
 {% block kernel %}
+__global__ void _run_{{codeobj_name}}_init(
+	unsigned int num_blocks)
+{
+	{% for varname, var in record_variables.items() %}
+		monitor_{{varname}} = new cudaVector<{{c_data_type(var.dtype)}}>*[num_blocks];
+		for(int i = 0; i < num_blocks; i++)
+		{
+			monitor_{{varname}}[i] = new cudaVector<{{c_data_type(var.dtype)}}>();
+		}
+	{% endfor %}
+}
+
 __global__ void _run_{{codeobj_name}}_kernel(
 	unsigned int neurongroup_N,
 	unsigned int num_blocks,
 	unsigned int block_size,
-	int32_t index_last_element,
-	int32_t* spikemonitor_i,
 	int32_t* count,
-	int32_t* spikespace,
 	%DEVICE_PARAMETERS%
 	)
 {
 	using namespace brian;
+	unsigned int tid = threadIdx.x;
+	unsigned int bid = blockIdx.x;
+	__syncthreads();
+	
 	%KERNEL_VARIABLES%
 
 	{{scalar_code|autoindent}}
 
 	//REMINDER: spikespace format: several blocks, each filled from the left with all spikes in this block, -1 ends list
-	for(int i = 0; i < neurongroup_N;)
+	for(int i = bid*block_size; i < neurongroup_N && i < (bid + 1)*block_size; i++)
 	{
-		int32_t spiking_neuron = spikespace[i];
+		{% set _eventspace = get_array_name(eventspace_variable) %}
+		int32_t spiking_neuron = {{_eventspace}}[i];
 		if(spiking_neuron != -1)
 		{
 			if(spiking_neuron >= _source_start && spiking_neuron < _source_stop)
@@ -103,34 +67,117 @@ __global__ void _run_{{codeobj_name}}_kernel(
 				int _vectorisation_idx = _idx;
 				{{vector_code|autoindent}}
 				{% for varname, var in record_variables.items() %}
-					_ptr_array_{{owner.name}}_{{varname}}[index_last_element] = _to_record_{{varname}};
+					monitor_{{varname}}[bid]->push(_to_record_{{varname}});
 				{% endfor %}
 				count[_idx -_source_start]++;
-				index_last_element++;
 			}
-			i++;
-		}
-		else
-		{
-			//round to nearest multiple of block_size (= start of next block)
-			i += block_size - i % block_size;
 		}
 	}
 }
 {% endblock %}
 
 {% block extra_functions_cu %}
+__global__ void _run_debugmsg_{{codeobj_name}}_kernel(
+	unsigned int num_blocks
+)
+{
+	using namespace brian;
+	unsigned int total_number = 0;
+	{% for varname, var in record_variables.items() %}
+	total_number = 0;
+	for(int i = 0; i < num_blocks; i++)
+	{
+		total_number += monitor_{{varname}}[i]->size();
+	}
+	{% endfor %}
+	printf("Number of spikes: %d\n", total_number);
+}
+
+__global__ void _count_{{codeobj_name}}_kernel(
+	%DEVICE_PARAMETERS%,
+	unsigned int num_blocks,
+	unsigned int* total
+)
+{
+	using namespace brian;
+	%KERNEL_VARIABLES%
+	
+	unsigned int total_number = 0;
+	{% for varname, var in record_variables.items() %}
+	total_number = 0;
+	for(int i = 0; i < num_blocks; i++)
+	{
+		total_number += monitor_{{varname}}[i]->size();
+	}
+	{% endfor %}
+	*total = total_number;
+	{{N}} = total_number;
+}
+
+__global__ void _copy_{{codeobj_name}}_kernel(
+	{% for varname, var in record_variables.items() %}
+		{{c_data_type(var.dtype)}}* dev_monitor_{{varname}},
+	{% endfor %}
+	unsigned int num_blocks
+)
+{
+	using namespace brian;
+	unsigned int index = 0;
+	{% for varname, var in record_variables.items() %}
+	index = 0;
+	for(int i = 0; i < num_blocks; i++)
+	{
+		for(int j = 0; j < monitor_{{varname}}[i]->size(); j++)
+		{
+			dev_monitor_{{varname}}[index] = monitor_{{varname}}[i]->at(j);
+			index++;
+		}
+	}
+	{% endfor %}
+}
+
+void _copyToHost_{{codeobj_name}}()
+{
+	using namespace brian;
+
+	%CONSTANTS%
+
+    {% set _eventspace = get_array_name(eventspace_variable) %}
+    unsigned int* dev_total;
+    cudaMalloc((void**)&dev_total, sizeof(unsigned int));
+	_count_{{codeobj_name}}_kernel<<<1,1>>>(
+		%HOST_PARAMETERS%,
+		num_blocks(_num{{eventspace_variable.name}}-1),
+		dev_total);
+	unsigned int total;
+	cudaMemcpy(&total, dev_total, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+	{% for varname, var in record_variables.items() %}
+		dev_dynamic_array_{{owner.name}}_{{varname}}.resize(total);
+	{% endfor %}
+	_copy_{{codeobj_name}}_kernel<<<1,1>>>(
+		{% for varname, var in record_variables.items() %}
+			thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.name}}_{{varname}}[0]),
+		{% endfor %}
+		num_blocks(_num{{eventspace_variable.name}}-1));
+}
+
 void _debugmsg_{{codeobj_name}}()
 {
 	using namespace brian;
-	std::cout << "Number of spikes: " << dev{{_dynamic_i}}.size() << endl;
+
+	%CONSTANTS%
+
+    {% set _eventspace = get_array_name(eventspace_variable) %}
+	_run_debugmsg_{{codeobj_name}}_kernel<<<1,1>>>(num_blocks(_num{{eventspace_variable.name}}-1));
 }
 {% endblock %}
 
 {% block extra_functions_h %}
+void _copyToHost_{{codeobj_name}}();
 void _debugmsg_{{codeobj_name}}();
 {% endblock %}
 
 {% macro main_finalise() %}
+_copyToHost_{{codeobj_name}}();
 _debugmsg_{{codeobj_name}}();
 {% endmacro %}

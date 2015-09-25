@@ -3,25 +3,32 @@
 int mem_per_thread(){
 	return sizeof(int32_t);
 }
+
+__device__ unsigned int _last_element_checked = 0;
 {% endblock %}
 
 
 {% block maincode %}
     {# USES_VARIABLES {_spikespace, N, t, dt, neuron_index, spike_time, period, _lastindex } #}
 
-    float padding_before = fmod(t, period);
-    float padding_after  = fmod(t+dt, period);
-    double epsilon       = 1e-3*dt;
+
+    const double _the_period = {{period}};
+    const double padding_before = fmod({{t}}, _the_period);
+    const double padding_after  = fmod({{t}}+{{dt}}, _the_period);
+    const double epsilon        = 1e-3*{{dt}};
 
     // We need some precomputed values that will be used during looping
-    bool not_first_spike = ({{_lastindex}}[0] > 0);
+    bool not_first_spike = ({{_lastindex}} > 0);
     bool not_end_period  = (fabs(padding_after) > epsilon);
     bool test;
 	
 	//// MAIN CODE ////////////
 	// scalar code
 	
-	{{_spikespace}}[_idx] = -1;
+	for(int i = tid; i < N; i+= THREADS_PER_BLOCK)
+	{
+		{{_spikespace}}[i] = -1;
+	}
 
 	if(tid == 0)
 	{
@@ -30,7 +37,7 @@ int mem_per_thread(){
 	}
 	__syncthreads();
 
-	for(int spike_idx = {{_lastindex}}[0] + tid; spike_idx < _numspike_time; spike_idx += THREADS_PER_BLOCK)
+	for(int spike_idx = {{_lastindex}} + tid; spike_idx < _numspike_time; spike_idx += THREADS_PER_BLOCK)
 	{
 		if (not_end_period)
 		{
@@ -48,15 +55,15 @@ int mem_per_thread(){
 	    }
 	    int32_t neuron_id = {{neuron_index}}[spike_idx];
     	int32_t spikespace_index = atomicAdd(&{{_spikespace}}[N], 1);
-		atomicAdd(&{{_lastindex}}[0], 1);
+		atomicAdd(&{{_lastindex}}, 1);
     	{{_spikespace}}[spikespace_index] = neuron_id;
 		__syncthreads();
 	}
 {% endblock %}
 
 {% block kernel_call %}
-kernel_{{codeobj_name}}<<<1,max_threads_per_block>>>(
-		max_threads_per_block,
+kernel_{{codeobj_name}}<<<1,1>>>(
+		1,
 		%HOST_PARAMETERS%
 	);
 {% endblock %}

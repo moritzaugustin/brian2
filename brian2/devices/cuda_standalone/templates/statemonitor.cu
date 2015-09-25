@@ -1,9 +1,9 @@
 {% extends 'common_group.cu' %}
 
 {% block extra_maincode %}
-int current_iteration = {{owner.clock.name}}.i;
+int current_iteration = {{owner.clock.name}}.timestep[0];
 static unsigned int start_offset = current_iteration - dev_dynamic_array_{{owner.name}}_t.size();
-dev_dynamic_array_{{owner.name}}_t.push_back({{owner.clock.name}}.t_());
+dev_dynamic_array_{{owner.name}}_t.push_back({{owner.clock.name}}.t[0]);
 static bool first_run = true;
 if(first_run)
 {

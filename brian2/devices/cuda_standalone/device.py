@@ -24,6 +24,7 @@ from brian2.units import second
 from .codeobject import CUDAStandaloneCodeObject
 from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice
 from brian2.monitors.statemonitor import StateMonitor
+from brian2.groups.neurongroup import Thresholder
 
 
 __all__ = []
@@ -83,10 +84,10 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     override_conditional_write=None):
         if template_kwds == None:
             template_kwds = {}
-        no_delay_mode = False
+        no_delay_mode = "False"
         if isinstance(owner, SynapticPathway):
             if owner.variables["delay"].constant == True or (owner.variables["delay"].scalar == True and owner.variables["delay"].size == 1):
-                no_delay_mode = True
+                no_delay_mode = "True"
         template_kwds["no_delay_mode"] = no_delay_mode
         if template_name == "synapses":
             serializing_mode = "syn"    #no serializing
@@ -142,6 +143,9 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 main_lines.append('_run_%s();' % codeobj.name)
             elif func=='run_network':
                 net, netcode = args
+                for clock in net._clocks:
+                    line = "{net.name}.add(&{clock.name}, _sync_clocks);".format(clock=clock, net=net)
+                    netcode.insert(1, line)
                 main_lines.extend(netcode)
             elif func=='set_by_constant':
                 arrayname, value, is_dynamic = args
@@ -151,10 +155,16 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 {{
                     {arrayname}[i] = {value};
                 }}
-                cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({size_str}), cudaMemcpyHostToDevice);
                 '''.format(arrayname=arrayname, size_str=size_str,
                            value=CPPNodeRenderer().render_expr(repr(value)))
                 main_lines.extend(code.split('\n'))
+                pointer_arrayname = "dev{arrayname}".format(arrayname=arrayname)
+                if is_dynamic:
+                    pointer_arrayname = "thrust::raw_pointer_cast(&dev{arrayname}[0])".format(arrayname=arrayname)
+                line = "cudaMemcpy({pointer_arrayname}, &{arrayname}[0], sizeof({arrayname}[0])*{size_str}, cudaMemcpyHostToDevice);".format(
+                           arrayname=arrayname, size_str=size_str, pointer_arrayname=pointer_arrayname, 
+                           value=CPPNodeRenderer().render_expr(repr(value)))
+                main_lines.extend([line])
             elif func=='set_by_single_value':
                 arrayname, item, value = args
                 code = '''
@@ -166,18 +176,21 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 arrayname, staticarrayname, is_dynamic = args
                 size = "_num_" + arrayname
                 if arrayname in self.dynamic_arrays.values():
-                    arrayname = "dev" + arrayname
                     size = arrayname + ".size()"
                 code = '''
                 for(int i=0; i<_num_{staticarrayname}; i++)
                 {{
                     {arrayname}[i] = {staticarrayname}[i];
-                }}'''.format(arrayname=arrayname, staticarrayname=staticarrayname)
-                if arrayname in self.arrays.values():
-                    code = code + '''
-                    cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({arrayname}[0])*{size}, cudaMemcpyHostToDevice);
-                '''.format(arrayname=arrayname, size=size)
+                }}
+                '''.format(arrayname=arrayname, staticarrayname=staticarrayname, size_str=size)
+                pointer_arrayname = "dev{arrayname}".format(arrayname=arrayname)
+                if is_dynamic:
+                    pointer_arrayname = "thrust::raw_pointer_cast(&dev{arrayname}[0])".format(arrayname=arrayname)
                 main_lines.extend(code.split('\n'))
+                line = '''
+                cudaMemcpy({pointer_arrayname}, &{arrayname}[0], sizeof({arrayname}[0])*{size_str}, cudaMemcpyHostToDevice);
+                '''.format(pointer_arrayname=pointer_arrayname, staticarrayname=staticarrayname, size_str=size, arrayname=arrayname)
+                main_lines.extend([line])
             elif func=='set_array_by_array':
                 arrayname, staticarrayname_index, staticarrayname_value = args
                 code = '''
@@ -185,13 +198,16 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 {{
                     {arrayname}[{staticarrayname_index}[i]] = {staticarrayname_value}[i];
                 }}
-                cudaMemcpy(dev{arrayname}, {arrayname}, sizeof({arrayname}[0])*_num_{arrayname}, cudaMemcpyHostToDevice);
+                cudaMemcpy(dev{arrayname}, &{arrayname}[0], sizeof({arrayname}[0])*_num_{arrayname}, cudaMemcpyHostToDevice);
                 '''.format(arrayname=arrayname, staticarrayname_index=staticarrayname_index,
                            staticarrayname_value=staticarrayname_value)
                 main_lines.extend(code.split('\n'))
             elif func=='resize_array':
-		array_name, new_size = args
-		main_lines.append("{array_name}.resize({new_size});".format(array_name=array_name, new_size=new_size))
+                array_name, new_size = args
+                main_lines.append('''
+                    {array_name}.resize({new_size});
+                    dev{array_name}.resize({new_size});
+                '''.format(array_name=array_name, new_size=new_size))
             elif func=='insert_code':
                 main_lines.append(args)
             elif func=='start_run_func':
@@ -413,6 +429,8 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         run_tmp = CUDAStandaloneCodeObject.templater.run(None, None, run_funcs=self.runfuncs,
                                                         code_objects=self.code_objects.values(),
                                                         additional_headers=run_includes,
+                                                        array_specs=self.arrays,
+                                                        clocks=self.clocks
                                                         )
         writer.write('run.*', run_tmp)
         
@@ -565,15 +583,17 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
     def network_run(self, net, duration, report=None, report_period=10*second,
                     namespace=None, profile=True, level=0, **kwds):
         CPPStandaloneDevice.network_run(self, net, duration, report, report_period, namespace, profile, level+1)
+        for codeobj in self.code_objects.values():
+            if codeobj.template_name == "threshold" or codeobj.template_name == "spikegenerator":
+                self.main_queue.insert(0, ('set_by_constant', (self.get_array_name(codeobj.variables['_spikespace'], False), -1, False)))
         for func, args in self.main_queue:
             if func=='run_network':
                 net, netcode = args
                 for clock in net._clocks:
-                    line = '{net.name}.add(&{clock.name}, _run_random_number_generation);'.format(clock=clock, net=net)
-                    if line not in netcode:
-                        run_action = netcode.pop()
-                        netcode.append(line);
-                        netcode.append(run_action)
+                    lines = '''{net.name}.add(&{clock.name}, _run_random_number_generation);'''.format(clock=clock, net=net)
+                    run_action = netcode.pop()
+                    netcode.append(lines);
+                    netcode.append(run_action)
 
 
                         

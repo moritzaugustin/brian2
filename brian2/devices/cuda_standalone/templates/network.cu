@@ -20,7 +20,11 @@ void Network::clear()
 
 void Network::add(Clock* clock, codeobj_func func)
 {
-	objects.push_back(std::make_pair<Clock*, codeobj_func>({{std_move}}(clock), {{std_move}}(func)));
+#if defined(_MSC_VER) && (_MSC_VER>=1700)
+	objects.push_back(std::make_pair<Clock*, codeobj_func>(std::move(clock), std::move(func)));
+#else
+	objects.push_back(std::make_pair<Clock*, codeobj_func>(clock, func));
+#endif
 }
 
 void Network::run(const double duration, void (*report_func)(const double, const double, const double), const double report_period)
@@ -43,47 +47,40 @@ void Network::run(const double duration, void (*report_func)(const double, const
 	}
 
 	Clock* clock = next_clocks();
-	
-	{
-		while(clock->running())
-		{
-			for(int i=0; i<objects.size(); i++)
-			{
-				{
-					if (report_func)
-		            {
-		                current = std::clock();
-		                const double elapsed = (double)(current - start)/(CLOCKS_PER_SEC);
-		                if (elapsed > next_report_time)
-		                {
-		                    report_func(elapsed, (clock->t_()-t_start)/duration, duration);
-		                    next_report_time += report_period;
-		                }
-		            }
-		        }
-				Clock *obj_clock = objects[i].first;
-				// Only execute the object if it uses the right clock for this step
-				if (curclocks.find(obj_clock) != curclocks.end())
-				{
-	                codeobj_func func = objects[i].second;
-	                func();
-				}
-			}
-			{
-				for(std::set<Clock*>::iterator i=curclocks.begin(); i!=curclocks.end(); i++)
-					(*i)->tick();
-			}
-			clock = next_clocks();
-		}
-		{
-			if (report_func)
-			{
-			    current = std::clock();
-			    report_func((double)(current - start)/CLOCKS_PER_SEC, 1.0, duration);
-			}
-		}
+
+    while(clock->running())
+    {
+        for(int i=0; i<objects.size(); i++)
+        {
+            if (report_func)
+            {
+                current = std::clock();
+                const double elapsed = (double)((current - start) / CLOCKS_PER_SEC);
+                if (elapsed > next_report_time)
+                {
+                    report_func(elapsed, (clock->t[0]-t_start)/duration, duration);
+                    next_report_time += report_period;
+                }
+            }
+            Clock *obj_clock = objects[i].first;
+            // Only execute the object if it uses the right clock for this step
+            if (curclocks.find(obj_clock) != curclocks.end())
+            {
+                codeobj_func func = objects[i].second;
+                func();
+            }
+        }
+        for(std::set<Clock*>::iterator i=curclocks.begin(); i!=curclocks.end(); i++)
+            (*i)->tick();
+        clock = next_clocks();
+    }
+
+    if (report_func)
+    {
+        current = std::clock();
+        report_func((double)(current - start)/(CLOCKS_PER_SEC), 1.0, duration);
+    }
 	t = t_end;
-	}
 }
 
 void Network::compute_clocks()
@@ -103,23 +100,20 @@ Clock* Network::next_clocks()
 	for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
 	{
 		Clock *clock = *i;
-		if(clock->t_()<minclock->t_())
+		if(clock->t[0]<minclock->t[0])
 			minclock = clock;
 	}
-	// find set of equal clocks
-	{
-		// find set of equal clocks
-		curclocks.clear();
+    // find set of equal clocks
+    curclocks.clear();
 
-		double t = minclock->t_();
-		for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
-		{
-			Clock *clock = *i;
-			double s = clock->t_();
-			if(s==t || fabs(s-t)<=Clock_epsilon)
-				curclocks.insert(clock);
-		}
-	}
+    double t = minclock->t[0];
+    for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
+    {
+        Clock *clock = *i;
+        double s = clock->t[0];
+        if(s==t || fabs(s-t)<=Clock_epsilon)
+            curclocks.insert(clock);
+    }
 	return minclock;
 }
 

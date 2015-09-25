@@ -46,8 +46,6 @@
 				}
 				for (int _repetition = 0; _repetition < _n; _repetition++)
 				{
-					{{N_outgoing}}[_pre_idx] += 1;
-					{{N_incoming}}[_post_idx] += 1;
 					temp_synaptic_pre.push_back(_pre_idx);
 					temp_synaptic_post.push_back(_post_idx);
 					syn_id++;
@@ -65,6 +63,7 @@
 	{% for variable in owner._registered_variables | sort(attribute='name') %}
 	{% set varname = get_array_name(variable, access_data=False) %}
 	dev{{varname}}.resize(newsize);
+	{{varname}}.resize(newsize);
 	{% endfor %}
 	// Also update the total number of synapses
 	{{owner.name}}._N_value = newsize;
