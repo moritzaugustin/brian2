@@ -5,7 +5,7 @@
                     _starts, _ends, _invr0, _invrn, b_plus, b_minus } #}
 {% extends 'common_group.cu' %}
 {% block maincode %}
-    const double _Ri = {{Ri}}[0];  // Ri is a shared variable
+    const double _Ri = {{Ri}};  // Ri is a shared variable
 
     {% if owner.morphology.type == 'soma' %}
     // Correction for soma (a bit of a hack),
@@ -26,7 +26,7 @@
     // The particular solution
     // a[i,j]=ab[u+i-j,j]   --  u is the number of upper diagonals = 1
     for (int _i=0; _i<N; _i++)
-        {{ab_star1}}[_i] = (-({{Cm}}[_i] / dt) - {{_invr}}[_i] / {{area}}[_i]);
+        {{ab_star1}}[_i] = (-({{Cm}}[_i] / {{dt}}) - {{_invr}}[_i] / {{area}}[_i]);
     for (int _i=1; _i<N; _i++)
     {
         {{ab_star0}}[_i] = {{_invr}}[_i] / {{area}}[_i-1];
@@ -69,3 +69,9 @@
     }
 {% endblock %}
 
+{% block kernel_call %}
+kernel_{{codeobj_name}}<<<1,1>>>(
+		1,
+		%HOST_PARAMETERS%
+	);
+{% endblock %}
