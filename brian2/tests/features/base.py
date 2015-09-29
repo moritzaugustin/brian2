@@ -197,6 +197,18 @@ class CPPStandaloneConfigurationOpenMP(Configuration):
             shutil.rmtree('cpp_standalone')
         brian2.device.build(directory='cpp_standalone', compile=True, run=True,
                             with_output=False)
+        
+class CUDAStandaloneConfiguration(Configuration):
+    name = 'CUDA standalone'
+    def before_run(self):
+        brian2.prefs.reset_to_defaults()
+        brian2.set_device('cuda_standalone')
+        
+    def after_run(self):
+        if os.path.exists('cuda_standalone'):
+            shutil.rmtree('cuda_standalone')
+        brian2.device.build(directory='cuda_standalone', compile=True, run=True,
+                            with_output=True)
     
     
 def results(configuration, feature, n=None):

@@ -547,7 +547,7 @@ class CPPStandaloneDevice(Device):
             if hasattr(codeobj.code, 'main_finalise'):
                 main_lines.append(codeobj.code.main_finalise)
                 
-                # The code_objects are passed in the right order to run them because they were
+        # The code_objects are passed in the right order to run them because they were
         # sorted by the Network object. To support multiple clocks we'll need to be
         # smarter about that.
         main_tmp = CPPStandaloneCodeObject.templater.main(None, None,
