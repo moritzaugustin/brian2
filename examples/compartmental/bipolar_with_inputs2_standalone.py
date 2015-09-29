@@ -1,10 +1,13 @@
 '''
 A pseudo MSO neuron, with two dendrites (fake geometry).
 There are synaptic inputs.
+Second method.
 '''
 from brian2 import *
 
-prefs.codegen.target = 'numpy'
+example_name = 'bipolar_with_inputs2'
+device_name = 'cpp_standalone'
+set_device(device_name)
 
 # Morphology
 morpho = Soma(30*um)
@@ -15,10 +18,11 @@ morpho.R = Cylinder(diameter=1*um, length=100*um, n=50)
 gL = 1e-4*siemens/cm**2
 EL = -70*mV
 Es = 0*mV
+taus = 1*ms
 eqs='''
 Im = gL*(EL-v) : amp/meter**2
 Is = gs*(Es-v) : amp (point current)
-gs : siemens
+dgs/dt = -gs/taus : siemens
 '''
 
 neuron = SpatialNeuron(morphology=morpho, model=eqs,
@@ -27,34 +31,32 @@ neuron.v = EL
 
 # Regular inputs
 stimulation = NeuronGroup(2, 'dx/dt = 300*Hz : 1', threshold='x>1', reset='x=0')
-stimulation.x = [0, 0.5]  # Asynchronous
+stimulation.x = [0, 0.5] # Asynchronous
 
 # Synapses
-taus = 1*ms
 w = 20*nS
-S = Synapses(stimulation, neuron, model='''dg/dt = -g/taus : siemens
-                                           gs_post = g : siemens (summed)''',
-             pre='g += w')
-
-S.connect(0, morpho.L[-1])
-S.connect(1, morpho.R[-1])
+S = Synapses(stimulation, neuron, pre = 'gs += w')
+S.connect(0, morpho.L[99.9*um])
+S.connect(1, morpho.R[99.9*um])
 
 # Monitors
 mon_soma = StateMonitor(neuron, 'v', record=[0])
 mon_L = StateMonitor(neuron.L, 'v', record=True)
-mon_R = StateMonitor(neuron.R, 'v',
-                     record=morpho.R[-1])
+mon_R = StateMonitor(neuron, 'v', record=morpho.R[99.9*um])
 
 run(50*ms, report='text')
 
+device.build(directory=example_name+'_'+device_name, compile=True,
+                run=True, debug=True)
+
 subplot(211)
 plot(mon_L.t/ms, mon_soma[0].v/mV, 'k')
-plot(mon_L.t/ms, mon_L[morpho.L[-1]].v/mV, 'r')
-plot(mon_L.t/ms, mon_R[morpho.R[-1]].v/mV, 'b')
+plot(mon_L.t/ms, mon_L[morpho.L[99.9*um]].v/mV, 'r')
+plot(mon_L.t/ms, mon_R[morpho.R[99.9*um]].v/mV, 'b')
 ylabel('v (mV)')
 subplot(212)
-for x in linspace(0*um, 100*um, 10, endpoint=False):
-    plot(mon_L.t/ms, mon_L[morpho.L[x]].v/mV)
+for i in [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]:
+    plot(mon_L.t/ms, mon_L.v[i, :]/mV)
 xlabel('Time (ms)')
 ylabel('v (mV)')
 show()
