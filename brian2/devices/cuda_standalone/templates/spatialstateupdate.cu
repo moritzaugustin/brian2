@@ -542,18 +542,11 @@ __global__ void kernel_{{codeobj_name}}_combine(
 //	const unsigned int _last = {{_ends}}[_j];
 	printf("(combine kernel) bid=%d\n", bid);
 
-	const unsigned int _k = _first + tid; // total index of compartment
-
-	// only continue if thread belongs to a compartment
-	if (_k > _last) // TODO: check if the condition  "|| _k >= _numv" is required, too
-		return;
-
-
-	// TODO: add outer loop if too few threads are there...
-	//
-
-	{{v}}[_k] = {{v_star}}[_k] + {{_B}}[_i_parent] * {{u_minus}}[_k]
-							   + {{_B}}[_i] * {{u_plus}}[_k];
+	for(unsigned int _k = _first + tid; _k <= _last; _k += THREADS_PER_BLOCK)
+	{
+		{{v}}[_k] = {{v_star}}[_k] + {{_B}}[_i_parent] * {{u_minus}}[_k]
+								   + {{_B}}[_i] * {{u_plus}}[_k];
+	}
 }
 
 {% endblock %}
