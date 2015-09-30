@@ -4,9 +4,8 @@ SRCS_CU  = $(wildcard *.cu */*.cu)
 OBJS_CPP = ${SRCS_CPP:.cpp=.o}
 OBJS_CU  = ${SRCS_CU:.cu=.o}
 CC = @nvcc
-DEBUG = -g -G -DTHRUST_DEBUG --ptxas-options=-v
-#we need SM >= 2.0 for the -dc flag (see below) 
-OPTIMISATIONS = --use_fast_math -arch=sm_35 {{ compiler_flags }}
+DEBUG = -g -G -DTHRUST_DEBUG --ptxas-options=-v 
+OPTIMISATIONS = --use_fast_math {{ compiler_flags }}
 CFLAGS = -c $(OPTIMISATIONS) -I.
 LFLAGS = -lcurand
 
@@ -21,6 +20,7 @@ debug: executable
 
 native: executable
 
+#we need SM >= 2.0 for the -dc flag (see below)
 executable: $(OBJS_CPP) $(OBJS_CU)
 	$(CC) $(LFLAGS) -arch=sm_20 $(OBJS_CPP) $(OBJS_CU) -o $(PROGRAM)
 
