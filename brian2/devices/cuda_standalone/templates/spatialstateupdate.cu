@@ -28,10 +28,6 @@ __global__ void kernel_{{codeobj_name}}_integration(
 	unsigned int _vectorisation_idx = _idx;
 	%KERNEL_VARIABLES%
 
-
-	if (tid == 0)
-		printf("(integration kernel) bid=%d\n", bid);
-
 	{% block num_thread_check %}
 	if(_idx >= N)
 	{
@@ -50,7 +46,18 @@ __global__ void kernel_{{codeobj_name}}_integration(
 
 __global__ void kernel_{{codeobj_name}}_system1(
 	unsigned int THREADS_PER_BLOCK,
-	%DEVICE_PARAMETERS%
+	double* _ptr_array_{{owner.clock.name}}_dt,
+	int32_t* {{_starts}},
+	int32_t* {{_ends}},
+	double* {{v_star}},
+	double* {{Cm}},
+	double* {{v}},
+	double* {{I0_all}},
+	double* {{ab_star0}},
+	double* {{ab_star1}},
+	double* {{ab_star2}},
+	double* {{gtot_all}},
+	double* {{c1}}
 	)
 {
 	using namespace brian;
@@ -59,11 +66,6 @@ __global__ void kernel_{{codeobj_name}}_system1(
 	unsigned int bid = blockIdx.x;
 	unsigned int _idx = bid; // bid * THREADS_PER_BLOCK + tid;
 	unsigned int _vectorisation_idx = _idx;
-	%KERNEL_VARIABLES%
-
-
-	if (tid == 0)
-		printf("(system1 kernel) bid=%d\n", bid);
 
 	double ai,bi,_m;
 
@@ -100,7 +102,15 @@ __global__ void kernel_{{codeobj_name}}_system1(
 
 __global__ void kernel_{{codeobj_name}}_system2(
 	unsigned int THREADS_PER_BLOCK,
-	%DEVICE_PARAMETERS%
+	int32_t* {{_starts}},
+	int32_t* {{_ends}},
+	double* {{u_plus}},
+	double* {{b_plus}},
+	double* {{gtot_all}},
+	double* {{ab_plus0}},
+	double* {{ab_plus1}},
+	double* {{ab_plus2}},
+	double* {{c2}}
 	)
 {
 	using namespace brian;
@@ -109,12 +119,7 @@ __global__ void kernel_{{codeobj_name}}_system2(
 	unsigned int bid = blockIdx.x;
 	unsigned int _idx = bid; //bid * THREADS_PER_BLOCK + tid;
 	unsigned int _vectorisation_idx = _idx;
-	%KERNEL_VARIABLES%
-
-
-	if (tid == 0)
-		printf("(system2 kernel) bid=%d\n", bid);
-
+	
 	double ai,bi,_m;
 
 	// system 2b: solve for u_plus
@@ -150,7 +155,15 @@ __global__ void kernel_{{codeobj_name}}_system2(
 
 __global__ void kernel_{{codeobj_name}}_system3(
 	unsigned int THREADS_PER_BLOCK,
-	%DEVICE_PARAMETERS%
+	int32_t* {{_starts}},
+	int32_t* {{_ends}},
+	double* {{u_minus}},
+	double* {{b_minus}},
+	double* {{ab_minus0}},
+	double* {{ab_minus1}},
+	double* {{ab_minus2}},
+	double* {{gtot_all}},
+	double* {{c3}}
 	)
 {
 	using namespace brian;
@@ -159,10 +172,6 @@ __global__ void kernel_{{codeobj_name}}_system3(
 	unsigned int bid = blockIdx.x;
 	unsigned int _idx = bid; //bid * THREADS_PER_BLOCK + tid;
 	unsigned int _vectorisation_idx = _idx;
-	%KERNEL_VARIABLES%
-
-	if (tid == 0)
-			printf("(system3 kernel) bid=%d\n", bid);
 
 	double ai,bi,_m;
 
@@ -199,7 +208,26 @@ __global__ void kernel_{{codeobj_name}}_system3(
 
 __global__ void kernel_{{codeobj_name}}_coupling(
 	unsigned int THREADS_PER_BLOCK,
-	%DEVICE_PARAMETERS%
+	int32_t* {{_morph_i}},
+	int32_t* {{_morph_parent_i}},
+	int32_t* {{_morph_children}},
+	int32_t* {{_morph_children_num}},
+	int32_t* {{_morph_idxchild}},
+	int32_t* {{_starts}},
+	int32_t* {{_ends}},
+	double* {{_invr0}},
+	double* {{_invrn}},
+	double* {{_P}},
+	double* {{_P_diag}},
+	double* {{_P_children}},
+	double* {{_P_parent}},
+	double* {{_B}},
+	double* {{u_minus}},
+	double* {{u_plus}},
+	double* {{v_star}},
+	unsigned int _num_morph_children,
+	unsigned int _num_morph_children_num,
+	unsigned int _num_B
 	)
 {
 	using namespace brian;
@@ -208,7 +236,6 @@ __global__ void kernel_{{codeobj_name}}_coupling(
 	unsigned int bid = blockIdx.x;
 	unsigned int _idx = bid * THREADS_PER_BLOCK + tid;
 	unsigned int _vectorisation_idx = _idx;
-	%KERNEL_VARIABLES%
 
 	bool verbose_output = false; // print information for debugging purposes (later to be removed)
 	// before the efficient sparse solver is final we provide three kinds of solver
@@ -217,9 +244,6 @@ __global__ void kernel_{{codeobj_name}}_coupling(
 //	linearsolver linsolv = EFFICIENT_DENSE;
 //	linearsolver linsolv = INEFFICIENT_DENSE; // old version from Marcel and Romain
 
-
-	if (tid == 0)
-		printf("(coupling kernel) bid=%d\n", bid);
 
 	// integration step 3: solve the coupling system (no parallelism)
 
@@ -499,7 +523,15 @@ __global__ void kernel_{{codeobj_name}}_coupling(
 
 __global__ void kernel_{{codeobj_name}}_combine(
 	unsigned int THREADS_PER_BLOCK,
-	%DEVICE_PARAMETERS%
+	int32_t* {{_morph_i}},
+	int32_t* {{_morph_parent_i}},
+	int32_t* {{_starts}},
+	int32_t* {{_ends}},
+	double* {{_B}},
+	double* {{v}},
+	double* {{v_star}},
+	double* {{u_minus}},
+	double* {{u_plus}}
 	)
 {
 	using namespace brian;
@@ -508,7 +540,6 @@ __global__ void kernel_{{codeobj_name}}_combine(
 	unsigned int bid = blockIdx.x;
 //	unsigned int _idx = bid * THREADS_PER_BLOCK + tid;
 //	unsigned int _vectorisation_idx = _idx;
-	%KERNEL_VARIABLES%
 
 	// TODO: add num_thread_check again!
 
@@ -530,7 +561,6 @@ __global__ void kernel_{{codeobj_name}}_combine(
 		_i_parent = {{_morph_parent_i}}[_j];
 		_first = {{_starts}}[_j];
 		_last = {{_ends}}[_j];
-		printf("(combine kernel) bid=%d, _i=%d\n", bid, _i);
 	}
 // TODO: add B_i and B_i_parent to shared memory as well
 	__syncthreads();
@@ -540,7 +570,6 @@ __global__ void kernel_{{codeobj_name}}_combine(
 //	const unsigned int _i_parent = {{_morph_parent_i}}[_j];
 //	const unsigned int _first = {{_starts}}[_j];
 //	const unsigned int _last = {{_ends}}[_j];
-	printf("(combine kernel) bid=%d\n", bid);
 
 	const unsigned int _k = _first + tid; // total index of compartment
 
@@ -585,17 +614,44 @@ cudaStreamCreate(&stream3);
 // integrate the tridiagonal system1 for each branch: solve for v_star
 kernel_{{codeobj_name}}_system1<<<_num_morph_i,1,0,stream1>>>(
 		1,
-		%HOST_PARAMETERS%
+		dev_array_{{owner.clock.name}}_dt,
+		dev_array_{{owner.name}}_spatialstateupdater__starts,
+		dev_array_{{owner.name}}_spatialstateupdater__ends,
+		dev_array_{{owner.name}}_v_star,
+		dev_array_{{owner.name}}_Cm,
+		dev_array_{{owner.name}}_v,
+		dev_array_{{owner.name}}_I0_all,
+		dev_array_{{owner.name}}_ab_star0,
+		dev_array_{{owner.name}}_ab_star1,
+		dev_array_{{owner.name}}_ab_star2,
+		dev_array_{{owner.name}}_gtot_all,
+		dev_array_{{owner.name}}_c1
 	);
 // integrate the tridiagonal system2 for each branch: solve for u_plus
 kernel_{{codeobj_name}}_system2<<<_num_morph_i,1,0,stream2>>>(
 		1,
-		%HOST_PARAMETERS%
+		dev_array_{{owner.name}}_spatialstateupdater__starts,
+		dev_array_{{owner.name}}_spatialstateupdater__ends,
+		dev_array_{{owner.name}}_u_plus,
+		dev_array_{{owner.name}}_b_plus,
+		dev_array_{{owner.name}}_gtot_all,
+		dev_array_{{owner.name}}_ab_plus0,
+		dev_array_{{owner.name}}_ab_plus1,
+		dev_array_{{owner.name}}_ab_plus2,
+		dev_array_{{owner.name}}_c2
 	);
 // integrate the tridiagonal system3 for each branch: solve for u_minus
 kernel_{{codeobj_name}}_system3<<<_num_morph_i,1,0,stream3>>>(
 		1,
-		%HOST_PARAMETERS%
+		dev_array_{{owner.name}}_spatialstateupdater__starts,
+		dev_array_{{owner.name}}_spatialstateupdater__ends,
+		dev_array_{{owner.name}}_u_minus,
+		dev_array_{{owner.name}}_b_minus,
+		dev_array_{{owner.name}}_ab_minus0,
+		dev_array_{{owner.name}}_ab_minus1,
+		dev_array_{{owner.name}}_ab_minus2,
+		dev_array_{{owner.name}}_gtot_all,
+		dev_array_{{owner.name}}_c3
 	);
 
 // continue only after the three streams have finished
@@ -611,8 +667,28 @@ cudaStreamDestroy(stream3);
 // integration step 3: solve the coupling system (no parallelism)
 kernel_{{codeobj_name}}_coupling<<<1,1>>>(
 		1,
-		%HOST_PARAMETERS%
+		dev_array_{{owner.name}}_spatialstateupdater__morph_i,
+		dev_array_{{owner.name}}_spatialstateupdater__morph_parent_i,
+		dev_array_{{owner.name}}_spatialstateupdater__morph_children,
+		dev_array_{{owner.name}}_spatialstateupdater__morph_children_num,
+		dev_array_{{owner.name}}_spatialstateupdater__morph_idxchild,
+		dev_array_{{owner.name}}_spatialstateupdater__starts,
+		dev_array_{{owner.name}}_spatialstateupdater__ends,
+		dev_array_{{owner.name}}_spatialstateupdater__invr0,
+		dev_array_{{owner.name}}_spatialstateupdater__invrn,
+		dev_array_{{owner.name}}_spatialstateupdater__P,
+		dev_array_{{owner.name}}_spatialstateupdater__P_diag,
+		dev_array_{{owner.name}}_spatialstateupdater__P_children,
+		dev_array_{{owner.name}}_spatialstateupdater__P_parent,
+		dev_array_{{owner.name}}_spatialstateupdater__B,
+		dev_array_{{owner.name}}_u_minus,
+		dev_array_{{owner.name}}_u_plus,
+		dev_array_{{owner.name}}_v_star,
+		_num_morph_children,
+		_num_morph_children_num,
+		_num_B
 	);
+	
 // TODO: use shared memory in _coupling kernel
 
 
@@ -621,11 +697,18 @@ kernel_{{codeobj_name}}_coupling<<<1,1>>>(
 // linear combination of the general solution (independent: branches & compartments)
 const int blocks_combine = _num_morph_i;
 const int threads_combine = max_threads_per_block; // brian::max_threads_per_block
-cout << "blocks_combine=" << blocks_combine << ", threads_combine=" << threads_combine << endl;
 // ERROR: this kernel is never run....
 kernel_{{codeobj_name}}_combine<<<blocks_combine,threads_combine>>>(
 		threads_combine,
-		%HOST_PARAMETERS%
+		dev_array_{{owner.name}}_spatialstateupdater__morph_i,
+		dev_array_{{owner.name}}_spatialstateupdater__morph_parent_i,
+		dev_array_{{owner.name}}_spatialstateupdater__starts,
+		dev_array_{{owner.name}}_spatialstateupdater__ends,
+		dev_array_{{owner.name}}_spatialstateupdater__B,
+		dev_array_{{owner.name}}_v,
+		dev_array_{{owner.name}}_v_star,
+		dev_array_{{owner.name}}_u_minus,
+		dev_array_{{owner.name}}_u_plus
 	);
 // TODO: make outer loop in _combine kernel as we might have less threads than compartments within a branch
 // TODO: instead of max_threads_per_block we should use min(max_threads_per_block, max. no of compartments in a branch)
