@@ -4,8 +4,9 @@ SRCS_CU  = $(wildcard *.cu */*.cu)
 OBJS_CPP = ${SRCS_CPP:.cpp=.o}
 OBJS_CU  = ${SRCS_CU:.cu=.o}
 CC = @nvcc
-DEBUG = -g -G -DTHRUST_DEBUG
-OPTIMISATIONS = --use_fast_math -arch=sm_20 {{ compiler_flags }}
+DEBUG = -g -G -DTHRUST_DEBUG --ptxas-options=-v
+#we need SM >= 2.0 for the -dc flag (see below) 
+OPTIMISATIONS = --use_fast_math -arch=sm_35 {{ compiler_flags }}
 CFLAGS = -c $(OPTIMISATIONS) -I.
 LFLAGS = -lcurand
 
@@ -26,6 +27,7 @@ executable: $(OBJS_CPP) $(OBJS_CU)
 clean:
 	rm -f $(OBJS_CPP) $(OBJS_CU) $(PROGRAM) results/*
 
+#we need the "-dc" flag for using the same device variable in multiple files
 %.o : %.cu
 	$(CC) $(CFLAGS) -dc $< -o $@
 
