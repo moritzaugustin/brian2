@@ -4,7 +4,9 @@ There are synaptic inputs.
 '''
 from brian2 import *
 
-prefs.codegen.target = 'numpy'
+device_name = 'cpp_standalone'
+set_device(device_name)
+
 
 # Morphology
 morpho = Soma(30*um)
@@ -46,6 +48,9 @@ mon_R = StateMonitor(neuron.R, 'v',
                      record=morpho.R[-1])
 
 run(50*ms, report='text')
+
+device.build(directory='bipolar_with_inputs_'+device_name, compile=True,
+                run=True, debug=True)
 
 subplot(211)
 plot(mon_L.t/ms, mon_soma[0].v/mV, 'k')
