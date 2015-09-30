@@ -714,4 +714,14 @@ kernel_{{codeobj_name}}_combine<<<blocks_combine,threads_combine>>>(
 // TODO: instead of max_threads_per_block we should use min(max_threads_per_block, max. no of compartments in a branch)
 // TODO: use shared memory in _combine kernel
 
+// TODO: remove me after debuggin
+cudaError_t error = cudaGetLastError();
+if(error != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error: %s\n", cudaGetErrorString(error));
+  exit(-1);
+}
+
+
 {% endblock %}
