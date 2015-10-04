@@ -75,6 +75,7 @@ __device__ SynapticPathway<double> brian::{{path.name}};
 unsigned int brian::num_parallel_blocks;
 unsigned int brian::max_threads_per_block;
 unsigned int brian::max_shared_mem_size;
+unsigned int brian::max_regs32_per_block;
 
 {% for S in synapses | sort(attribute='name') %}
 {% for path in S._pathways | sort(attribute='name') %}
@@ -118,6 +119,7 @@ void _init_arrays()
 	num_parallel_blocks = props.multiProcessorCount * {{multiplier}};
 	max_threads_per_block = props.maxThreadsPerBlock;
 	max_shared_mem_size = props.sharedMemPerBlock;
+	max_regs32_per_block = props.regsPerBlock;
 	
 	curandCreateGenerator(&random_float_generator, CURAND_RNG_PSEUDO_DEFAULT);
 	curandSetPseudoRandomGeneratorSeed(random_float_generator, time(0));
@@ -435,6 +437,7 @@ extern __device__ float* _array_{{co.name}}_randn;
 extern unsigned int num_parallel_blocks;
 extern unsigned int max_threads_per_block;
 extern unsigned int max_shared_mem_size;
+extern unsigned int max_regs32_per_block;
 
 }
 

@@ -521,6 +521,7 @@ __global__ void kernel_{{codeobj_name}}_coupling(
 //	}
 }
 
+
 __global__ void kernel_{{codeobj_name}}_combine(
 	unsigned int THREADS_PER_BLOCK,
 	int32_t* {{_morph_i}},
@@ -540,6 +541,7 @@ __global__ void kernel_{{codeobj_name}}_combine(
 	unsigned int bid = blockIdx.x;
 //	unsigned int _idx = bid * THREADS_PER_BLOCK + tid;
 //	unsigned int _vectorisation_idx = _idx;
+
 
 	// TODO: add num_thread_check again!
 
@@ -689,8 +691,23 @@ kernel_{{codeobj_name}}_coupling<<<1,1>>>(
 // integration step 4: for each branch compute the final solution by
 // linear combination of the general solution (independent: branches & compartments)
 const int blocks_combine = _num_morph_i;
-const int threads_combine = max_threads_per_block; // brian::max_threads_per_block
-// ERROR: this kernel is never run....
+const int regs_used_hardcoded_combinekernel = 26; // as determined by --ptxas-info=-v in sm_20
+// alternative: = count kernel variables and arguments + threadIdx/blockIdx stuff but please overestimate!
+const int max_threads_by_registers = max_regs32_per_block/regs_used_hardcoded_combinekernel;
+int threads_combine;
+if (max_threads_per_block <= max_threads_by_registers)
+	threads_combine = max_threads_per_block;
+else
+	threads_combine = max_threads_by_registers;
+
+cout << "blocks_combine=" << blocks_combine << ", "
+	 << "  regs_used_hardcoded_combinekernel=" << regs_used_hardcoded_combinekernel << ", "
+	 << "  max_threads_by_registers=" << max_threads_by_registers << ", "
+	 << "threads_combine=" << threads_combine << endl;
+
+threads_combine = 1;
+cout << "DEBUG: setting threads_combine manually to " << threads_combine << endl;
+
 kernel_{{codeobj_name}}_combine<<<blocks_combine,threads_combine>>>(
 		threads_combine,
 		dev_array_{{owner.name}}_spatialstateupdater__morph_i,
@@ -702,9 +719,20 @@ kernel_{{codeobj_name}}_combine<<<blocks_combine,threads_combine>>>(
 		dev_array_{{owner.name}}_v_star,
 		dev_array_{{owner.name}}_u_minus,
 		dev_array_{{owner.name}}_u_plus
-	);
+	); // note to update regs_used_hardcoded_combinekernel after changing the signature
+
 // TODO: make outer loop in _combine kernel as we might have less threads than compartments within a branch
 // TODO: instead of max_threads_per_block we should use min(max_threads_per_block, max. no of compartments in a branch)
 // TODO: use shared memory in _combine kernel
+
+// TODO: remove me after debuggin
+cudaError_t error = cudaGetLastError();
+if(error != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error: %s\n", cudaGetErrorString(error));
+  exit(-1);
+}
+
 
 {% endblock %}
