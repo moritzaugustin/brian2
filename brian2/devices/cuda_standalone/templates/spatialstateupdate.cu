@@ -598,6 +598,11 @@ kernel_{{codeobj_name}}_integration<<<num_blocks(N),num_threads(N)>>>(
 //////////////////////////////////////////////////////////////////////////
 // integration step 2: for each branch: solve three tridiagonal systems (independent: branches & nested: the 3 linear systems)
 
+// TODO: add shared memory for c1-c3, v_star, u_plus, u_minus in a all-shared-or-nothing fashion
+//       use if faster more than one thread for copying the shared to global memory
+//		 (and only thread0 will do the linear system solution)
+
+
 // create three streams to allow parallel solution of tridiagonal systems
 // TODO: put this into spatialneuron_prepare
 //       i.e., create/destroy streams only once per simulation not per timestep
