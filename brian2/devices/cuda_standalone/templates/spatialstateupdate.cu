@@ -561,6 +561,15 @@ kernel_{{codeobj_name}}_integration<<<num_blocks(N),num_threads(N)>>>(
 	);
 
 
+cudaError_t error7 = cudaGetLastError();
+if(error7 != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error (during integration): %s\n", cudaGetErrorString(error7));
+  exit(-1);
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 // integration step 2: for each branch: solve three tridiagonal systems (independent: branches & nested: the 3 linear systems)
 
@@ -595,6 +604,16 @@ kernel_{{codeobj_name}}_system1<<<_num_B - 1, 1, 0,stream1>>>(
 		dev_array_{{owner.name}}_gtot_all,
 		dev_array_{{owner.name}}_c1
 	);
+
+
+cudaError_t error6 = cudaGetLastError();
+if(error6 != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error (during system1): %s\n", cudaGetErrorString(error6));
+  exit(-1);
+}
+
 // integrate the tridiagonal system2 for each branch: solve for u_plus
 kernel_{{codeobj_name}}_system2<<<_num_B - 1, 1, 0,stream2>>>(
 		1,
@@ -608,6 +627,16 @@ kernel_{{codeobj_name}}_system2<<<_num_B - 1, 1, 0,stream2>>>(
 		dev_array_{{owner.name}}_ab_plus2,
 		dev_array_{{owner.name}}_c2
 	);
+
+
+cudaError_t error5 = cudaGetLastError();
+if(error5 != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error (during system2): %s\n", cudaGetErrorString(error5));
+  exit(-1);
+}
+
 // integrate the tridiagonal system3 for each branch: solve for u_minus
 kernel_{{codeobj_name}}_system3<<<_num_B - 1, 1, 0,stream3>>>(
 		1,
@@ -621,6 +650,15 @@ kernel_{{codeobj_name}}_system3<<<_num_B - 1, 1, 0,stream3>>>(
 		dev_array_{{owner.name}}_gtot_all,
 		dev_array_{{owner.name}}_c3
 	);
+
+
+cudaError_t error4 = cudaGetLastError();
+if(error4 != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error (during system3): %s\n", cudaGetErrorString(error4));
+  exit(-1);
+}
 
 // continue only after the three streams have finished
 cudaDeviceSynchronize(); // check if  cudaStreamSynchronize(streamX) for X=1,2,3 is faster
@@ -655,8 +693,16 @@ kernel_{{codeobj_name}}_coupling<<<1,1>>>(
 		_num_morph_children_num,
 		_num_B
 	);
-	
 // TODO: use shared memory in _coupling kernel
+
+
+cudaError_t error3 = cudaGetLastError();
+if(error3 != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error (during coupling): %s\n", cudaGetErrorString(error3));
+  exit(-1);
+}
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -672,13 +718,22 @@ if (max_threads_per_block <= max_threads_by_registers)
 else
 	threads_combine = max_threads_by_registers;
 
-cout << "blocks_combine=" << blocks_combine << ", "
-	 << "  regs_used_hardcoded_combinekernel=" << regs_used_hardcoded_combinekernel << ", "
-	 << "  max_threads_by_registers=" << max_threads_by_registers << ", "
-	 << "threads_combine=" << threads_combine << endl;
+//cout << "blocks_combine=" << blocks_combine << ", "
+//	 << "  regs_used_hardcoded_combinekernel=" << regs_used_hardcoded_combinekernel << ", "
+//	 << "  max_threads_by_registers=" << max_threads_by_registers << ", "
+//	 << "threads_combine=" << threads_combine << endl;
 
 //threads_combine = 1;
 //cout << "DEBUG: setting threads_combine manually to " << threads_combine << endl;
+
+cudaError_t error2 = cudaGetLastError();
+if(error2 != cudaSuccess)
+{
+  // print the CUDA error message and exit
+  printf("CUDA error (during combine2): %s\n", cudaGetErrorString(error2));
+  exit(-1);
+}
+
 
 kernel_{{codeobj_name}}_combine<<<blocks_combine,threads_combine>>>(
 		threads_combine,
@@ -702,9 +757,8 @@ cudaError_t error = cudaGetLastError();
 if(error != cudaSuccess)
 {
   // print the CUDA error message and exit
-  printf("CUDA error: %s\n", cudaGetErrorString(error));
+  printf("CUDA error (during combine2): %s\n", cudaGetErrorString(error));
   exit(-1);
 }
-
 
 {% endblock %}
