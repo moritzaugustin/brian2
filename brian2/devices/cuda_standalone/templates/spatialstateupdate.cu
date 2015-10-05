@@ -8,7 +8,7 @@
                   gtot_all, I0_all,
                   c1, c2, c3,
                   _P, _P_diag, _P_parent, _P_children,
-                  _B, _morph_i, _morph_parent_i, _starts, _ends,
+                  _B, _morph_parent_i, _starts, _ends,
                   _morph_children, _morph_children_num, _morph_idxchild,
                   _invr0, _invrn} #}
 {% extends 'common_group.cu' %}
@@ -208,7 +208,6 @@ __global__ void kernel_{{codeobj_name}}_system3(
 
 __global__ void kernel_{{codeobj_name}}_coupling(
 	unsigned int THREADS_PER_BLOCK,
-	int32_t* {{_morph_i}},
 	int32_t* {{_morph_parent_i}},
 	int32_t* {{_morph_children}},
 	int32_t* {{_morph_children_num}},
@@ -263,7 +262,7 @@ __global__ void kernel_{{codeobj_name}}_coupling(
 	// step 3a: construct the coupling matrix _P
 	for (int _j=0; _j<_num_B - 1; _j++)
 	{
-		const int _i = {{_morph_i}}[_j];
+		const int _i = _j+1; // was before refactoring: _morph_i  [_j];
 		const int _i_parent = {{_morph_parent_i}}[_j];
 		const int _i_childind = {{_morph_idxchild}}[_j];
 		const int _first = {{_starts}}[_j];
@@ -316,38 +315,6 @@ __global__ void kernel_{{codeobj_name}}_coupling(
 		{{_B}}[_i] = {{v_star}}[_last] * _invrn;
 	}
 
-
-	// compare the dense and sparse version of matrix P
-//	if (verbose_output) {
-//		cout << "=== matrix comparison dense vs. sparse " << endl;
-//		for (int _j=0; _j<_num_B-1; _j++) // iterate over all branches
-//		{
-//			const int _i = {{_morph_i}}[_j];
-//			const int _i_parent = {{_morph_parent_i}}[_j];
-//			const int _i_childind = {{_morph_idxchild}}[_j];
-//
-//			if (_j==0) {
-//				cout << "comp zero line:_P[0,0]=" << {{_P}}[IDX_B(0,0)] << ", _P_sparse[0,0] = _P_diag[0] = " << {{_P_diag}}[0] << endl;
-//				cout << "comp zero line:_P[0,1]=" << {{_P}}[IDX_B(0,1)] << ", _P_sparse[0,1] = _P_children[IDX_C(0,0)] = " << {{_P_children}}[IDX_C(0,0)] << endl;
-//			}
-//
-//			cout << "comp (_j=" << _j << ", _i=" << _i << "):_P[_i,_i]=" << {{_P}}[IDX_B(_i,_i)] << ", _P_sparse[_i,_i] = _P_diag[_i] = " << {{_P_diag}}[_i] << endl;
-//			cout << "comp (_i_parent=" << _i_parent << "):_P[_i,_i_parent]=" << {{_P}}[IDX_B(_i,_i_parent)] << ", _P_sparse[_i,_i_parent] = _P_parent[_i-1] = " << {{_P_parent}}[_i-1] << endl;
-//			for (int k=0; k<{{_morph_children_num}}[_i]; k++) {
-//				int _i_child_k = {{_morph_children}}[IDX_C(_i,k)];
-//				int _i_childind_k = {{_morph_idxchild}}[_i_child_k - 1];
-//				cout << "comp (k=" << k << ", _i_child_k=" << _i_child_k << ", _i_childind_k=" << _i_childind_k << "): _P[_i,_i_child_k]=" << {{_P}}[IDX_B(_i,_i_child_k)]
-//					 << ", _P_sparse[_i,_i_child_k] = _P_children[IDX_C(_i,k)] = " << {{_P_children}}[IDX_C(_i,k)]
-//					 << " OR equivalently: _P_sparse[_i,_i_child_k] = _P_children[IDX_C(_i,_i_childind_k)] = " << {{_P_children}}[IDX_C(_i,_i_childind_k)] << endl;
-//			}
-//		}
-//		cout << "print P:" << endl;
-//		for (int i=0; i<_num_B; i++) {
-//			for (int j=0; j<_num_B; j++)
-//				cout << {{_P}}[i*_num_B+j] << " ";
-//			cout << endl;
-//		}
-//	}
 
 
 	// step 3b: solve the linear system (the result will be in _B in the end)
@@ -524,7 +491,6 @@ __global__ void kernel_{{codeobj_name}}_coupling(
 
 __global__ void kernel_{{codeobj_name}}_combine(
 	unsigned int THREADS_PER_BLOCK,
-	int32_t* {{_morph_i}},
 	int32_t* {{_morph_parent_i}},
 	int32_t* {{_starts}},
 	int32_t* {{_ends}},
@@ -559,7 +525,7 @@ __global__ void kernel_{{codeobj_name}}_combine(
 	__shared__ int _last;
 
 	if (tid == 0) {
-		_i = {{_morph_i}}[_j];
+		_i = _j+1; // was before refactoring: _morph_i  [_j];
 		_i_parent = {{_morph_parent_i}}[_j];
 		_first = {{_starts}}[_j];
 		_last = {{_ends}}[_j];
@@ -568,13 +534,13 @@ __global__ void kernel_{{codeobj_name}}_combine(
 	__syncthreads();
 
 
-//	const unsigned int _i = {{_morph_i}}[_j];
+//	const unsigned int _i = _j+1; // was before refactoring: _morph_i  [_j];
 //	const unsigned int _i_parent = {{_morph_parent_i}}[_j];
 //	const unsigned int _first = {{_starts}}[_j];
 //	const unsigned int _last = {{_ends}}[_j];
 
 
-	for(unsigned int _k = first + tid; _k <= _last; _k += THREADS_PER_BLOCK)
+	for(unsigned int _k = _first + tid; _k <= _last; _k += THREADS_PER_BLOCK)
 	{
 		{{v}}[_k] = {{v_star}}[_k] + {{_B}}[_i_parent] * {{u_minus}}[_k]
 							   + {{_B}}[_i] * {{u_plus}}[_k];
@@ -614,7 +580,7 @@ cudaStreamCreate(&stream2);
 cudaStreamCreate(&stream3);
 
 // integrate the tridiagonal system1 for each branch: solve for v_star
-kernel_{{codeobj_name}}_system1<<<_num_morph_i,1,0,stream1>>>(
+kernel_{{codeobj_name}}_system1<<<_num_B - 1, 1, 0,stream1>>>(
 		1,
 		dev_array_{{owner.clock.name}}_dt,
 		dev_array_{{owner.name}}_spatialstateupdater__starts,
@@ -630,7 +596,7 @@ kernel_{{codeobj_name}}_system1<<<_num_morph_i,1,0,stream1>>>(
 		dev_array_{{owner.name}}_c1
 	);
 // integrate the tridiagonal system2 for each branch: solve for u_plus
-kernel_{{codeobj_name}}_system2<<<_num_morph_i,1,0,stream2>>>(
+kernel_{{codeobj_name}}_system2<<<_num_B - 1, 1, 0,stream2>>>(
 		1,
 		dev_array_{{owner.name}}_spatialstateupdater__starts,
 		dev_array_{{owner.name}}_spatialstateupdater__ends,
@@ -643,7 +609,7 @@ kernel_{{codeobj_name}}_system2<<<_num_morph_i,1,0,stream2>>>(
 		dev_array_{{owner.name}}_c2
 	);
 // integrate the tridiagonal system3 for each branch: solve for u_minus
-kernel_{{codeobj_name}}_system3<<<_num_morph_i,1,0,stream3>>>(
+kernel_{{codeobj_name}}_system3<<<_num_B - 1, 1, 0,stream3>>>(
 		1,
 		dev_array_{{owner.name}}_spatialstateupdater__starts,
 		dev_array_{{owner.name}}_spatialstateupdater__ends,
@@ -669,7 +635,6 @@ cudaStreamDestroy(stream3);
 // integration step 3: solve the coupling system (no parallelism)
 kernel_{{codeobj_name}}_coupling<<<1,1>>>(
 		1,
-		dev_array_{{owner.name}}_spatialstateupdater__morph_i,
 		dev_array_{{owner.name}}_spatialstateupdater__morph_parent_i,
 		dev_array_{{owner.name}}_spatialstateupdater__morph_children,
 		dev_array_{{owner.name}}_spatialstateupdater__morph_children_num,
@@ -697,7 +662,7 @@ kernel_{{codeobj_name}}_coupling<<<1,1>>>(
 //////////////////////////////////////////////////////////////////////////
 // integration step 4: for each branch compute the final solution by
 // linear combination of the general solution (independent: branches & compartments)
-const int blocks_combine = _num_morph_i;
+const int blocks_combine = _num_B - 1;
 const int regs_used_hardcoded_combinekernel = 26; // as determined by --ptxas-info=-v in sm_20
 // alternative: = count kernel variables and arguments + threadIdx/blockIdx stuff but please overestimate!
 const int max_threads_by_registers = max_regs32_per_block/regs_used_hardcoded_combinekernel;
@@ -712,12 +677,11 @@ cout << "blocks_combine=" << blocks_combine << ", "
 	 << "  max_threads_by_registers=" << max_threads_by_registers << ", "
 	 << "threads_combine=" << threads_combine << endl;
 
-threads_combine = 1;
-cout << "DEBUG: setting threads_combine manually to " << threads_combine << endl;
+//threads_combine = 1;
+//cout << "DEBUG: setting threads_combine manually to " << threads_combine << endl;
 
 kernel_{{codeobj_name}}_combine<<<blocks_combine,threads_combine>>>(
 		threads_combine,
-		dev_array_{{owner.name}}_spatialstateupdater__morph_i,
 		dev_array_{{owner.name}}_spatialstateupdater__morph_parent_i,
 		dev_array_{{owner.name}}_spatialstateupdater__starts,
 		dev_array_{{owner.name}}_spatialstateupdater__ends,
@@ -727,6 +691,7 @@ kernel_{{codeobj_name}}_combine<<<blocks_combine,threads_combine>>>(
 		dev_array_{{owner.name}}_u_minus,
 		dev_array_{{owner.name}}_u_plus
 	); // note to update regs_used_hardcoded_combinekernel after changing the signature
+
 
 // TODO: make outer loop in _combine kernel as we might have less threads than compartments within a branch
 // TODO: instead of max_threads_per_block we should use min(max_threads_per_block, max. no of compartments in a branch)
