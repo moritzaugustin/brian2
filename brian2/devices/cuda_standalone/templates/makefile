@@ -21,6 +21,9 @@ debug: executable
 native: executable
 
 #we need SM >= 2.0 for the -dc flag (see below)
+# attention: changing the arch version (and maybe others) requires at least 
+#   adaptation of the threadcount of the _combine kernel in spatialstateupdate.cu template
+#   since there a static --ptxas-options=-v based register consumption is used
 executable: $(OBJS_CPP) $(OBJS_CU)
 	$(CC) $(LFLAGS) -arch=sm_20 $(OBJS_CPP) $(OBJS_CU) -o $(PROGRAM)
 
