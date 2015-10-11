@@ -12,13 +12,13 @@ __device__ unsigned int _last_element_checked = 0;
     {# USES_VARIABLES {_spikespace, N, t, dt, neuron_index, spike_time, period, _lastindex } #}
 
 
-    const double _the_period = {{period}};
-    const double padding_before = fmod(t, _the_period);
-    const double padding_after  = fmod(t+dt, _the_period);
-    const double epsilon        = 1e-3*dt;
+    double _the_period = {{period}}[0];
+    double padding_before = fmod(t, _the_period);
+    double padding_after  = fmod(t+dt, _the_period);
+    double epsilon        = 1e-3*dt;
 
     // We need some precomputed values that will be used during looping
-    bool not_first_spike = ({{_lastindex}} > 0);
+    bool not_first_spike = ({{_lastindex}}[0] > 0);
     bool not_end_period  = (fabs(padding_after) > epsilon);
     bool test;
 	
@@ -37,7 +37,7 @@ __device__ unsigned int _last_element_checked = 0;
 	}
 	__syncthreads();
 
-	for(int spike_idx = {{_lastindex}} + tid; spike_idx < _numspike_time; spike_idx += THREADS_PER_BLOCK)
+	for(int spike_idx = {{_lastindex}}[0] + tid; spike_idx < _numspike_time; spike_idx += THREADS_PER_BLOCK)
 	{
 		if (not_end_period)
 		{
@@ -55,7 +55,7 @@ __device__ unsigned int _last_element_checked = 0;
 	    }
 	    int32_t neuron_id = {{neuron_index}}[spike_idx];
     	int32_t spikespace_index = atomicAdd(&{{_spikespace}}[N], 1);
-		atomicAdd(&{{_lastindex}}, 1);
+		atomicAdd(&{{_lastindex}}[0], 1);
     	{{_spikespace}}[spikespace_index] = neuron_id;
 		__syncthreads();
 	}

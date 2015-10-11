@@ -49,7 +49,7 @@ thrust::device_vector<{{c_data_type(var.dtype)}}>* brian::{{varname}};
 /////////////// static arrays /////////////
 {% for (name, dtype_spec, N, filename) in static_array_specs | sort %}
 {# arrays that are initialized from static data are already declared #}
-{% if not name in array_specs.values() %}
+{% if not (name in array_specs.values() or name in dynamic_array_specs.values() or name in dynamic_array_2d_specs.values())%}
 {{dtype_spec}} * brian::{{name}};
 {{dtype_spec}} * brian::dev{{name}};
 __device__ {{dtype_spec}} * brian::d{{name}};
@@ -184,6 +184,10 @@ void _init_arrays()
 
 	// static arrays
 	{% for (name, dtype_spec, N, filename) in static_array_specs | sort %}
+	{% if (name in dynamic_array_specs.values())  %}
+	{{name}}.resize({{N}});
+	dev{{name}}.resize({{N}});
+	{% else %}
 	{{name}} = new {{dtype_spec}}[{{N}}];
 	cudaMalloc((void**)&dev{{name}}, sizeof({{dtype_spec}})*{{N}});
 	if(!dev{{name}})
@@ -191,6 +195,7 @@ void _init_arrays()
 		printf("ERROR while allocating {{name}} on device with size %ld\n", sizeof({{dtype_spec}})*{{N}});
 	}
 	cudaMemcpyToSymbol(d{{name}}, &dev{{name}}, sizeof({{dtype_spec}}*));
+	{% endif %}
 	{% endfor %}
 
 	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
@@ -207,12 +212,23 @@ void _load_arrays()
 	f{{name}}.open("static_arrays/{{name}}", ios::in | ios::binary);
 	if(f{{name}}.is_open())
 	{
+	    {% if name in dynamic_array_specs.values() %}
+	    f{{name}}.read(reinterpret_cast<char*>(&{{name}}[0]), {{N}}*sizeof({{dtype_spec}}));
+	    {% else %}
 		f{{name}}.read(reinterpret_cast<char*>({{name}}), {{N}}*sizeof({{dtype_spec}}));
+		{% endif %}
 	} else
 	{
 		std::cout << "Error opening static array {{name}}." << endl;
 	}
+	{% if not (name in dynamic_array_specs.values()) %}
 	cudaMemcpy(dev{{name}}, {{name}}, sizeof({{dtype_spec}})*{{N}}, cudaMemcpyHostToDevice);
+	{% else %}
+    for(int i=0; i<{{N}}; i++)
+    {
+        dev{{name}}[i] = {{name}}[i];
+    }
+	{% endif %}
 	{% endfor %}
 }	
 
@@ -221,7 +237,7 @@ void _write_arrays()
 	using namespace brian;
 
 	{% for var, varname in array_specs | dictsort(by='value') %}
-	{% if not (var in dynamic_array_specs or var in dynamic_array_2d_specs) %}
+	{% if not (var in dynamic_array_specs or var in dynamic_array_2d_specs or var in static_array_specs) %}
 	cudaMemcpy({{varname}}, dev{{varname}}, sizeof({{c_data_type(var.dtype)}})*_num_{{varname}}, cudaMemcpyDeviceToHost);
 	ofstream outfile_{{varname}};
 	outfile_{{varname}}.open("{{get_array_filename(var) | replace('\\', '\\\\')}}", ios::binary | ios::out);
@@ -335,11 +351,13 @@ void _dealloc_arrays()
 
 	// static arrays
 	{% for (name, dtype_spec, N, filename) in static_array_specs | sort %}
+	{% if not (name in dynamic_array_specs.values()) %}
 	if({{name}}!=0)
 	{
 		delete [] {{name}};
 		{{name}} = 0;
 	}
+	{% endif %}
 	{% endfor %}
 }
 
@@ -399,7 +417,7 @@ extern thrust::device_vector<{{c_data_type(var.dtype)}}>* {{varname}};
 /////////////// static arrays /////////////
 {% for (name, dtype_spec, N, filename) in static_array_specs | sort %}
 {# arrays that are initialized from static data are already declared #}
-{% if not name in array_specs.values() %}
+{% if not (name in array_specs.values() or name in dynamic_array_specs.values() or name in dynamic_array_2d_specs.values())%}
 extern {{dtype_spec}} *{{name}};
 extern {{dtype_spec}} *dev{{name}};
 extern __device__ {{dtype_spec}} *d{{name}};

@@ -88,7 +88,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         if isinstance(owner, SynapticPathway):
             if owner.variables["delay"].constant == True or (owner.variables["delay"].scalar == True and owner.variables["delay"].size == 1):
                 no_delay_mode = "True"
-        template_kwds["no_delay_mode"] = no_delay_mode
+        template_kwds["no_delay_mode"] = "False" #no_delay_mode
         if template_name == "synapses":
             serializing_mode = "syn"    #no serializing
             for varname in variables.iterkeys():
@@ -145,8 +145,10 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 net, netcode = args
                 main_lines.extend(netcode)
             elif func=='set_by_constant':
-                arrayname, value, is_dynamic = args
-                size_str = arrayname+'.size()' if is_dynamic else '_num_'+arrayname
+                arrayname, value = args
+                size_str = "_num_" + arrayname
+                if arrayname in self.dynamic_arrays.values():
+                    size_str = arrayname + ".size()"
                 code = '''
                 for(int i=0; i<{size_str}; i++)
                 {{
@@ -156,7 +158,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                            value=CPPNodeRenderer().render_expr(repr(value)))
                 main_lines.extend(code.split('\n'))
                 pointer_arrayname = "dev{arrayname}".format(arrayname=arrayname)
-                if is_dynamic:
+                if arrayname in self.dynamic_arrays.values():
                     pointer_arrayname = "thrust::raw_pointer_cast(&dev{arrayname}[0])".format(arrayname=arrayname)
                 line = "cudaMemcpy({pointer_arrayname}, &{arrayname}[0], sizeof({arrayname}[0])*{size_str}, cudaMemcpyHostToDevice);".format(
                            arrayname=arrayname, size_str=size_str, pointer_arrayname=pointer_arrayname, 
@@ -592,7 +594,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         CPPStandaloneDevice.network_run(self, net, duration, report, report_period, namespace, profile, level+1)
         for codeobj in self.code_objects.values():
             if codeobj.template_name == "threshold" or codeobj.template_name == "spikegenerator":
-                self.main_queue.insert(0, ('set_by_constant', (self.get_array_name(codeobj.variables['_spikespace'], False), -1, False)))
+                self.main_queue.insert(0, ('set_by_constant', (self.get_array_name(codeobj.variables['_spikespace'], False), -1)))
         for func, args in self.main_queue:
             if func=='run_network':
                 net, netcode = args
