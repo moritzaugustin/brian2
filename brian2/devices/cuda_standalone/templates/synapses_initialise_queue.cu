@@ -56,11 +56,6 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMemcpy(h_synapses_synaptic_sources, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_sources.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
 	cudaMemcpy(h_synapses_synaptic_targets, thrust::raw_pointer_cast(&dev_dynamic_array_{{owner.synapses.name}}_{{owner.synapse_targets.name}}[0]), sizeof(int32_t) * syn_N, cudaMemcpyDeviceToHost);
 	cudaMemcpy(h_synapses_delay, thrust::raw_pointer_cast(&dev_dynamic_array_{{pathobj}}_delay[0]), sizeof(double) * syn_N, cudaMemcpyDeviceToHost);
-	{% if no_delay_mode %}
-	// NO DELAY MODE
-	unsigned int temp_num_parallel_blocks = num_parallel_blocks;
-	num_parallel_blocks = 1;
-	{% endif %}
 	thrust::host_vector<int32_t>* h_synapses_by_pre_id = new thrust::host_vector<int32_t>[num_parallel_blocks*source_N];
 	thrust::host_vector<unsigned int>* h_delay_by_pre_id = new thrust::host_vector<unsigned int>[num_parallel_blocks*source_N];
 
@@ -119,10 +114,6 @@ void _run_{{pathobj}}_initialise_queue()
 	cudaMalloc((void**)&temp3, sizeof(unsigned int*)*num_parallel_blocks*source_N);
 	cudaMemcpy(temp3, temp_delay_by_pre_id, sizeof(int32_t*)*num_parallel_blocks*source_N, cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol({{pathobj}}_delay_by_pre, &temp3, sizeof(unsigned int**));
-	
-	{% if no_delay_mode == True%}
-	num_parallel_blocks = temp_num_parallel_blocks;
-	{% endif %}
 	
 	unsigned int num_threads = max_delay;
 	if(num_threads >= max_threads_per_block)
