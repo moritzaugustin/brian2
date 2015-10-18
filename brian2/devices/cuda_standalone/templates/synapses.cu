@@ -9,13 +9,14 @@
 {% endfor %}
 
 {% block kernel %}
+
 __global__ void kernel_{{codeobj_name}}(
 	unsigned int bid_offset,
 	unsigned int THREADS_PER_BLOCK,
 	%DEVICE_PARAMETERS%
 	)
 {
-	{# USES_VARIABLES { N, _synaptic_pre } #}
+	{# USES_VARIABLES { N, _synaptic_pre, _spikespace} #}
 	using namespace brian;
 
 	unsigned int tid = threadIdx.x;
@@ -31,15 +32,41 @@ __global__ void kernel_{{codeobj_name}}(
 	{{pathway.name}}.queue->peek(
 		&synapses_queue);
 
+	if(tid == 0 && bid == 0) printf("START SYN EFFECTS\n");
+
 			
 	{{scalar_code|autoindent}}
-	
-	int size = synapses_queue[bid].size();
-	for(int j = tid; j < size; j+=THREADS_PER_BLOCK)
-	{
-		int32_t _idx = synapses_queue[bid].at(j);
 
-		{{vector_code|autoindent}}
+	if (!({{pathway.name}}.no_or_const_delay_mode))
+	{
+		int size = synapses_queue[bid].size();
+		for(int j = tid; j < size; j+=THREADS_PER_BLOCK)
+		{
+			int32_t _idx = synapses_queue[bid].at(j);
+	
+			{{vector_code|autoindent}}
+		}
+	}
+	else
+	{
+		if(bid != 0)
+			return;
+		//no or const delay mode
+		for(int j = 0; j < _num_spikespace; j++)
+		{
+			int32_t spiking_neuron = {{_spikespace}}[j];
+			if(spiking_neuron == -1)
+			{
+				break;
+			}
+			for(int i = tid; i < {{pathway.name}}_size_by_pre[spiking_neuron]; i+= THREADS_PER_BLOCK)
+			{
+				int32_t _idx = {{pathway.name}}_synapses_id_by_pre[spiking_neuron][i];
+			
+				{{vector_code|autoindent}}
+			}
+			__syncthreads();
+		}
 	}
 }
 

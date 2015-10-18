@@ -97,7 +97,7 @@ void _run_{{codeobj_name}}()
 	unsigned int num_threads = max_shared_mem_size / MEM_PER_THREAD;
 	num_threads = num_threads < max_threads_per_block? num_threads : max_threads_per_block; // get min of both
 	
-	
+	{% if not no_or_const_delay_mode %}	
 		_run_{{codeobj_name}}_push_kernel<<<num_parallel_blocks, num_threads, num_threads*MEM_PER_THREAD>>>(
 			_num_spikespace - 1,
 			num_parallel_blocks,
@@ -105,6 +105,9 @@ void _run_{{codeobj_name}}()
 			_num_threads(_num_spikespace - 1),
 			{% set _spikespace = get_array_name(owner.variables['_spikespace'], access_data=False) %}
 			dev{{_spikespace}});
+	{% else %}
+	//No pushing in no_or_const_delay_mode
+	{% endif %}
 }
 {% endmacro %}
 

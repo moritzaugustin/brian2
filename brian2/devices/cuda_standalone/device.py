@@ -84,11 +84,11 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     override_conditional_write=None):
         if template_kwds == None:
             template_kwds = {}
-        no_delay_mode = "False"
+        no_or_const_delay_mode = "False"
         if isinstance(owner, SynapticPathway):
-            if owner.variables["delay"].constant == True or (owner.variables["delay"].scalar == True and owner.variables["delay"].size == 1):
-                no_delay_mode = "True"
-        template_kwds["no_delay_mode"] = "False" #no_delay_mode
+            if owner.variables["delay"].constant or owner.variables["delay"].scalar or owner.variables["delay"].size == 1:
+                no_or_const_delay_mode = "True"
+        template_kwds["no_or_const_delay_mode"] = False #no_or_const_delay_mode
         if template_name == "synapses":
             serializing_mode = "syn"    #no serializing
             for varname in variables.iterkeys():

@@ -13,7 +13,7 @@
 
 {% block extra_maincode %}
 	{# USES_VARIABLES { _synaptic_pre, _synaptic_post, rand,
-	                    N_incoming, N_outgoing } #}
+	                    N_incoming, N_outgoing, N } #}
 
 	srand(time(0));
 	{{scalar_code|autoindent}}
@@ -66,5 +66,5 @@
 	{{varname}}.resize(newsize);
 	{% endfor %}
 	// Also update the total number of synapses
-	{{owner.name}}._N_value = newsize;
+        {{N}}[0] = newsize;
 {% endblock %}

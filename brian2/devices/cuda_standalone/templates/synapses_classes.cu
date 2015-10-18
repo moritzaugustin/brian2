@@ -27,6 +27,7 @@ public:
 	unsigned int spikes_stop;
 	scalar dt;
 	CSpikeQueue<scalar>* queue;
+	bool no_or_const_delay_mode;
 
 	//our real constructor
 	__device__ void init(int _Nsource, int _Ntarget, scalar* d_delay, int32_t* _sources,

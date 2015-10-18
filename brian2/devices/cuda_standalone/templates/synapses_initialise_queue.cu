@@ -17,7 +17,8 @@ __global__ void _run_{{codeobj_name}}_kernel(
 	unsigned int _num_threads_per_block,
 	double _dt,
 	unsigned int _syn_N,
-	unsigned int max_delay)
+	unsigned int max_delay,
+	bool new_mode)
 {
 	using namespace brian;
 
@@ -34,6 +35,7 @@ __global__ void _run_{{codeobj_name}}_kernel(
 		{{pathobj}}_size_by_pre,
 		{{pathobj}}_synapses_id_by_pre,
 		{{pathobj}}_delay_by_pre);
+	{{pathobj}}.no_or_const_delay_mode = new_mode;
 }
 
 //POS(queue_id, neuron_id, neurons_N)
@@ -42,6 +44,12 @@ __global__ void _run_{{codeobj_name}}_kernel(
 void _run_{{pathobj}}_initialise_queue()
 {
 	using namespace brian;
+
+	{% if no_or_const_delay_mode %}
+	unsigned int save_num_blocks = num_parallel_blocks;
+	num_parallel_blocks = 1;
+	{% endif %}
+	
 
 	double dt = {{owner._clock._name}}.dt_();
 	unsigned int syn_N = dev_dynamic_array_{{pathobj}}_delay.size();
@@ -126,7 +134,13 @@ void _run_{{pathobj}}_initialise_queue()
 		max_threads_per_block,
 		dt,
 		syn_N,
-		max_delay);
+		max_delay,
+{% if no_or_const_delay_mode %}
+		true
+{% else %}
+		false
+{% endif %}
+	);
 
 	//delete temp arrays
 	delete [] h_synapses_synaptic_sources;
@@ -137,6 +151,10 @@ void _run_{{pathobj}}_initialise_queue()
 	delete [] temp_size_by_pre_id;
 	delete [] temp_synapses_by_pre_id;
 	delete [] temp_delay_by_pre_id;
+
+	{% if no_or_const_delay_mode %}
+	num_parallel_blocks = save_num_blocks;
+	{% endif %}
 }
 
 {% endmacro %}
