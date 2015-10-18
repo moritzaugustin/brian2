@@ -28,6 +28,7 @@ public:
 	scalar dt;
 	CSpikeQueue<scalar>* queue;
 	bool no_or_const_delay_mode;
+	unsigned int which_spikespace;
 
 	//our real constructor
 	__device__ void init(int _Nsource, int _Ntarget, scalar* d_delay, int32_t* _sources,
@@ -42,7 +43,8 @@ public:
 		spikes_start = _spikes_start;
 		spikes_stop = _spikes_stop;
 		queue = new CSpikeQueue<scalar>;
-    };
+		which_spikespace = 0;
+    	};
 
 	//our real destructor
 	__device__ void destroy()

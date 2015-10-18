@@ -42,9 +42,12 @@ __global__ void _run_{{codeobj_name}}_advance_kernel()
 {
 	using namespace brian;
 	unsigned int tid = threadIdx.x;
-
+	{% if no_or_const_delay_mode %}
+	{{owner.name}}.which_spikespace = ({{owner.name}}.which_spikespace + 1) % {{owner.name}}.queue->max_delay;
+	{% else %}
 	{{owner.name}}.queue->advance(
 		tid);
+	{% endif %}
 }
 
 __global__ void _run_{{codeobj_name}}_push_kernel(
