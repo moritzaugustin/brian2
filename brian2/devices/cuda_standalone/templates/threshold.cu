@@ -35,7 +35,7 @@ int mem_per_thread(){
 		// might contain references to not_refractory or lastspike and in
 		// that case the names will refer to a single entry.
 		{{not_refractory}}[_idx] = false;
-		{{lastspike}}[_idx] = t;
+		{{lastspike}}[_idx] = {{t}};
 		{% endif %}
 	}
 {% endblock %}

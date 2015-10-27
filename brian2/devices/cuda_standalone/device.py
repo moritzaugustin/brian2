@@ -22,7 +22,7 @@ from brian2.utils.logger import get_logger
 from brian2.units import second
 
 from .codeobject import CUDAStandaloneCodeObject
-from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice, freeze
+from brian2.devices.cpp_standalone.device import CPPWriter, CPPStandaloneDevice
 from brian2.monitors.statemonitor import StateMonitor
 from brian2.groups.neurongroup import Thresholder
 
@@ -143,12 +143,13 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 main_lines.append('_run_%s();' % codeobj.name)
             elif func=='run_network':
                 net, netcode = args
+		for clock in net._clocks:
+			line = "{net.name}.add(&{clock.name}, _sync_clocks);".format(clock=clock, net=net)
+			netcode.insert(1, line)
                 main_lines.extend(netcode)
             elif func=='set_by_constant':
-                arrayname, value = args
-                size_str = "_num_" + arrayname
-                if arrayname in self.dynamic_arrays.values():
-                    size_str = arrayname + ".size()"
+                arrayname, value, is_dynamic = args
+                size_str = arrayname + ".size()" if is_dynamic else "_num_" + arrayname
                 code = '''
                 for(int i=0; i<{size_str}; i++)
                 {{
@@ -158,7 +159,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                            value=CPPNodeRenderer().render_expr(repr(value)))
                 main_lines.extend(code.split('\n'))
                 pointer_arrayname = "dev{arrayname}".format(arrayname=arrayname)
-                if arrayname in self.dynamic_arrays.values():
+                if is_dynamic:
                     pointer_arrayname = "thrust::raw_pointer_cast(&dev{arrayname}[0])".format(arrayname=arrayname)
                 line = "cudaMemcpy({pointer_arrayname}, &{arrayname}[0], sizeof({arrayname}[0])*{size_str}, cudaMemcpyHostToDevice);".format(
                            arrayname=arrayname, size_str=size_str, pointer_arrayname=pointer_arrayname, 
@@ -172,7 +173,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                 '''.format(arrayname=arrayname, item=item, value=value)
                 main_lines.extend([code])
             elif func=='set_by_array':
-                arrayname, staticarrayname = args
+                arrayname, staticarrayname, is_dynamic = args
                 size = "_num_" + arrayname
                 if arrayname in self.dynamic_arrays.values():
                     size = arrayname + ".size()"
@@ -312,16 +313,6 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
                     line = "float* _array_{name}_rand".format(name=codeobj.name)
                     device_parameters_lines.append(line)
                     host_parameters_lines.append("dev_array_rand")
-                elif isinstance(v, AttributeVariable):
-                    # We assume all attributes are implemented as property-like methods
-                    line = 'const {c_type} {varname} = {objname}.{attrname}();'
-                    code_object_defs_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
-                                             attrname=v.attribute)) 
-                    host_parameters_lines.append(k)
-                    line = "{c_type} par_{varname}"
-                    device_parameters_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k))
-                    line = 'const {c_type} {varname} = par_{varname};'
-                    kernel_variables_lines.append(line.format(c_type=c_data_type(v.dtype), varname=k))
                 elif isinstance(v, ArrayVariable):
                     try:
                         if isinstance(v, DynamicArrayVariable):
@@ -381,7 +372,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         for codeobj in self.code_objects.itervalues():
             ns = codeobj.variables
             # TODO: fix these freeze/CONSTANTS hacks somehow - they work but not elegant.
-            code = freeze(codeobj.code.cu_file, ns)
+            code = self.freeze(codeobj.code.cu_file, ns)
                         
             if len(host_parameters[codeobj.name]) == 0:
                 host_parameters[codeobj.name].append("0")
@@ -594,7 +585,7 @@ class CUDAStandaloneDevice(CPPStandaloneDevice):
         CPPStandaloneDevice.network_run(self, net, duration, report, report_period, namespace, profile, level+1)
         for codeobj in self.code_objects.values():
             if codeobj.template_name == "threshold" or codeobj.template_name == "spikegenerator":
-                self.main_queue.insert(0, ('set_by_constant', (self.get_array_name(codeobj.variables['_spikespace'], False), -1)))
+                self.main_queue.insert(0, ('set_by_constant', (self.get_array_name(codeobj.variables['_spikespace'], False), -1, False)))
         for func, args in self.main_queue:
             if func=='run_network':
                 net, netcode = args

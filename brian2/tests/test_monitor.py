@@ -331,6 +331,8 @@ def test_state_monitor_indexing():
     assert_array_equal(mon[[5, 7]].v, mon.v[[0, 2]])
     assert_array_equal(mon[np.array([5, 7])].v, mon.v[[0, 2]])
 
+    assert_allclose(mon.t[1:], Quantity([defaultclock.dt]))
+
     assert_raises(IndexError, lambda: mon[8])
     assert_raises(TypeError, lambda: mon['string'])
     assert_raises(TypeError, lambda: mon[5.0])
@@ -354,6 +356,24 @@ def test_state_monitor_get_states():
     assert_array_equal(all_states['rate'].T, mon.rate[:])
     assert_array_equal(all_states['t'], mon.t[:])
     assert_array_equal(all_states['N'], mon.N)
+
+@attr('standalone-compatible')
+@with_setup(teardown=restore_device)
+def test_state_monitor_resize():
+    # Test for issue #518 (weave/cython did not resize the Variable object)
+    G = NeuronGroup(2, 'v : 1')
+    mon = StateMonitor(G, 'v', record=True)
+    defaultclock.dt = 0.1*ms
+    run(1*ms)
+    # On standalone, the size information of the variables is only updated
+    # after the variable has been accessed, so we can not only check the size
+    # information of the variables object
+    assert len(mon.t) == 10
+    assert mon.v.shape == (2, 10)
+    assert mon.variables['t'].size == 10
+    # Note that the internally stored variable has the transposed shape of the
+    # variable that is visible to the user
+    assert mon.variables['v'].size == (10, 2)
 
 @attr('standalone-compatible')
 @with_setup(teardown=restore_device)
@@ -420,6 +440,7 @@ if __name__ == '__main__':
     test_state_monitor_record_single_timestep_cpp_standalone()
     test_state_monitor_get_states()
     test_state_monitor_indexing()
+    test_state_monitor_resize()
     test_rate_monitor()
     test_rate_monitor_get_states()
     test_rate_monitor_subgroups()

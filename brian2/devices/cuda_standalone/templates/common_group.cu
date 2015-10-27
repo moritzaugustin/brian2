@@ -67,8 +67,12 @@ __global__ void kernel_{{codeobj_name}}(
 
 	{% block maincode %}
 	{% block maincode_inner %}
+	
 	{{scalar_code|autoindent}}
-	{{vector_code|autoindent}}
+	
+	{
+		{{vector_code|autoindent}}
+	}
 	{% endblock %}
 	{% endblock %}
 }

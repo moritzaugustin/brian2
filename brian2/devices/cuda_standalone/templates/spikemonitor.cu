@@ -111,7 +111,7 @@ __global__ void _count_{{codeobj_name}}_kernel(
 	}
 	{% endfor %}
 	*total = total_number;
-	*{{N}} = total_number;
+	{{N}} = total_number;
 }
 
 __global__ void _copy_{{codeobj_name}}_kernel(

@@ -1,17 +1,16 @@
 {% extends 'common_group.cpp' %}
 
 {% block maincode %}
-    {# USES_VARIABLES { t, _clock_t, _indices } #}
+    {# USES_VARIABLES { t, _clock_t, _indices, N } #}
 
     // Get the current length and new length of t and value arrays
-    const int _curlen = {{_dynamic_t}}.attr("shape")[0];
-    const int _new_len = _curlen + 1;
+    const int _new_len = {{N}} + 1;
 
     // Resize the recorded times and get the (potentially changed) reference to
     // the underlying data
-    PyObject_CallMethod({{_dynamic_t}}, "resize", "i", _new_len);
+    PyObject_CallMethod(_var_t, "resize", "i", _new_len);
     double *_t_data = (double*)(((PyArrayObject*)(PyObject*){{_dynamic_t}}.attr("data"))->data);
-    _t_data[_new_len - 1] = _clock_t;
+    _t_data[_new_len - 1] = {{_clock_t}};
 
 
     // scalar code
@@ -23,7 +22,7 @@
     {
         // Resize the recorded variable "{{varname}}" and get the (potentially
         // changed) reference to the underlying data
-        PyObject_CallMethod({{get_array_name(var, access_data=False)}}, "resize_along_first", "((ii))", _new_len, _num_indices);
+        PyObject_CallMethod(_var_{{varname}}, "resize", "((ii))", _new_len, _num_indices);
         PyArrayObject *_record_data = (((PyArrayObject*)(PyObject*){{get_array_name(var, access_data=False)}}.attr("data")));
         const npy_intp* _record_strides = _record_data->strides;
         for (int _i = 0; _i < _num_indices; _i++)
@@ -38,4 +37,7 @@
         }
     }
     {% endfor %}
+
+    // set the N variable explicitly (since we do not call `StateMonitor.resize`)
+    {{N}} = _new_len;
 {% endblock %}

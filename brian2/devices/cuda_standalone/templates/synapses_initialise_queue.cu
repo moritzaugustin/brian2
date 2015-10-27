@@ -28,7 +28,7 @@ __global__ void _run_{{codeobj_name}}_kernel(
 		tid,
 		_num_threads_per_block,
 		_num_blocks,
-		_dt,
+		0,
 		_target_N,
 		_syn_N,
 		max_delay,
@@ -53,7 +53,7 @@ void _run_{{pathobj}}_initialise_queue()
 	//{{owner.source}}
 	//{{owner.source.name}}
 
-	double dt = {{owner._clock._name}}.dt_();
+	double dt = {{owner.clock.name}}.dt[0];
 	unsigned int syn_N = dev_dynamic_array_{{pathobj}}_delay.size();
 	unsigned int source_N = {{owner.source.N}};
 	unsigned int target_N = {{owner.target.N}};

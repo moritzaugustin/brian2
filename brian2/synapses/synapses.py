@@ -155,24 +155,29 @@ class SynapticPathway(CodeRunner, Group):
         self.spikes_stop = self.source.stop
         self.eventspace_name = '_{}space'.format(event)
         self.eventspace = None  # will be set in before_run
-        self.spiking_synapses = np.array([], dtype=np.int32)
         self.variables = Variables(self)
-        self.variables.add_attribute_variable('_spiking_synapses', unit=Unit(1),
-                                              obj=self,
-                                              attribute='spiking_synapses',
-                                              constant=False,
-                                              scalar=False)
+        self.variables.add_dynamic_array('spiking_synapses', unit=Unit(1),
+                                         size=0, dtype=np.int32,
+                                         constant=False,
+                                         constant_size=False,
+                                         scalar=False)
         self.variables.add_reference(self.eventspace_name, self.source)
         self.variables.add_reference('N', synapses)
         if prepost == 'pre':
             self.variables.add_reference('_n_sources', synapses, 'N_pre')
             self.variables.add_reference('_n_targets', synapses, 'N_post')
+            self.variables.add_reference('_source_dt', synapses.source, 'dt')
         else:
             self.variables.add_reference('_n_sources', synapses, 'N_post')
             self.variables.add_reference('_n_targets', synapses, 'N_pre')
+            self.variables.add_reference('_source_dt', synapses.target, 'dt')
         if delay is None:  # variable delays
+            if getattr(synapses, 'N', None) is not None:
+                n_synapses = synapses.N
+            else:
+                n_synapses = 0
             self.variables.add_dynamic_array('delay', unit=second,
-                                             size=synapses._N, constant=True,
+                                             size=n_synapses, constant=True,
                                              constant_size=True)
             # Register the object with the `SynapticIndex` object so it gets
             # automatically resized
@@ -318,7 +323,10 @@ class SynapticPathway(CodeRunner, Group):
         if len(events):
             self.queue.push(events)
         # Get the spikes
-        self.spiking_synapses = self.queue.peek()
+        spiking_synapses = self.queue.peek()
+        spiking_synapses_var = self.variables['spiking_synapses']
+        spiking_synapses_var.resize(len(spiking_synapses))
+        spiking_synapses_var.set_value(spiking_synapses)
         # Advance the spike queue
         self.queue.advance()
 
@@ -448,7 +456,7 @@ class SynapticIndexing(object):
         (including arrays and slices), a single index or a string.
 
         '''
-        if index is None or index == 'True':
+        if index is None or (isinstance(index, basestring) and index == 'True'):
             index = slice(None)
 
         if (not isinstance(index, (tuple, basestring)) and
@@ -603,7 +611,6 @@ class Synapses(Group):
                  dt=None, clock=None, order=0,
                  method=('linear', 'euler', 'heun'),
                  name='synapses*'):
-        self._N = 0
         Group.__init__(self, dt=dt, clock=clock, when='start', order=order,
                        name=name)
         
@@ -804,7 +811,7 @@ class Synapses(Group):
         return SynapticSubgroup(self, indices)
 
     def before_run(self, run_namespace=None, level=0):
-        self.lastupdate = self._clock.t
+        self.state('lastupdate')[:] = 't'
         super(Synapses, self).before_run(run_namespace, level=level+1)
 
     def _add_updater(self, code, prepost, objname=None, delay=None,
@@ -1122,14 +1129,13 @@ class Synapses(Group):
         if not isinstance(number, numbers.Integral):
             raise TypeError(('Expected an integer number got {} '
                              'instead').format(type(number)))
-        if number < self._N:
+        if number < self.N:
             raise ValueError(('Cannot reduce number of synapses, '
                               '{} < {}').format(number, len(self)))
 
         for variable in self._registered_variables:
             variable.resize(number)
 
-        self._N = number
         self.variables['N'].set_value(number)
 
     def register_variable(self, variable):
@@ -1158,6 +1164,18 @@ class Synapses(Group):
 
             sources = np.atleast_1d(sources).astype(np.int32)
             targets = np.atleast_1d(targets).astype(np.int32)
+
+            # Check whether the values in sources/targets make sense
+            error_message = ('The given {source_or_target} indices contain '
+                             'values outside of the range [0, {max_value}] '
+                             'allowed for the {source_or_target} group '
+                             '"{group_name}"')
+            for indices, source_or_target, group in [(sources, 'source', self.source),
+                                                     (targets, 'target', self.target)]:
+                if np.max(indices) >= len(group) or np.min(indices) < 0:
+                    raise IndexError(error_message.format(source_or_target=source_or_target,
+                                                          max_value=len(group)-1,
+                                                          group_name=group.name))
             n = np.atleast_1d(n)
             p = np.atleast_1d(p)
 

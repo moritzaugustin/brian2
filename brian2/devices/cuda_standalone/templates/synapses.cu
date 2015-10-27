@@ -32,11 +32,9 @@ __global__ void kernel_{{codeobj_name}}(
 	{{pathway.name}}.queue->peek(
 		&synapses_queue);
 
-	if(tid == 0 && bid == 0) printf("START SYN EFFECTS\n");
-
-			
 	{{scalar_code|autoindent}}
 
+	{
 	if (!({{pathway.name}}.no_or_const_delay_mode))
 	{
 		int size = synapses_queue[bid].size();
@@ -67,6 +65,7 @@ __global__ void kernel_{{codeobj_name}}(
 			}
 			__syncthreads();
 		}
+	}
 	}
 }
 

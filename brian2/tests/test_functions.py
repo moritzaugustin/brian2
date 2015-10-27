@@ -133,7 +133,7 @@ def test_user_defined_function():
     G.variable = test_array
     mon = StateMonitor(G, 'func', record=True)
     run(default_dt)
-
+    device.build(run=True, compile=True)
     assert_equal(np.sin(test_array), mon.func_.flatten())
 
 
@@ -519,7 +519,7 @@ def test_binomial():
 
 if __name__ == '__main__':
     from brian2 import prefs
-    #prefs.codegen.target = 'numpy'
+    # prefs.codegen.target = 'numpy'
     import time
     for f in [
             test_constants_sympy,

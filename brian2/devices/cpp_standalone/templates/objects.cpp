@@ -1,4 +1,3 @@
-{# IS_OPENMP_COMPATIBLE #}
 {% macro cpp_file() %}
 
 #include "objects.h"
@@ -10,11 +9,6 @@
 #include<vector>
 #include<iostream>
 #include<fstream>
-
-//////////////// clocks ///////////////////
-{% for clock in clocks | sort(attribute='name') %}
-Clock brian::{{clock.name}}({{clock.dt_}});
-{% endfor %}
 
 //////////////// networks /////////////////
 {% for net in networks | sort(attribute='name') %}
@@ -55,9 +49,13 @@ const int brian::_num_{{name}} = {{N}};
 SynapticPathway<double> brian::{{path.name}}(
 		{{dynamic_array_specs[path.variables['delay']]}},
 		{{dynamic_array_specs[path.synapse_sources]}},
-		{{path.source.dt_}},
 		{{path.source.start}}, {{path.source.stop}});
 {% endfor %}
+{% endfor %}
+
+//////////////// clocks ///////////////////
+{% for clock in clocks | sort(attribute='name') %}
+Clock brian::{{clock.name}};  // attributes will be set in run.cpp
 {% endfor %}
 
 // Profiling information for each code object
@@ -138,7 +136,7 @@ void _write_arrays()
 	outfile_{{varname}}.open("{{get_array_filename(var) | replace('\\', '\\\\')}}", ios::binary | ios::out);
 	if(outfile_{{varname}}.is_open())
 	{
-		outfile_{{varname}}.write(reinterpret_cast<char*>({{varname}}), {{var.size}}*sizeof({{varname}}[0]));
+		outfile_{{varname}}.write(reinterpret_cast<char*>({{varname}}), {{var.size}}*sizeof({{get_array_name(var)}}[0]));
 		outfile_{{varname}}.close();
 	} else
 	{
@@ -190,6 +188,18 @@ void _write_arrays()
 	} else
 	{
 	    std::cout << "Error writing profiling info to file." << std::endl;
+	}
+
+	// Write last run info to disk
+	ofstream outfile_last_run_info;
+	outfile_last_run_info.open("results/last_run_info.txt", ios::out);
+	if(outfile_last_run_info.is_open())
+	{
+		outfile_last_run_info << (Network::_last_run_time) << " " << (Network::_last_run_completed_fraction) << std::endl;
+		outfile_last_run_info.close();
+	} else
+	{
+	    std::cout << "Error writing last run info to file." << std::endl;
 	}
 }
 
